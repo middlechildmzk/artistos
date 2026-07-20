@@ -1,1 +1,0 @@
-ArtistOS unified live-data application (Session A, 2026-07-16). Reads live Supabase (authenticated-only RLS). No demo data. Modules: shell/directory/views + lib/data. API: /api/ai (audited), /api/ai/status, /api/integrations/spotify/*.
