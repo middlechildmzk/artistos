@@ -15,6 +15,7 @@ test('materialized readable source has required operating routes', () => {
 test('Gmail draft route checks suppressions before the Gmail request', () => {
   const source = read('app/api/gmail/draft/route.ts');
   assert.ok(source.indexOf("from('suppressions')") < source.indexOf('gmail.googleapis.com'));
+  assert.match(source, /toLowerCase\(\).*=== to/);
   assert.match(source, /Draft creation was blocked/);
 });
 
@@ -38,4 +39,16 @@ test('migration is additive and protects OAuth rows with owner RLS', () => {
   assert.doesNotMatch(sql, /drop table|truncate|delete from/);
   assert.match(sql, /enable row level security/);
   assert.match(sql, /auth\.uid\(\).*user_id/s);
+});
+
+test('relationship stage writes are server-whitelisted', () => {
+  const source = read('lib/actions.ts');
+  assert.match(source, /RELATIONSHIP_STAGES/);
+  assert.match(source, /Unsupported relationship stage/);
+});
+
+test('magic-link origin is derived server-side', () => {
+  const source = read('lib/actions.ts');
+  assert.match(source, /requestOrigin\(await headers\(\)\)/);
+  assert.doesNotMatch(source, /value\(formData, 'origin'\)/);
 });
