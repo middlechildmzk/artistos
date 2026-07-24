@@ -5,6 +5,7 @@
   "engines": { "node": "24.x" },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});fs.copyFileSync('package-lock.json','public/package-lock.generated.json')\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
