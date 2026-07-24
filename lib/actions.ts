@@ -1,12 +1,21 @@
 "use server";
 
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
+const RELATIONSHIP_STAGES = new Set(['identified','qualified','pitched','replied','negotiating','placed','declined','dormant']);
+
 function value(formData: FormData, key: string) {
   const raw = formData.get(key);
   return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function requestOrigin(requestHeaders: Headers) {
+  const host = requestHeaders.get('x-forwarded-host') ?? requestHeaders.get('host');
+  const protocol = requestHeaders.get('x-forwarded-proto') ?? (host?.includes('localhost') ? 'http' : 'https');
+  return process.env.NEXT_PUBLIC_APP_URL ?? (host ? `${protocol}://${host}` : 'http://localhost:3000');
 }
 
 export async function signIn(formData: FormData) {
@@ -21,7 +30,7 @@ export async function signIn(formData: FormData) {
 export async function sendMagicLink(formData: FormData) {
   const supabase = await createClient();
   const email = value(formData, 'email');
-  const origin = value(formData, 'origin');
+  const origin = requestOrigin(await headers());
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: `${origin}/auth/callback` },
@@ -56,6 +65,7 @@ export async function updateRelationshipStage(formData: FormData) {
   const id = value(formData, 'id');
   const stage = value(formData, 'stage');
   if (!['properties', 'people', 'organizations'].includes(table)) throw new Error('Unsupported entity type.');
+  if (!RELATIONSHIP_STAGES.has(stage)) throw new Error('Unsupported relationship stage.');
   const { error } = await supabase.from(table).update({ relationship_stage: stage }).eq('id', id);
   if (error) throw new Error(error.message);
   revalidatePath('/playlists');
