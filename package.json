@@ -5,7 +5,6 @@
   "engines": { "node": "24.x" },
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node -e \"const fs=require('fs');const s=fs.readFileSync('package-lock.json','utf8');fs.writeFileSync('app/api/oauth/lockfile/generated.ts','export default '+JSON.stringify(s)+';\\n')\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
