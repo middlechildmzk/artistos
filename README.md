@@ -12,7 +12,7 @@ ArtistOS is the private, live-data release operating system for Middle Child. Th
 - Spotify OAuth with token refresh and a real identity health check.
 - Audited AI generation grounded in saved release/task facts.
 - Applied additive migrations for OAuth connections, content items, least-privilege grants, safe indexes, and AI audit-policy hardening.
-- A committed npm lockfile with patched PostCSS and Sharp overrides and a zero-vulnerability audit at the final preview build.
+- A committed npm lockfile with pinned PostCSS and Sharp overrides.
 
 ## Local setup
 
@@ -29,10 +29,10 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-npm audit --package-lock-only --audit-level=high
+npm audit --omit=dev --audit-level=high
 ```
 
-The repository pins direct dependency versions and commits `package-lock.json`. The final Vercel preview completed a locked `npm ci`, reported zero audit vulnerabilities, passed 7/7 safety tests, passed TypeScript, and completed the production build.
+The preview deployment workflow runs the complete validation command and audits production dependencies before deploying. Development-only audit findings must be reviewed separately and must not be represented as cleared without a fresh locked audit.
 
 ## Data safety
 
