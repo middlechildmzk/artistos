@@ -1,111 +1,60 @@
-name: Publish Session D Preview
+name: Validate and Deploy ArtistOS Preview
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
+      - claude-major-rebuild
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: artistos-preview
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: team_tURNGn8d3ljgUAExWDM2Jjed
+  VERCEL_PROJECT_ID: prj_p4H6ECpMwioHVPXNmQjRltbB0PUe
 
 jobs:
-  publish:
+  validate-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out bootstrap source
+      - name: Check out readable ArtistOS source
         uses: actions/checkout@v4
         with:
-          ref: bootstrap-import
-          fetch-depth: 0
+          ref: claude-major-rebuild
 
-      - name: Set up Node
+      - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+          cache: npm
 
-      - name: Install Brotli
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y brotli
+      - name: Install locked dependencies
+        run: npm ci
 
-      - name: Reconstruct Session D
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf /tmp/artistos-source
-          mkdir -p /tmp/artistos-source
-          cat bootstrap/parts/part00 bootstrap/parts/part01 bootstrap/parts/part02 bootstrap/parts/part03 \
-            | base64 --decode \
-            | brotli --decompress \
-            > /tmp/artistos-runtime.tar
-          tar -xf /tmp/artistos-runtime.tar -C /tmp/artistos-source
-          cat > /tmp/artistos-source/package.json <<'JSON'
-          {
-            "name": "artistos-intelligence",
-            "version": "0.1.0",
-            "private": true,
-            "scripts": {
-              "dev": "next dev",
-              "build": "next build",
-              "start": "next start",
-              "typecheck": "tsc --noEmit"
-            },
-            "dependencies": {
-              "@supabase/supabase-js": "^2.45.4",
-              "ai": "^6.0.83",
-              "lucide-react": "^0.468.0",
-              "next": "^16.2.10",
-              "react": "^19.2.7",
-              "react-dom": "^19.2.7",
-              "zod": "^3.24.1"
-            },
-            "devDependencies": {
-              "@types/node": "^22.10.5",
-              "@types/react": "^19.0.2",
-              "@types/react-dom": "^19.0.2",
-              "typescript": "^5.7.2"
-            },
-            "overrides": {
-              "postcss": "8.5.10"
-            }
-          }
-          JSON
-          cat > /tmp/artistos-source/.gitignore <<'EOF'
-          node_modules/
-          .next/
-          .vercel/
-          .env
-          .env.*
-          !.env.example
-          *.pem
-          *.key
-          PREVIEW_ONLY_SECRETS.env.txt
-          EOF
+      - name: Validate application
+        run: npm run check
 
-      - name: Verify source
-        working-directory: /tmp/artistos-source
-        run: |
-          npm install --package-lock-only
-          npm ci
-          npm run typecheck
-          npm run build
-          npm audit --omit=dev --audit-level=high
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
-      - name: Publish preview branch
-        shell: bash
+      - name: Require Vercel deployment credential
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          set -euo pipefail
-          git config user.name "ArtistOS Bootstrap"
-          git config user.email "actions@users.noreply.github.com"
-          git checkout --orphan materialized-session-d
-          git rm -rf . || true
-          cp -a /tmp/artistos-source/. .
-          rm -rf node_modules .next
-          git add -A
-          git commit -m "Publish verified Session D preview source"
-          git branch -M session-d-preview
-          git push --force origin session-d-preview
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing repository secret VERCEL_TOKEN. Add a Vercel token with access to the ArtistOS project."
+            exit 1
+          fi
+
+      - name: Pull Vercel preview configuration
+        run: npx vercel@latest pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build with Vercel preview environment
+        run: npx vercel@latest build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy preview
+        run: npx vercel@latest deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
