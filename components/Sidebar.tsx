@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const items = [
-  ['/', '✦', 'Today'], ['/releases', '◉', 'Releases'], ['/playlists', '♫', 'Playlists'],
-  ['/industry', '◇', 'Industry'], ['/fans', '♡', 'Fans'], ['/outreach', '↗', 'Outreach'],
-  ['/content', '▦', 'Content'], ['/assets', '⬡', 'Assets'], ['/imports', '⇩', 'Imports'],
-  ['/search', '⌕', 'Search'], ['/integrations', '⚡', 'Integrations'],
+  ['/', '✦', 'Today'], ['/releases', '◉', 'Releases'], ['/social', '◈', 'Social'],
+  ['/playlists', '♫', 'Playlists'], ['/industry', '◇', 'Industry'], ['/fans', '♡', 'Fans'],
+  ['/outreach', '↗', 'Outreach'], ['/content', '▦', 'Content'], ['/assets', '⬡', 'Assets'],
+  ['/imports', '⇩', 'Imports'], ['/search', '⌕', 'Search'], ['/integrations', '⚡', 'Integrations'],
 ] as const;
 
 export function Sidebar({ email }: { email: string }) {
