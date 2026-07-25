@@ -1,0 +1,102 @@
+name: Materialize Session D
+
+on:
+  push:
+    branches:
+      - bootstrap-import
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out bootstrap branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Brotli
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y brotli
+
+      - name: Reconstruct Session D source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/artistos-source
+          mkdir -p /tmp/artistos-source
+          cat bootstrap/parts/part00 bootstrap/parts/part01 bootstrap/parts/part02 bootstrap/parts/part03 \
+            | base64 --decode \
+            | brotli --decompress \
+            > /tmp/artistos-runtime.tar
+          tar -xf /tmp/artistos-runtime.tar -C /tmp/artistos-source
+          cat > /tmp/artistos-source/package.json <<'JSON'
+          {
+            "name": "artistos-intelligence",
+            "version": "0.1.0",
+            "private": true,
+            "scripts": {
+              "dev": "next dev",
+              "build": "next build",
+              "start": "next start",
+              "typecheck": "tsc --noEmit"
+            },
+            "dependencies": {
+              "@supabase/supabase-js": "^2.45.4",
+              "ai": "^6.0.83",
+              "lucide-react": "^0.468.0",
+              "next": "^16.2.10",
+              "react": "^19.2.7",
+              "react-dom": "^19.2.7",
+              "zod": "^3.24.1"
+            },
+            "devDependencies": {
+              "@types/node": "^22.10.5",
+              "@types/react": "^19.0.2",
+              "@types/react-dom": "^19.0.2",
+              "typescript": "^5.7.2"
+            },
+            "overrides": {
+              "postcss": "8.5.10"
+            }
+          }
+          JSON
+          cat > /tmp/artistos-source/.gitignore <<'EOF'
+          node_modules/
+          .next/
+          .vercel/
+          .env
+          .env.*
+          !.env.example
+          *.pem
+          *.key
+          PREVIEW_ONLY_SECRETS.env.txt
+          EOF
+
+      - name: Verify reconstructed source
+        working-directory: /tmp/artistos-source
+        run: |
+          npm install --package-lock-only
+          npm ci
+          npm run typecheck
+          npm run build
+          npm audit --omit=dev --audit-level=high
+
+      - name: Publish Session D preview branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "ArtistOS Bootstrap"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan materialized-session-d
+          git rm -rf . || true
+          cp -a /tmp/artistos-source/. .
+          rm -rf node_modules .next
+          git add -A
+          git commit -m "Publish verified Session D preview source"
+          git branch -M session-d-preview
+          git push --force origin session-d-preview
