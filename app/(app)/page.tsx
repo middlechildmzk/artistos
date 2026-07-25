@@ -3,6 +3,7 @@ import { getTodayData, type Row } from '@/lib/data';
 import { toggleTask } from '@/lib/actions';
 import { Badge, Card, Metric, StatusBadge } from '@/components/ui';
 import { AICopilotForm } from '@/components/AICopilotForm';
+import { NEVER_ALONE_PRESAVE_URL } from '@/lib/social-data';
 
 function daysUntil(date: string) {
   const target = new Date(`${date}T12:00:00-05:00`).getTime();
@@ -18,13 +19,17 @@ export default async function TodayPage() {
       <section className="hero">
         <div className="hero-grid">
           <div>
-            <div className="eyebrow">Friday, July 24 · regain control</div>
+            <div className="eyebrow">Release week · execute what moves the song</div>
             <h1>Never Alone<br /><span style={{color:'#a99eff'}}>release command center</span></h1>
-            <p className="muted" style={{maxWidth:660}}>One focused plan built from the live campaign, not a demo dashboard. Finish what protects the release, then move the highest-trust outreach forward.</p>
+            <p className="muted" style={{maxWidth:660}}>One focused plan built from the live campaign, not a demo dashboard. Finish what protects the release, publish the next meaningful story, then move the highest-trust outreach forward.</p>
             <div className="row wrap">
               <Badge tone="green">{data.progress.done} complete</Badge>
               <Badge tone="amber">{data.progress.open} open</Badge>
               <Badge>{percent}% campaign progress</Badge>
+            </div>
+            <div className="row wrap section">
+              <Link className="button primary" href="/social">Open social command center</Link>
+              <a className="button ghost" href={NEVER_ALONE_PRESAVE_URL} target="_blank" rel="noreferrer">Verify pre-save</a>
             </div>
           </div>
           <div className="countdown"><strong>{days}</strong><span>days until July 31</span></div>
@@ -40,11 +45,11 @@ export default async function TodayPage() {
 
       <section className="section grid grid-2">
         <Card>
-          <div className="row between"><div><div className="eyebrow">Do this next</div><h2>{data.nextTask?.title ?? 'Review the release workspace'}</h2></div><span className="check">1</span></div>
-          <p className="muted">{data.nextTask?.detail || 'The deterministic queue uses deadline, spine classification, blocker state, and campaign order.'}</p>
+          <div className="row between"><div><div className="eyebrow">Do this next</div><h2>{data.nextTask?.title ?? 'Build and publish the next campaign post'}</h2></div><span className="check">1</span></div>
+          <p className="muted">{data.nextTask?.detail || 'Use the social command center to create, approve, publish, amplify, and measure the next Never Alone post.'}</p>
           {data.nextTask?.blocked_by && !data.nextTask.blocker_cleared ? <div className="notice warning">Blocked by: {data.nextTask.blocked_by}</div> : null}
           <div className="row wrap section">
-            {data.nextTask ? <form action={toggleTask}><input type="hidden" name="id" value={data.nextTask.id} /><input type="hidden" name="current" value={data.nextTask.status} /><button className="button primary" type="submit">Mark complete</button></form> : null}
+            {data.nextTask ? <form action={toggleTask}><input type="hidden" name="id" value={data.nextTask.id} /><input type="hidden" name="current" value={data.nextTask.status} /><button className="button primary" type="submit">Mark complete</button></form> : <Link className="button primary" href="/social">Create next post</Link>}
             <Link className="button ghost" href="/releases">Open release workspace</Link>
           </div>
         </Card>
@@ -85,7 +90,7 @@ export default async function TodayPage() {
 
       <section className="section grid grid-2">
         <Card><div className="eyebrow">Audited copilot</div><h2>Grounded release help</h2><p className="muted">Uses saved release and task facts, stores an audit record, and never sends or overrides suppression and risk controls.</p><AICopilotForm /></Card>
-        <Card><div className="eyebrow">Release-week rule</div><h2>Protect the spine</h2><p className="muted">Finish metadata, links, content, safe audience, and verified outreach before adding new systems. Anything blocked stays visible instead of being silently treated as done.</p><div className="row wrap"><Badge tone="green">Live data</Badge><Badge tone="amber">Explicit sends only</Badge><Badge>{data.counts.signals} relationship signals</Badge></div></Card>
+        <Card><div className="eyebrow">Release-week rule</div><h2>Protect the spine, then amplify</h2><p className="muted">Finish metadata, links, safe audience, and verified outreach. Use Social to turn each approved post into a practical follow-up plan instead of starting from zero.</p><div className="row wrap"><Badge tone="green">Live data</Badge><Badge tone="amber">Explicit sends only</Badge><Badge>{data.counts.signals} relationship signals</Badge></div><Link className="button primary section" href="/social">Create or boost a post</Link></Card>
       </section>
 
       <section className="section grid grid-2">
