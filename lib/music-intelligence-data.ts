@@ -18,5 +18,5 @@ export async function getMusicIntelligence() {
     const m = row.metrics ?? {};
     return { streams: a.streams + Number(m.streams ?? 0), views: a.views + Number(m.views ?? 0), followers: Math.max(a.followers, Number(m.followers ?? 0)), revenue: a.revenue + Number(m.revenue_usd ?? 0) };
   }, { streams: 0, views: 0, followers: 0, revenue: 0 });
-  return { platforms: platforms.data ?? [], profiles: profiles.data ?? [], links: links.data ?? [], metrics: metrics.data ?? [], coverage: coverage.data ?? [], placements: placements.data ?? [], release, totals, migrationRequired, error: migrationRequired ? null : errors[0]?.message ?? null };
+  return { platforms: platforms.data ?? [], profiles: profiles.data ?? [], links: links.data ?? [], metrics: metrics.data ?? [], coverage: coverage.data ?? [], placements: placements.data ?? [], release, releases: releases.data ?? [], totals, migrationRequired, error: migrationRequired ? null : errors[0]?.message ?? null };
 }
