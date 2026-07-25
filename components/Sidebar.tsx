@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const items = [
-  ['/', '✦', 'Today'], ['/releases', '◉', 'Releases'], ['/social', '◈', 'Social'],
+  ['/', '✦', 'Today'], ['/releases', '◉', 'Releases'], ['/platforms', '◎', 'Music Intelligence'], ['/social', '◈', 'Social'],
   ['/playlists', '♫', 'Playlists'], ['/industry', '◇', 'Industry'], ['/fans', '♡', 'Fans'],
   ['/outreach', '↗', 'Outreach'], ['/content', '▦', 'Content'], ['/assets', '⬡', 'Assets'],
   ['/imports', '⇩', 'Imports'], ['/search', '⌕', 'Search'], ['/integrations', '⚡', 'Integrations'],
