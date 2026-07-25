@@ -1,89 +1,97 @@
-import { Badge, Card, Metric, PageHeader } from '@/components/ui';
-import { DISTROKID_BASELINE, MUSIC_PLATFORMS, NEVER_ALONE_RELEASE } from '@/lib/platform-registry';
+import { Badge, Card, Empty, ErrorNotice, Metric, PageHeader, StatusBadge } from '@/components/ui';
+import { recordCoverage, recordMusicMetric, savePlatformProfile, saveReleaseLink } from '@/lib/music-intelligence-actions';
+import { getMusicIntelligence } from '@/lib/music-intelligence-data';
+import { NEVER_ALONE_RELEASE } from '@/lib/platform-registry';
 
-const modeLabel: Record<string, string> = {
-  oauth: 'OAuth', api: 'API', export: 'Export', distributor: 'DistroKid', public: 'Public', manual: 'Manual',
-};
-
-export default function PlatformsPage() {
-  const core = MUSIC_PLATFORMS.filter((item) => item.priority === 'core');
-  const growth = MUSIC_PLATFORMS.filter((item) => item.priority === 'growth');
-  const coverage = MUSIC_PLATFORMS.filter((item) => item.priority === 'coverage');
+export default async function PlatformsPage() {
+  const data = await getMusicIntelligence();
+  const platformOptions = data.platforms.map((p: any) => <option key={p.slug} value={p.slug}>{p.name}</option>);
+  const connected = data.profiles.filter((p: any) => p.connection_state === 'connected').length;
+  const liveLinks = data.links.filter((l: any) => l.release_status === 'live').length;
+  const activePlacements = data.placements.filter((p: any) => !p.removed_at).length;
 
   return <>
-    <PageHeader
-      eyebrow="Universal music intelligence"
-      title="Every platform. One release identity."
-      description="Track distribution, audience, streaming, social, playlists, press, radio, and revenue without pretending every source exposes a live API."
-      actions={<a className="button primary" href={NEVER_ALONE_RELEASE.presaveUrl} target="_blank" rel="noreferrer">Open Never Alone</a>}
-    />
+    <PageHeader eyebrow="Universal music intelligence" title="Every platform. One operating system." description="Connect accounts, record release links, import or enter metrics, monitor playlist adds, and preserve evidence for press, radio, blogs, channels, and DJ support." actions={<a className="button primary" href={NEVER_ALONE_RELEASE.presaveUrl} target="_blank" rel="noreferrer">Open Never Alone</a>} />
+    {data.migrationRequired ? <div className="notice warning"><strong>Database activation required.</strong> Apply <code>supabase/migrations/20260725130000_artistos_music_intelligence.sql</code>.</div> : null}
+    <ErrorNotice message={data.error} />
 
     <section className="grid grid-4">
-      <Metric value={MUSIC_PLATFORMS.length} label="platform groups mapped" />
-      <Metric value={DISTROKID_BASELINE.length} label="DistroKid-linked destinations" />
-      <Metric value={core.length} label="launch-critical connections" />
-      <Metric value="4" label="evidence source classes" />
+      <Metric value={data.platforms.length} label="platform groups" />
+      <Metric value={connected} label="connected profiles" />
+      <Metric value={liveLinks} label="verified live release links" />
+      <Metric value={activePlacements} label="active playlist placements" />
+    </section>
+
+    <section className="section grid grid-4">
+      <Metric value={data.totals.streams.toLocaleString()} label="recorded streams" />
+      <Metric value={data.totals.views.toLocaleString()} label="recorded views" />
+      <Metric value={data.totals.followers.toLocaleString()} label="latest follower high" />
+      <Metric value={`$${data.totals.revenue.toFixed(2)}`} label="recorded revenue" />
     </section>
 
     <section className="section grid grid-2">
       <Card>
-        <div className="eyebrow">Canonical release identity</div>
-        <h2>{NEVER_ALONE_RELEASE.title} <span className="muted">feat. {NEVER_ALONE_RELEASE.featuredArtist}</span></h2>
-        <div className="stack">
-          <div className="row between"><span>Artist</span><strong>{NEVER_ALONE_RELEASE.artist}</strong></div>
-          <div className="row between"><span>Release date</span><strong>{NEVER_ALONE_RELEASE.releaseDate}</strong></div>
-          <div className="row between"><span>UPC</span><strong>{NEVER_ALONE_RELEASE.upc}</strong></div>
-          <div className="row between"><span>Label</span><strong>{NEVER_ALONE_RELEASE.label}</strong></div>
-        </div>
-        <div className="notice section">Every DSP profile, release URL, track ID, stream report, playlist placement, and media feature should resolve back to this record.</div>
+        <div className="eyebrow">Account and profile registry</div><h2>Connect or verify a platform</h2>
+        <form action={savePlatformProfile} className="stack">
+          <div className="form-grid"><div className="field"><label>Platform</label><select className="select" name="platform_slug">{platformOptions}</select></div><div className="field"><label>Artist</label><input className="input" name="artist_name" defaultValue="Middle Child" /></div></div>
+          <div className="field"><label>Profile URL</label><input className="input" type="url" name="profile_url" /></div>
+          <div className="field"><label>External artist ID</label><input className="input" name="external_artist_id" /></div>
+          <div className="form-grid"><div className="field"><label>Connection</label><select className="select" name="connection_state"><option>unconnected</option><option>pending</option><option>connected</option><option>error</option></select></div><div className="field"><label>Source</label><select className="select" name="source_type"><option>oauth</option><option>api</option><option>export</option><option>distributor</option><option>public</option><option>manual</option></select></div><div className="field"><label>Freshness</label><select className="select" name="freshness_status"><option>unknown</option><option>fresh</option><option>stale</option><option>broken</option></select></div></div>
+          <div className="field"><label>Last verified</label><input className="input" type="datetime-local" name="last_verified_at" /></div>
+          <div className="field"><label>Notes</label><textarea className="textarea" name="notes" /></div>
+          <button className="button primary">Save profile</button>
+        </form>
       </Card>
 
       <Card>
-        <div className="eyebrow">Connection truth</div>
-        <h2>Live, imported, verified, or manual</h2>
-        <div className="list">
-          <div className="list-item"><span className="check">1</span><div><strong>Live API / OAuth</strong><div className="kicker">Provider-authorized metrics and identity</div></div><Badge tone="green">highest freshness</Badge></div>
-          <div className="list-item"><span className="check">2</span><div><strong>Artist dashboard export</strong><div className="kicker">CSV or report imported with period and source</div></div><Badge>auditable</Badge></div>
-          <div className="list-item"><span className="check">3</span><div><strong>DistroKid statement</strong><div className="kicker">Cross-store streams, sales, and revenue</div></div><Badge>authoritative payout</Badge></div>
-          <div className="list-item"><span className="check">4</span><div><strong>Public/manual evidence</strong><div className="kicker">URL, screenshot, date, confidence, reviewer</div></div><Badge tone="amber">verification required</Badge></div>
-        </div>
-      </Card>
-    </section>
-
-    <section className="section">
-      <Card>
-        <div className="row between"><div><div className="eyebrow">Launch-critical</div><h2>Connect these first</h2></div><Badge>{core.length}</Badge></div>
-        <div className="grid grid-2">
-          {core.map((platform) => <div className="card inset" key={platform.slug}>
-            <div className="row between"><div><strong>{platform.name}</strong><div className="kicker">{platform.category}</div></div><Badge tone="amber">connection needed</Badge></div>
-            <p className="muted">{platform.notes}</p>
-            <div className="row wrap">{platform.modes.map((mode) => <Badge key={mode}>{modeLabel[mode]}</Badge>)}</div>
-            <p className="kicker">Tracks: {platform.metrics.join(' · ')}</p>
-          </div>)}
-        </div>
+        <div className="eyebrow">Release destination registry</div><h2>Save a Never Alone store link</h2>
+        <form action={saveReleaseLink} className="stack">
+          <input type="hidden" name="release_id" value={data.release?.id ?? ''} />
+          <div className="form-grid"><div className="field"><label>Platform</label><select className="select" name="platform_slug">{platformOptions}</select></div><div className="field"><label>Status</label><select className="select" name="release_status"><option>unknown</option><option>pending</option><option>live</option><option>missing</option><option>wrong_profile</option></select></div></div>
+          <div className="field"><label>Release or track URL</label><input className="input" type="url" name="release_url" /></div>
+          <div className="form-grid"><div className="field"><label>Release ID</label><input className="input" name="external_release_id" /></div><div className="field"><label>Track ID / ISRC</label><input className="input" name="external_track_id" /></div></div>
+          <div className="form-grid"><div className="field"><label>Source</label><select className="select" name="source_type"><option>manual</option><option>api</option><option>distributor</option><option>public</option></select></div><div className="field"><label>Verified</label><input className="input" type="datetime-local" name="last_verified_at" /></div></div>
+          <div className="field"><label>Evidence URL</label><input className="input" type="url" name="evidence_url" /></div>
+          <button className="button primary">Save destination</button>
+        </form>
       </Card>
     </section>
 
     <section className="section grid grid-2">
       <Card>
-        <div className="row between"><div><div className="eyebrow">Growth network</div><h2>High-value expansion</h2></div><Badge>{growth.length}</Badge></div>
-        <div className="stack">{growth.map((platform) => <div className="list-item" key={platform.slug}><div><strong>{platform.name}</strong><div className="kicker">{platform.category} · {platform.modes.map((mode) => modeLabel[mode]).join(' + ')}</div></div><Badge tone="amber">not synced</Badge></div>)}</div>
+        <div className="eyebrow">Metrics ingestion</div><h2>Record API, export, or DistroKid data</h2>
+        <form action={recordMusicMetric} className="stack">
+          <input type="hidden" name="release_id" value={data.release?.id ?? ''} />
+          <div className="form-grid"><div className="field"><label>Platform</label><select className="select" name="platform_slug">{platformOptions}</select></div><div className="field"><label>Date</label><input className="input" type="date" name="metric_date" /></div><div className="field"><label>Source</label><select className="select" name="source_type"><option>manual</option><option>api</option><option>export</option><option>distributor</option><option>public</option></select></div></div>
+          <div className="form-grid">{['streams','views','followers','monthly_listeners','saves','playlist_adds','revenue_usd'].map((name) => <div className="field" key={name}><label>{name.replaceAll('_',' ')}</label><input className="input" type="number" step={name === 'revenue_usd' ? '0.01' : '1'} min="0" name={name} /></div>)}</div>
+          <div className="form-grid"><div className="field"><label>Confidence 0–100</label><input className="input" type="number" min="0" max="100" name="confidence" /></div><div className="field"><label>Source reference</label><input className="input" name="source_reference" placeholder="CSV filename, API run, report period, or URL" /></div></div>
+          <button className="button primary">Record snapshot</button>
+        </form>
       </Card>
+
       <Card>
-        <div className="row between"><div><div className="eyebrow">Distribution coverage</div><h2>Long-tail destinations</h2></div><Badge>{coverage.length}</Badge></div>
-        <div className="stack">{coverage.map((platform) => <div className="list-item" key={platform.slug}><div><strong>{platform.name}</strong><div className="kicker">{platform.category} · {platform.metrics.join(' · ')}</div></div><Badge>mapped</Badge></div>)}</div>
+        <div className="eyebrow">Coverage evidence</div><h2>Log blogs, radio, channels, podcasts, or DJ support</h2>
+        <form action={recordCoverage} className="stack">
+          <input type="hidden" name="release_id" value={data.release?.id ?? ''} />
+          <div className="form-grid"><div className="field"><label>Type</label><select className="select" name="coverage_type"><option>blog_feature</option><option>radio_spin</option><option>youtube_channel</option><option>podcast</option><option>dj_support</option><option>soundcloud_repost</option><option>sync</option></select></div><div className="field"><label>Platform</label><select className="select" name="platform_slug">{platformOptions}</select></div></div>
+          <div className="field"><label>Outlet</label><input className="input" name="outlet_name" required /></div><div className="field"><label>Feature title</label><input className="input" name="title" /></div><div className="field"><label>URL</label><input className="input" type="url" name="url" /></div>
+          <div className="form-grid"><div className="field"><label>Date</label><input className="input" type="datetime-local" name="occurred_at" /></div><div className="field"><label>Audience estimate</label><input className="input" type="number" min="0" name="audience_estimate" /></div></div>
+          <div className="form-grid"><div className="field"><label>Contact</label><input className="input" name="contact_name" /></div><div className="field"><label>Contact route</label><input className="input" name="contact_method" placeholder="email, form, Instagram, etc." /></div></div>
+          <div className="form-grid"><div className="field"><label>Verification</label><select className="select" name="verification_state"><option>unverified</option><option>supported</option><option>verified</option><option>stale</option><option>conflicting</option></select></div><div className="field"><label>Confidence</label><input className="input" type="number" min="0" max="100" name="confidence" /></div></div>
+          <div className="field"><label>Evidence URL</label><input className="input" type="url" name="evidence_url" /></div><div className="field"><label>Notes</label><textarea className="textarea" name="notes" /></div>
+          <button className="button primary">Log coverage</button>
+        </form>
       </Card>
     </section>
 
-    <section className="section"><Card>
-      <div className="eyebrow">Next operational steps</div>
-      <h2>Turn the map into live intelligence</h2>
-      <div className="grid grid-4">
-        <div className="card inset"><strong>1. Identity</strong><p className="muted">Save every artist, release, and track ID by platform.</p></div>
-        <div className="card inset"><strong>2. Connect</strong><p className="muted">Authorize Gmail, Spotify, Google/YouTube, Meta, SoundCloud, and other eligible accounts.</p></div>
-        <div className="card inset"><strong>3. Import</strong><p className="muted">Load DistroKid, Apple, Amazon, Spotify, and other artist-dashboard reports.</p></div>
-        <div className="card inset"><strong>4. Verify</strong><p className="muted">Monitor playlist adds, press, channels, radio, and broken profile links with evidence dates.</p></div>
-      </div>
-    </Card></section>
+    <section className="section grid grid-2">
+      <Card><div className="row between"><div><div className="eyebrow">Platform health</div><h2>Profiles and connections</h2></div><Badge>{data.profiles.length}</Badge></div>{data.profiles.length ? <div className="stack">{data.profiles.map((p: any) => <div className="list-item" key={p.id}><div><strong>{p.music_platforms?.name ?? 'Platform'} · {p.artist_name}</strong><div className="kicker">{p.source_type} · {p.last_verified_at ?? 'never verified'}</div></div><StatusBadge status={p.connection_state} /></div>)}</div> : <Empty>No platform profiles saved yet.</Empty>}</Card>
+      <Card><div className="row between"><div><div className="eyebrow">Store coverage</div><h2>Never Alone destinations</h2></div><Badge>{data.links.length}</Badge></div>{data.links.length ? <div className="stack">{data.links.map((l: any) => <div className="list-item" key={l.id}><div><strong>{l.music_platforms?.name ?? 'Platform'}</strong><div className="kicker">{l.source_type} · {l.last_verified_at ?? 'never verified'}</div></div><div className="row"><StatusBadge status={l.release_status} />{l.release_url ? <a className="button ghost" href={l.release_url} target="_blank" rel="noreferrer">Open</a> : null}</div></div>)}</div> : <Empty>No platform release links saved yet.</Empty>}</Card>
+    </section>
+
+    <section className="section grid grid-2">
+      <Card><div className="row between"><div><div className="eyebrow">Recent intelligence</div><h2>Metric snapshots</h2></div><Badge>{data.metrics.length}</Badge></div>{data.metrics.length ? <div className="timeline">{data.metrics.slice(0,25).map((m: any) => <div className="timeline-item" key={m.id}><strong>{m.music_platforms?.name ?? 'Platform'}</strong><div className="kicker">{m.metric_date} · {m.source_type} · confidence {m.confidence ?? 'n/a'}</div><p className="muted">Streams {Number(m.metrics?.streams ?? 0).toLocaleString()} · Views {Number(m.metrics?.views ?? 0).toLocaleString()} · Followers {Number(m.metrics?.followers ?? 0).toLocaleString()} · Revenue ${Number(m.metrics?.revenue_usd ?? 0).toFixed(2)}</p></div>)}</div> : <Empty>No metrics imported or recorded.</Empty>}</Card>
+      <Card><div className="row between"><div><div className="eyebrow">Earned media and support</div><h2>Coverage timeline</h2></div><Badge>{data.coverage.length}</Badge></div>{data.coverage.length ? <div className="timeline">{data.coverage.slice(0,25).map((c: any) => <div className="timeline-item" key={c.id}><strong>{c.outlet_name}</strong><div className="kicker">{c.coverage_type} · {c.occurred_at ?? 'date unknown'} · {c.verification_state}</div><p className="muted">{c.title ?? c.notes ?? 'No description recorded.'}</p>{c.url ? <a className="button ghost" href={c.url} target="_blank" rel="noreferrer">Open evidence</a> : null}</div>)}</div> : <Empty>No press, radio, channel, podcast, or DJ support logged.</Empty>}</Card>
+    </section>
   </>;
 }
