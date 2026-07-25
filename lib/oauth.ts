@@ -47,7 +47,14 @@ export function authorizationUrl(provider: Provider, origin: string, state: stri
   if (provider === 'google') {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) throw new Error('GOOGLE_CLIENT_ID is missing.');
-    const params = new URLSearchParams({ client_id:clientId, redirect_uri:redirectUri(provider,origin), response_type:'code', scope:'openid email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.compose', access_type:'offline', prompt:'consent', include_granted_scopes:'true', state, code_challenge:challenge, code_challenge_method:'S256' });
+    const scopes = [
+      'openid', 'email',
+      'https://www.googleapis.com/auth/gmail.readonly',
+      'https://www.googleapis.com/auth/gmail.compose',
+      'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/yt-analytics.readonly',
+    ].join(' ');
+    const params = new URLSearchParams({ client_id:clientId, redirect_uri:redirectUri(provider,origin), response_type:'code', scope:scopes, access_type:'offline', prompt:'consent', include_granted_scopes:'true', state, code_challenge:challenge, code_challenge_method:'S256' });
     return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   }
   const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -78,15 +85,18 @@ export async function exchangeCode(provider: Provider, origin: string, code: str
 export async function fetchIdentity(provider: Provider, accessToken: string) {
   const headers = { authorization:`Bearer ${accessToken}` };
   if (provider === 'google') {
-    const [identityResponse, gmailResponse] = await Promise.all([
+    const [identityResponse, gmailResponse, youtubeResponse] = await Promise.all([
       fetch('https://openidconnect.googleapis.com/v1/userinfo', { headers, cache:'no-store' }),
       fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', { headers, cache:'no-store' }),
+      fetch('https://www.googleapis.com/youtube/v3/channels?part=id,snippet,statistics&mine=true', { headers, cache:'no-store' }),
     ]);
     const identity = await identityResponse.json();
     const gmail = await gmailResponse.json();
+    const youtube = await youtubeResponse.json();
     if (!identityResponse.ok) throw new Error(identity.error?.message || 'Google identity test failed.');
     if (!gmailResponse.ok) throw new Error(gmail.error?.message || 'Gmail API test failed.');
-    return { id:String(identity.sub), email:String(identity.email || gmail.emailAddress || ''), metadata:{ email_verified:identity.email_verified, name:identity.name, gmail_email_address:gmail.emailAddress, messages_total:gmail.messagesTotal, threads_total:gmail.threadsTotal } };
+    const channel = youtubeResponse.ok ? youtube.items?.[0] : null;
+    return { id:String(identity.sub), email:String(identity.email || gmail.emailAddress || ''), metadata:{ email_verified:identity.email_verified, name:identity.name, gmail_email_address:gmail.emailAddress, messages_total:gmail.messagesTotal, threads_total:gmail.threadsTotal, youtube_channel_id:channel?.id || null, youtube_channel_title:channel?.snippet?.title || null, youtube_subscribers:channel?.statistics?.subscriberCount || null, youtube_views:channel?.statistics?.viewCount || null, youtube_videos:channel?.statistics?.videoCount || null, youtube_error:youtubeResponse.ok ? null : youtube.error?.message || 'YouTube API unavailable' } };
   }
   const response = await fetch('https://api.spotify.com/v1/me', { headers, cache:'no-store' });
   const result = await response.json();
@@ -99,11 +109,11 @@ export async function saveConnection(provider: Provider, token: Awaited<ReturnTy
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Sign in before connecting an integration.');
   const previous = await supabase.from('oauth_connections').select('encrypted_refresh_token').eq('user_id', user.id).eq('provider', provider).maybeSingle();
-  const refresh = token.refresh_token ? encrypt(token.refresh_token) : previous.data?.encrypted_refresh_token ?? null;
+  const refreshToken = token.refresh_token ? encrypt(token.refresh_token) : previous.data?.encrypted_refresh_token ?? null;
   const expiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null;
   const { error } = await supabase.from('oauth_connections').upsert({
     user_id:user.id, provider, provider_account_id:identity.id, account_email:identity.email || null,
-    encrypted_access_token:encrypt(token.access_token), encrypted_refresh_token:refresh, token_type:token.token_type || 'Bearer',
+    encrypted_access_token:encrypt(token.access_token), encrypted_refresh_token:refreshToken, token_type:token.token_type || 'Bearer',
     expires_at:expiresAt, scopes:(token.scope || '').split(' ').filter(Boolean), metadata:identity.metadata,
     last_success_at:new Date().toISOString(), last_error:null, updated_at:new Date().toISOString(),
   }, { onConflict:'user_id,provider' });
