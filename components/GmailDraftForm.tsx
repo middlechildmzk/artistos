@@ -2,6 +2,8 @@
 
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 
+const NEVER_ALONE_PRESAVE_URL = 'https://distrokid.com/hyperfollow/middlechild7/never-alone-feat-low-sunday/';
+
 type Target = { id: string; name?: string; full_name?: string; email?: string; contact_emails?: string; platform?: string; role?: string };
 type DraftState = { draftId: string; interactionId: string; messageId?: string | null } | null;
 
@@ -34,7 +36,7 @@ export function GmailDraftForm({ properties, people }: { properties: Target[]; p
       <div className="field"><label>Linked property</label><select className="select" name="property_id"><option value="">None</option>{properties.map((row) => <option value={row.id} key={row.id}>{row.name} · {row.platform || 'platform unknown'}</option>)}</select></div>
       <div className="field"><label>Linked person</label><select className="select" name="person_id"><option value="">None</option>{people.map((row) => <option value={row.id} key={row.id}>{row.full_name || row.email} · {row.role || 'role unknown'}</option>)}</select></div>
       <div className="field"><label>Subject</label><input className="input" name="subject" required defaultValue="Middle Child — Never Alone (July 31)" /></div>
-      <div className="field"><label>Body</label><textarea className="textarea" name="body" required defaultValue={'Hi,\n\nI’m reaching out with “Never Alone,” a new emotional electronic / melodic bass release from Middle Child, arriving July 31. I thought it may fit because [add only a verified, specific reason].\n\nListen / pre-save: [verified link]\n\nThank you for listening,\nDan / Middle Child'} /></div>
+      <div className="field"><label>Body</label><textarea className="textarea" name="body" required defaultValue={`Hi,\n\nI’m reaching out with “Never Alone,” a new emotional electronic / melodic bass release from Middle Child, arriving July 31. I thought it may fit because [add only a verified, specific reason].\n\nListen / pre-save: ${NEVER_ALONE_PRESAVE_URL}\n\nThank you for listening,\nDan / Middle Child`} /></div>
       <div className="field"><label>Follow-up due</label><input className="input" name="follow_up_due" type="date" /></div>
       <button className="button primary" type="submit" disabled={busy}>{busy ? 'Working…' : 'Create Gmail draft'}</button>
     </form>
