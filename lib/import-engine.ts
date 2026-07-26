@@ -103,7 +103,8 @@ export function detectFieldMap(headers: string[], entity: ImportEntity): FieldMa
 }
 
 function cleanValue(value: unknown): string | null {
-  return normalizeText(value, 500);
+  const normalized = normalizeText(value);
+  return normalized ? normalized.slice(0, 500) : null;
 }
 
 function mapRow(raw: RawRow, fieldMap: FieldMap): Record<string, unknown> {
