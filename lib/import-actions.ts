@@ -27,12 +27,11 @@ const emptyReport = (): CommitReport => ({
   errors: [],
 });
 
-function safeData(row: PlannedRow, workspaceId: string, userId: string) {
+function safeData(row: PlannedRow, workspaceId: string) {
   return {
     ...row.data,
     workspace_id: workspaceId,
     updated_at: new Date().toISOString(),
-    created_by: userId,
   };
 }
 
@@ -56,7 +55,7 @@ export async function commitImport(input: {
   for (const chunk of chunkRows(actionable, 100)) {
     for (const row of chunk) {
       try {
-        const data = safeData(row, workspace.workspaceId, workspace.userId);
+        const data = safeData(row, workspace.workspaceId);
         if (input.entity === 'fans') {
           const email = String(data.normalized_email ?? '');
           const { data: suppression, error: suppressionError } = await supabase
