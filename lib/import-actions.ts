@@ -16,39 +16,22 @@ export type CommitReport = {
   errors: Array<{ rowNumber: number; message: string }>;
 };
 
-const emptyReport = (): CommitReport => ({
-  ok: true,
-  created: 0,
-  updated: 0,
-  skipped: 0,
-  suppressed: 0,
-  invalid: 0,
-  failed: 0,
-  errors: [],
-});
+const emptyReport = (): CommitReport => ({ ok: true, created: 0, updated: 0, skipped: 0, suppressed: 0, invalid: 0, failed: 0, errors: [] });
 
-function safeData(row: PlannedRow, workspaceId: string) {
-  return {
-    ...row.data,
-    workspace_id: workspaceId,
-    updated_at: new Date().toISOString(),
-  };
+function safeData(row: PlannedRow, workspaceId: string): Record<string, unknown> {
+  return { ...row.data, workspace_id: workspaceId, updated_at: new Date().toISOString() };
 }
 
-export async function commitImport(input: {
-  entity: ImportEntity;
-  rows: PlannedRow[];
-  filename?: string;
-}): Promise<CommitReport> {
+export async function commitImport(input: { entity: ImportEntity; rows: PlannedRow[]; filename?: string }): Promise<CommitReport> {
   const workspace = await requireRole('editor');
   const supabase = await createClient();
   const report = emptyReport();
   const rows = input.rows.slice(0, 50_000);
 
   for (const row of rows) {
-    if (row.action === 'invalid') { report.invalid += 1; continue; }
-    if (row.action === 'suppressed') { report.suppressed += 1; continue; }
-    if (row.action === 'skip') { report.skipped += 1; continue; }
+    if (row.action === 'invalid') report.invalid += 1;
+    else if (row.action === 'suppressed') report.suppressed += 1;
+    else if (row.action === 'skip') report.skipped += 1;
   }
 
   const actionable = rows.filter((row) => row.action === 'create' || row.action === 'update');
@@ -57,25 +40,14 @@ export async function commitImport(input: {
       try {
         const data = safeData(row, workspace.workspaceId);
         if (input.entity === 'fans') {
-          const email = String(data.normalized_email ?? '');
-          const { data: suppression, error: suppressionError } = await supabase
-            .from('suppressions')
-            .select('id')
-            .eq('workspace_id', workspace.workspaceId)
-            .eq('normalized_email', email)
-            .maybeSingle();
-          if (suppressionError) throw suppressionError;
-          if (suppression) { report.suppressed += 1; continue; }
-
-          const { data: existing, error: readError } = await supabase
-            .from('fans')
-            .select('id')
-            .eq('workspace_id', workspace.workspaceId)
-            .eq('normalized_email', email)
-            .maybeSingle();
-          if (readError) throw readError;
-          if (existing) {
-            const { error } = await supabase.from('fans').update(data).eq('workspace_id', workspace.workspaceId).eq('id', existing.id);
+          const email = String(data['normalized_email'] ?? '');
+          const suppressionRead = await supabase.from('suppressions').select('id').eq('workspace_id', workspace.workspaceId).eq('normalized_email', email).maybeSingle();
+          if (suppressionRead.error) throw suppressionRead.error;
+          if (suppressionRead.data) { report.suppressed += 1; continue; }
+          const existingRead = await supabase.from('fans').select('id').eq('workspace_id', workspace.workspaceId).eq('normalized_email', email).maybeSingle();
+          if (existingRead.error) throw existingRead.error;
+          if (existingRead.data) {
+            const { error } = await supabase.from('fans').update(data).eq('workspace_id', workspace.workspaceId).eq('id', existingRead.data.id);
             if (error) throw error;
             report.updated += 1;
           } else {
@@ -84,7 +56,7 @@ export async function commitImport(input: {
             report.created += 1;
           }
         } else if (input.entity === 'people') {
-          const email = typeof data.normalized_email === 'string' ? data.normalized_email : null;
+          const email = typeof data['normalized_email'] === 'string' ? data['normalized_email'] : null;
           let existing: { id: string } | null = null;
           if (email) {
             const result = await supabase.from('people').select('id').eq('workspace_id', workspace.workspaceId).eq('normalized_email', email).maybeSingle();
@@ -101,9 +73,9 @@ export async function commitImport(input: {
             report.created += 1;
           }
         } else {
-          const url = typeof data.url === 'string' ? data.url : null;
+          const url = typeof data['url'] === 'string' ? data['url'] : null;
           let query = supabase.from('properties').select('id').eq('workspace_id', workspace.workspaceId);
-          query = url ? query.eq('url', url) : query.eq('name', String(data.name ?? ''));
+          query = url ? query.eq('url', url) : query.eq('name', String(data['name'] ?? ''));
           const result = await query.limit(1).maybeSingle();
           if (result.error) throw result.error;
           if (result.data) {
