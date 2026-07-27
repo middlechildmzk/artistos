@@ -62,7 +62,7 @@ export function createServerInvocationDependencies(): InvocationDependencies {
     async createApproval({ ctx, capabilityName, version, input, previewHash }) {
       const supabase = await createSupabaseServerClient();
       const { data, error } = await supabase
-        .from("approvals")
+        .from("capability_approvals")
         .insert({
           workspace_id: ctx.workspaceId,
           artist_id: ctx.artistId,
@@ -70,6 +70,7 @@ export function createServerInvocationDependencies(): InvocationDependencies {
           capability_version: version,
           requested_by: ctx.userId,
           request_payload: input,
+          preview: input,
           preview_hash: previewHash,
           status: "pending",
         })
