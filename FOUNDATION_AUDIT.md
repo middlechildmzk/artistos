@@ -2,49 +2,95 @@
 
 ## Executive verdict
 
-The application architecture is promising, but production database history is not reproducible from source control. This is a production blocker.
+ArtistOS has a strong application architecture and an unsafe database delivery state. The source-controlled capability runtime, evidence layer, Artist Brain, and Opportunity Intelligence work must not be deployed until the repository can reproduce the existing production database from a clean environment.
 
-## Verified facts
+## Critical production blockers
 
-- The live `artistos-core` Supabase migration ledger contains 28 historical migrations.
-- The canonical repository branch originally contained only three newer migrations.
-- The historical and repository migration sets were disjoint.
-- The runtime, evidence, Artist Brain, and Artist Knowledge Graph migrations are not recorded in the live ledger.
-- Static CI previously passed because it did not validate database history or perform a database replay.
+### C1. Runtime tables are not present in the live database
 
-## Production blockers
+The source-controlled runtime expects capability, evidence, and Artist Brain tables that are not currently present in the live ArtistOS database. Static architecture tests do not prove that runtime invocations can execute against the deployed schema.
 
-### C1. Runtime schema is not applied
+**Blocks production:** Yes.
 
-The capability, evidence, and Artist Brain tables targeted by the canonical runtime are not present in the live database. Production execution must not be enabled until migrations are rehearsed and deliberately applied.
+### C2. Applied migration history is absent from source control
 
-### C2. Historical migration chain is absent from source control
+The live `supabase_migrations.schema_migrations` ledger contains 28 applied migrations. The canonical branch initially contained only three newer, unapplied files. The applied and committed sets were disjoint.
 
-The repository cannot rebuild the live database from zero until all 28 historical migrations are recovered under their exact versions and names.
+The first committed migration references existing `workspaces` and `artists` tables but no committed migration creates those dependencies. A clean `supabase db reset` therefore cannot rebuild the current database.
 
-### C3. Clean replay has not been proven
+**Blocks production:** Yes. This must be corrected before pending migrations are rehearsed or applied.
 
-`supabase db reset --local`, workspace-isolation assertions, advisors, and schema-drift verification remain mandatory gates.
+### C3. Static CI was green without database replay
 
-## Recovery controls added
+The existing CI correctly preserves process exit codes through `set -o pipefail`, but it tests source architecture only. It does not establish migration-history reconciliation, clean database replay, linked schema parity, authenticated RLS behavior, or runtime execution against the schema.
 
-- `supabase/REMOTE_MIGRATION_MANIFEST.json` contains the reviewed version, name, byte hash, and byte length for all 28 live-ledger migrations.
-- `scripts/check-remote-migration-manifest.mjs` fails when a historical file is missing, renamed, resized, or changed.
-- `.github/workflows/ci.yml` now runs migration reconciliation before dependency installation, tests, TypeScript, and build.
-- `scripts/recover-remote-migrations.sh` uses the official `supabase migration fetch --linked` path, verifies the fetched files, and replays them against isolated local Supabase.
+**Blocks production:** Yes.
 
-## Required sequence
+## Independently verified ledger
 
-1. Run `scripts/recover-remote-migrations.sh` on a machine with Docker, the Supabase CLI, and authorized project access.
-2. Review and commit the 28 recovered historical migration files without cosmetic changes.
-3. Confirm the manifest gate passes.
-4. Confirm clean local database reset succeeds.
-5. Run workspace-isolation SQL and database advisors.
-6. Produce and review a linked schema diff; unexplained drift must be zero.
-7. Rehearse the pending runtime, evidence, Brain, and Knowledge Graph migrations on an isolated database.
-8. Run authenticated end-to-end workflows.
-9. Only then prepare a reviewed production rollout.
+The connected `artistos-core` Supabase project contains 28 applied migrations, from:
 
-## Safety boundary
+- `20260711232934_artistos_core_foundation`
+- through `20260727144623_add_agent_execution_control_plane_v2`
 
-No production migration, history repair, branch merge, or production deployment is authorized by this audit or recovery tooling.
+A reviewed manifest is stored at `supabase/REMOTE_MIGRATION_MANIFEST.json`. It records each migration's exact version, name, SQL length, raw ledger hash, and normalized SQL hash.
+
+## Recovery tooling added
+
+### Manifest reconciliation
+
+`scripts/check-remote-migration-manifest.mjs` fails when an applied migration is missing, renamed, shortened, expanded, or changed. Newer pending migrations are reported separately from historical divergence.
+
+### Deterministic ledger exporter
+
+`scripts/export-remote-migrations.mjs` uses `psql` and `SUPABASE_DB_URL` to perform one read-only query against `supabase_migrations.schema_migrations`. It writes the 28 migration files under their exact historical names only after matching each row to the reviewed manifest hash. It preserves pending migrations and never repairs migration history.
+
+### End-to-end recovery workflow
+
+`scripts/recover-remote-migrations.sh` supports either deterministic direct export through `SUPABASE_DB_URL` or the official `supabase migration fetch --linked` path.
+
+It then restores pending files, runs manifest reconciliation, lists linked migration status, performs `supabase db reset --local`, runs workspace-isolation assertions, and runs local database advisors.
+
+It contains no `db reset --linked`, `db push`, migration repair, production DDL, or production data writes.
+
+### CI gate
+
+Migration reconciliation runs before dependency installation. While historical files are absent, CI fails at one clear gate and skips unrelated tests rather than generating cascading noise.
+
+## Direct application database access
+
+Direct `.from(...)` calls exist in application code. This should be assessed by operation type:
+
+- Consequential writes must route through typed capabilities so authorization, policy, idempotency, approval, evidence, and audit controls cannot be bypassed.
+- Read models may query directly when they remain workspace-scoped, RLS-protected, and non-consequential.
+- Sensitive or derived reads should move toward typed query capabilities where centralized policy and observability provide value.
+
+A blanket prohibition on all direct reads would conflate command and query responsibilities.
+
+## Required recovery sequence
+
+1. Export or fetch the exact 28 historical migrations.
+2. Require the manifest reconciliation gate to report historical parity.
+3. Preserve the three pending runtime migrations and any later pending graph migration.
+4. Run `supabase db reset --local` from zero.
+5. Run workspace-isolation tests and database advisors.
+6. Compare local replay output with the linked database and document any legitimate environment-managed differences.
+7. Rehearse pending migrations on a disposable database.
+8. Verify runtime capabilities against the disposable schema.
+9. Only then plan production application.
+
+## Prohibited shortcuts
+
+Do not fabricate a baseline migration, mark migrations applied without replaying them, use migration repair to conceal missing files, apply pending migrations directly to production, merge PR #22 as deployable schema work before reconciliation, or treat a successful TypeScript build as database verification.
+
+## Current delivery state
+
+- PR #22: useful architecture work, blocked from deployment
+- PR #23: active migration-recovery and audit work
+- Production migrations applied by this work: none
+- Production schema writes performed by this work: none
+- Clean replay: not yet proven
+
+## Exit criteria
+
+The foundation becomes eligible for deployment rehearsal only when all 28 historical migration files are source-controlled, names and hashes match the reviewed ledger, pending files are the only local-only migrations, clean local reset succeeds, workspace RLS assertions pass, database advisors are reviewed, runtime tables and capabilities work on a disposable database, and rollback plus production rehearsal steps are documented.
