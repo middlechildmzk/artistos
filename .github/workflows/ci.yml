@@ -31,7 +31,10 @@ jobs:
       - name: Typecheck
         id: typecheck
         continue-on-error: true
-        run: npm run typecheck 2>&1 | tee typecheck.log
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee typecheck.log
 
       - name: Upload TypeScript diagnostics
         if: always()
@@ -47,4 +50,22 @@ jobs:
         run: exit 1
 
       - name: Build
-        run: npm run build
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          path: build.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce build
+        if: steps.build.outcome == 'failure'
+        run: exit 1
