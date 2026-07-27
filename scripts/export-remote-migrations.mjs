@@ -6,17 +6,18 @@
  * Required environment:
  *   SUPABASE_DB_URL=postgresql://...
  *
- * Usage:
- *   node scripts/export-remote-migrations.mjs
+ * Required executable:
+ *   psql
  *
  * Safety:
- * - Performs SELECT queries only.
+ * - Performs one SELECT query only.
  * - Never repairs or mutates migration history.
- * - Preserves local pending migrations that are not present in the remote ledger.
+ * - Preserves local pending migrations not present in the remote ledger.
  */
 
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 
@@ -43,11 +44,10 @@ if (!connectionString) {
   process.exit(2);
 }
 
-let pg;
 try {
-  pg = await import("pg");
+  execFileSync("psql", ["--version"], { stdio: "ignore" });
 } catch {
-  console.error('The "pg" package is required. Install dependencies first.');
+  console.error("psql is required to export the remote migration ledger.");
   process.exit(2);
 }
 
@@ -68,18 +68,31 @@ for (const filename of existing.filter((name) => name.endsWith(".sql"))) {
   }
 }
 
-const client = new pg.default.Client({ connectionString });
-await client.connect();
+const query = `
+  select coalesce(
+    json_agg(
+      json_build_object(
+        'version', version,
+        'name', name,
+        'statements', statements
+      ) order by version
+    ),
+    '[]'::json
+  )::text
+  from supabase_migrations.schema_migrations;
+`;
+
 let rows;
 try {
-  const result = await client.query(`
-    select version, name, statements
-    from supabase_migrations.schema_migrations
-    order by version
-  `);
-  rows = result.rows;
-} finally {
-  await client.end();
+  const output = execFileSync(
+    "psql",
+    [connectionString, "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", query],
+    { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 },
+  ).trim();
+  rows = JSON.parse(output || "[]");
+} catch (error) {
+  console.error(`Failed to read migration ledger: ${error.message}`);
+  process.exit(2);
 }
 
 if (rows.length !== manifest.length) {
