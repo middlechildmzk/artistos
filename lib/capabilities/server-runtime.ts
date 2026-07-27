@@ -41,6 +41,9 @@ export function createServerInvocationDependencies(): InvocationDependencies {
     },
 
     async loadPolicies(ctx, capabilityName) {
+      // Explicit human interaction is not autonomous execution. A signed-in
+      // human with sufficient workspace role may perform reversible R1 work.
+      // Agent principals receive no implicit grant and default to approval.
       if (ctx.userId && ctx.principalId === `user:${ctx.userId}`) {
         const policy: AutonomyPolicy = {
           id: "system.explicit_human_action",
