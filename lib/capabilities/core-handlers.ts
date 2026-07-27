@@ -2,6 +2,7 @@ import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  completeInteractionFollowUpCapability,
   createTaskCapability,
   getActiveWorkspaceCapability,
   getArtistCapability,
@@ -178,6 +179,37 @@ registerCapabilityHandler(updateTaskStatusCapability, async ({ ctx, input }) => 
     .single();
   if (error) throw error;
   return { output: { taskId: data.id, status: data.status, changed: true }, evidenceIds: [] };
+});
+
+registerCapabilityHandler(completeInteractionFollowUpCapability, async ({ ctx, input }) => {
+  const supabase = await createSupabaseServerClient();
+  const { data: current, error: currentError } = await supabase
+    .from("interactions")
+    .select("id,follow_up_done")
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("id", input.interactionId)
+    .maybeSingle();
+  if (currentError) throw currentError;
+  if (!current) throw new Error("interaction_not_found");
+  if (current.follow_up_done === true) {
+    return {
+      output: { interactionId: current.id, completed: true, changed: false },
+      evidenceIds: [],
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("interactions")
+    .update({ follow_up_done: true })
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("id", input.interactionId)
+    .select("id,follow_up_done")
+    .single();
+  if (error) throw error;
+  return {
+    output: { interactionId: data.id, completed: data.follow_up_done === true, changed: true },
+    evidenceIds: [],
+  };
 });
 
 registerCapabilityHandler(suppressAudienceCapability, async ({ ctx, input }) => {
