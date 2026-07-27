@@ -11,11 +11,12 @@ create table if not exists public.capability_approvals (
   request_payload jsonb not null,
   preview_hash text not null,
   preview jsonb,
-  status text not null default 'pending' check (status in ('pending','approved','rejected','expired','consumed')),
+  status text not null default 'pending' check (status in ('pending','approved','rejected','expired','executing','consumed','failed')),
   decided_by uuid references auth.users(id) on delete set null,
   decided_at timestamptz,
   expires_at timestamptz,
   decision_note text,
+  execution_error text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -97,6 +98,104 @@ create policy capability_audit_insert on public.capability_audit_log
     private.is_workspace_member(workspace_id)
     and (user_id is null or user_id = (select auth.uid()))
   );
+
+create or replace function public.decide_capability_approval(
+  p_approval_id uuid,
+  p_decision text,
+  p_note text default null
+) returns public.capability_approvals
+language plpgsql
+security invoker
+set search_path = public, private
+as $$
+declare
+  claimed public.capability_approvals;
+begin
+  if p_decision not in ('approved','rejected') then
+    raise exception 'invalid_approval_decision';
+  end if;
+
+  update public.capability_approvals
+  set status = p_decision,
+      decided_by = (select auth.uid()),
+      decided_at = now(),
+      decision_note = nullif(trim(p_note), ''),
+      updated_at = now()
+  where id = p_approval_id
+    and status = 'pending'
+    and private.can_manage_workspace(workspace_id)
+    and (expires_at is null or expires_at > now())
+  returning * into claimed;
+
+  if claimed.id is null then
+    raise exception 'approval_not_pending_or_not_authorized';
+  end if;
+  return claimed;
+end;
+$$;
+
+create or replace function public.claim_capability_approval(p_approval_id uuid)
+returns public.capability_approvals
+language plpgsql
+security invoker
+set search_path = public, private
+as $$
+declare
+  claimed public.capability_approvals;
+begin
+  update public.capability_approvals
+  set status = 'executing', updated_at = now()
+  where id = p_approval_id
+    and status = 'approved'
+    and private.can_manage_workspace(workspace_id)
+    and (expires_at is null or expires_at > now())
+  returning * into claimed;
+
+  if claimed.id is null then
+    raise exception 'approval_not_claimable';
+  end if;
+  return claimed;
+end;
+$$;
+
+create or replace function public.finish_capability_approval(
+  p_approval_id uuid,
+  p_status text,
+  p_error text default null
+) returns public.capability_approvals
+language plpgsql
+security invoker
+set search_path = public, private
+as $$
+declare
+  finished public.capability_approvals;
+begin
+  if p_status not in ('consumed','failed') then
+    raise exception 'invalid_completion_status';
+  end if;
+
+  update public.capability_approvals
+  set status = p_status,
+      execution_error = case when p_status = 'failed' then p_error else null end,
+      updated_at = now()
+  where id = p_approval_id
+    and status = 'executing'
+    and private.can_manage_workspace(workspace_id)
+  returning * into finished;
+
+  if finished.id is null then
+    raise exception 'approval_not_executing';
+  end if;
+  return finished;
+end;
+$$;
+
+revoke all on function public.decide_capability_approval(uuid,text,text) from public, anon;
+revoke all on function public.claim_capability_approval(uuid) from public, anon;
+revoke all on function public.finish_capability_approval(uuid,text,text) from public, anon;
+grant execute on function public.decide_capability_approval(uuid,text,text) to authenticated;
+grant execute on function public.claim_capability_approval(uuid) to authenticated;
+grant execute on function public.finish_capability_approval(uuid,text,text) to authenticated;
 
 comment on table public.capability_approvals is
   'Human approval requests for permanently gated or policy-gated ArtistOS capabilities.';
