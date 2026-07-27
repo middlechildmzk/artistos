@@ -9,6 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const handlers = read("lib/capabilities/core-handlers.ts");
 const invoke = read("lib/capabilities/invoke.ts");
 const runtime = read("lib/capabilities/server-runtime.ts");
+const dashboardActions = read("app/dashboard/actions.ts");
 const migration = read("supabase/migrations/20260727170000_capability_runtime_ledger.sql");
 
 test("the first executable slice has handlers for every non-governance capability", () => {
@@ -20,6 +21,7 @@ test("the first executable slice has handlers for every non-governance capabilit
     "getReleaseCapability",
     "createTaskCapability",
     "updateTaskStatusCapability",
+    "completeInteractionFollowUpCapability",
     "suppressAudienceCapability",
   ]) {
     assert.match(handlers, new RegExp(`registerCapabilityHandler\\(${capability}`));
@@ -44,6 +46,14 @@ test("explicit human action is distinct from autonomous authority", () => {
   assert.match(runtime, /ctx\.principalId === `user:\$\{ctx\.userId\}`/);
   assert.match(runtime, /system\.explicit_human_action/);
   assert.match(runtime, /Agent principals receive no implicit grant/);
+});
+
+test("dashboard mutations use the capability runtime instead of direct table writes", () => {
+  assert.match(dashboardActions, /invokeCapability/);
+  assert.match(dashboardActions, /tasks\.update_status/);
+  assert.match(dashboardActions, /interactions\.complete_follow_up/);
+  assert.doesNotMatch(dashboardActions, /\.from\("tasks"\)/);
+  assert.doesNotMatch(dashboardActions, /\.from\("interactions"\)/);
 });
 
 test("runtime migration creates approval, replay, and audit ledgers with RLS", () => {
