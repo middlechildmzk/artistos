@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { completeFollowUp, signOut, toggleTask } from "./actions";
@@ -61,7 +62,11 @@ export default async function DashboardPage() {
             <strong>ArtistOS</strong>
           </div>
         </div>
-        <form action={signOut}><button className="button ghost" type="submit">Sign out</button></form>
+        <div className="nav-links">
+          <Link className="button ghost" href="/targets">Targets</Link>
+          <Link className="button ghost" href="/audience">Audience</Link>
+          <form action={signOut}><button className="button ghost" type="submit">Sign out</button></form>
+        </div>
       </header>
 
       <section className="card release-card" style={{ marginBottom: 16 }}>
