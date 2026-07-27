@@ -9,7 +9,9 @@ import type { InvocationDependencies } from "./invoke";
 import type { AutonomyPolicy } from "@/lib/policies/evaluate";
 
 import "./initial-registry";
+import "./campaign-registry";
 import "./core-handlers";
+import "./campaign-handlers";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = {
   viewer: 0,
