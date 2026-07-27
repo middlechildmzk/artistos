@@ -80,9 +80,14 @@ export function createServerInvocationDependencies(): InvocationDependencies {
       return { approvalId: data.id, preview: input };
     },
 
-    async execute({ ctx, capabilityName, version, input, idempotencyKey }) {
+    async execute<O>({ ctx, capabilityName, version, input, idempotencyKey }) {
       const handler = getCapabilityHandler(capabilityName, version);
-      return handler({ ctx, input, idempotencyKey });
+      const execution = await handler({ ctx, input, idempotencyKey });
+      return {
+        output: execution.output as O,
+        evidenceIds: execution.evidenceIds,
+        auditId: execution.auditId,
+      };
     },
 
     async hashPreview(input) {
