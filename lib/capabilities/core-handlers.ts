@@ -20,15 +20,13 @@ registerCapabilityHandler(getActiveWorkspaceCapability, async ({ ctx }) => ({
   evidenceIds: [],
 }));
 
-registerCapabilityHandler(listArtistsCapability, async ({ ctx, input }) => {
+registerCapabilityHandler(listArtistsCapability, async ({ ctx }) => {
   const supabase = await createSupabaseServerClient();
-  let query = supabase
+  const { data, error } = await supabase
     .from("artists")
     .select("id,name,aliases")
     .eq("workspace_id", ctx.workspaceId)
     .order("name");
-  if (!input.includeArchived) query = query.is("archived_at", null);
-  const { data, error } = await query;
   if (error) throw error;
   return { output: { artists: data ?? [] }, evidenceIds: [] };
 });
@@ -37,13 +35,16 @@ registerCapabilityHandler(getArtistCapability, async ({ ctx, input }) => {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("artists")
-    .select("id,name,aliases,bio")
+    .select("id,name,aliases,notes")
     .eq("workspace_id", ctx.workspaceId)
     .eq("id", input.artistId)
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("artist_not_found");
-  return { output: data, evidenceIds: [] };
+  return {
+    output: { id: data.id, name: data.name, aliases: data.aliases, bio: data.notes ?? null },
+    evidenceIds: [],
+  };
 });
 
 registerCapabilityHandler(listReleasesCapability, async ({ ctx, input }) => {
@@ -95,6 +96,23 @@ registerCapabilityHandler(getReleaseCapability, async ({ ctx, input }) => {
 
 registerCapabilityHandler(createTaskCapability, async ({ ctx, input, idempotencyKey }) => {
   const supabase = await createSupabaseServerClient();
+  const key = idempotencyKey ?? input.idempotencyKey;
+
+  const { data: prior, error: priorError } = await supabase
+    .from("capability_idempotency")
+    .select("result")
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("capability_name", createTaskCapability.name)
+    .eq("idempotency_key", key)
+    .maybeSingle();
+  if (priorError) throw priorError;
+  if (prior?.result && typeof prior.result === "object" && "taskId" in prior.result) {
+    return {
+      output: { taskId: String(prior.result.taskId), created: false },
+      evidenceIds: [],
+    };
+  }
+
   if (input.releaseId) {
     const { data: release, error: releaseError } = await supabase
       .from("releases")
@@ -105,14 +123,6 @@ registerCapabilityHandler(createTaskCapability, async ({ ctx, input, idempotency
     if (releaseError) throw releaseError;
     if (!release) throw new Error("release_not_found");
   }
-  const { data: existing, error: existingError } = await supabase
-    .from("tasks")
-    .select("id")
-    .eq("workspace_id", ctx.workspaceId)
-    .eq("idempotency_key", idempotencyKey ?? input.idempotencyKey)
-    .maybeSingle();
-  if (existingError) throw existingError;
-  if (existing) return { output: { taskId: existing.id, created: false }, evidenceIds: [] };
 
   const { data, error } = await supabase
     .from("tasks")
@@ -124,12 +134,23 @@ registerCapabilityHandler(createTaskCapability, async ({ ctx, input, idempotency
       due_date: input.dueDate ?? null,
       status: "open",
       classification: "capability",
-      idempotency_key: idempotencyKey ?? input.idempotencyKey,
     })
     .select("id")
     .single();
   if (error) throw error;
-  return { output: { taskId: data.id, created: true }, evidenceIds: [] };
+
+  const result = { taskId: data.id, created: true };
+  const { error: ledgerError } = await supabase.from("capability_idempotency").insert({
+    workspace_id: ctx.workspaceId,
+    capability_name: createTaskCapability.name,
+    capability_version: createTaskCapability.version,
+    idempotency_key: key,
+    input_hash: key,
+    result,
+    created_by: ctx.userId,
+  });
+  if (ledgerError) throw ledgerError;
+  return { output: result, evidenceIds: [] };
 });
 
 registerCapabilityHandler(updateTaskStatusCapability, async ({ ctx, input }) => {
