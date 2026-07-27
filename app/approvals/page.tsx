@@ -34,7 +34,7 @@ export default async function ApprovalCenterPage() {
   const [approvalResult, auditResult] = await Promise.all([
     supabase
       .from("capability_approvals")
-      .select("id,capability_name,capability_version,status,preview,preview_hash,requested_by,reviewed_by,reviewed_at,review_note,created_at")
+      .select("id,capability_name,capability_version,status,preview,preview_hash,requested_by,decided_by,decided_at,decision_note,created_at")
       .eq("workspace_id", membership.workspace_id)
       .order("created_at", { ascending: false })
       .limit(100),
