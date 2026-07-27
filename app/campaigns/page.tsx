@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { recordCampaignOutcome, recordCampaignReply, updateCampaignTargetStatus } from "./actions";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "No date";
@@ -50,7 +51,7 @@ export default async function CampaignsPage() {
     <main className="shell">
       <header className="topbar">
         <div><div className="eyebrow">Release growth engine</div><h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Campaigns</h1><p className="muted">One pipeline from target qualification through outreach, reply, placement, and evidence-backed outcomes.</p></div>
-        <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/targets">Targets</Link><Link className="button ghost" href="/audience">Audience</Link></nav>
+        <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/targets">Targets</Link><Link className="button ghost" href="/audience">Audience</Link><Link className="button ghost" href="/releases">Releases</Link></nav>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -77,7 +78,44 @@ export default async function CampaignsPage() {
               <div className="pipeline-grid">
                 {["queued", "pitched", "replied", "accepted", "declined", "placed"].map((stage) => {
                   const stageTargets = campaignTargets.filter((target) => target.status === stage);
-                  return <div className="pipeline-column" key={stage}><div className="section-heading tight"><strong>{stage}</strong><span className="pill">{stageTargets.length}</span></div>{stageTargets.length ? stageTargets.map((target) => { const organization = organizationById.get(target.target_id); return <Link className="pipeline-card" href={target.target_kind === "organization" ? `/targets/${target.target_id}` : "/targets"} key={target.id}><strong>{organization?.display_name || organization?.canonical_name || `${target.target_kind} target`}</strong><span className="muted">Added {formatDate(target.added_at)}</span>{organization ? <span className="muted">Trust {organization.trust_tier || "unknown"} · Risk {organization.risk_tier || "unknown"}</span> : null}</Link>; }) : <div className="empty small">No targets</div>}</div>;
+                  return <div className="pipeline-column" key={stage}><div className="section-heading tight"><strong>{stage}</strong><span className="pill">{stageTargets.length}</span></div>{stageTargets.length ? stageTargets.map((target) => {
+                    const organization = organizationById.get(target.target_id);
+                    const targetName = organization?.display_name || organization?.canonical_name || `${target.target_kind} target`;
+                    return <div className="pipeline-card stack" key={target.id}>
+                      <Link href={target.target_kind === "organization" ? `/targets/${target.target_id}` : "/targets"}><strong>{targetName}</strong></Link>
+                      <span className="muted">Added {formatDate(target.added_at)}</span>
+                      {organization ? <span className="muted">Trust {organization.trust_tier || "unknown"} · Risk {organization.risk_tier || "unknown"}</span> : null}
+                      <form action={updateCampaignTargetStatus} className="inline-form">
+                        <input type="hidden" name="campaignTargetId" value={target.id} />
+                        <select className="input compact" name="status" defaultValue={target.status} aria-label={`Update ${targetName} status`}>
+                          {["queued", "pitched", "replied", "accepted", "declined", "placed"].map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                        <button className="button ghost compact" type="submit">Move</button>
+                      </form>
+                      <details>
+                        <summary>Record reply</summary>
+                        <form action={recordCampaignReply} className="stack mini-form">
+                          <input type="hidden" name="campaignTargetId" value={target.id} />
+                          <input className="input" name="subject" placeholder="Reply subject" defaultValue="Reply received" />
+                          <select className="input" name="replyStatus" defaultValue="replied"><option value="replied">Replied</option><option value="interested">Interested</option><option value="accepted">Accepted</option><option value="declined">Declined</option></select>
+                          <textarea className="input textarea" name="body" placeholder="Paste or summarize the reply" />
+                          <button className="button" type="submit">Save reply</button>
+                        </form>
+                      </details>
+                      <details>
+                        <summary>Record outcome</summary>
+                        <form action={recordCampaignOutcome} className="stack mini-form">
+                          <input type="hidden" name="campaignTargetId" value={target.id} />
+                          <input className="input" name="outcomeType" placeholder="Playlist placement, blog feature, creator post..." required />
+                          <input className="input" name="outcomeDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                          <select className="input" name="confidence" defaultValue="supported"><option value="verified">Verified</option><option value="supported">Supported</option><option value="reported">Reported</option><option value="unknown">Unknown</option></select>
+                          <input className="input" name="url" type="url" placeholder="Evidence URL" />
+                          <textarea className="input textarea" name="evidenceSummary" placeholder="What happened and how it was verified" />
+                          <button className="button primary" type="submit">Save outcome</button>
+                        </form>
+                      </details>
+                    </div>;
+                  }) : <div className="empty small">No targets</div>}</div>;
                 })}
               </div>
 
