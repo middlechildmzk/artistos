@@ -12,10 +12,12 @@ import "./initial-registry";
 import "./campaign-registry";
 import "./crm-release-registry";
 import "./brain-registry";
+import "./planner-registry";
 import "./core-handlers";
 import "./campaign-handlers";
 import "./crm-release-handlers";
 import "./brain-handlers";
+import "./planner-handlers";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 0, contributor: 1, editor: 2, admin: 3, owner: 4 };
 
