@@ -41,9 +41,6 @@ export function createServerInvocationDependencies(): InvocationDependencies {
     },
 
     async loadPolicies(ctx, capabilityName) {
-      // Explicit human interaction is not autonomous execution. A signed-in
-      // human with sufficient workspace role may perform reversible R1 work.
-      // Agent principals receive no implicit grant and default to approval.
       if (ctx.userId && ctx.principalId === `user:${ctx.userId}`) {
         const policy: AutonomyPolicy = {
           id: "system.explicit_human_action",
@@ -99,6 +96,35 @@ export function createServerInvocationDependencies(): InvocationDependencies {
 
     async hashPreview(input) {
       return createHash("sha256").update(JSON.stringify(input)).digest("hex");
+    },
+
+    async recordAudit(args) {
+      const supabase = await createSupabaseServerClient();
+      const { data, error } = await supabase
+        .from("capability_audit_log")
+        .insert({
+          workspace_id: args.ctx.workspaceId,
+          artist_id: args.ctx.artistId,
+          principal_id: args.ctx.principalId,
+          user_id: args.ctx.userId,
+          capability_name: args.capabilityName,
+          capability_version: args.version,
+          risk_class: args.riskClass,
+          decision: args.decision,
+          policy_id: args.policyId ?? null,
+          idempotency_key: args.idempotencyKey ?? null,
+          input_hash: args.inputHash ?? null,
+          output_summary: args.outputSummary ?? null,
+          evidence_ids: args.evidenceIds ?? [],
+          error_code: args.errorCode ?? null,
+          error_message: args.errorMessage ?? null,
+          run_id: args.ctx.runId ?? null,
+          step_id: args.ctx.stepId ?? null,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
     },
   };
 }
