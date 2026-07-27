@@ -35,7 +35,7 @@ test("demotion is immediate and asymmetric", () => {
 test("invocation validates before authorization and policy evaluation", () => {
   const validation = invoke.indexOf("capability.input.safeParse");
   const authorization = invoke.indexOf("dependencies.authorize");
-  const policyGate = invoke.indexOf("evaluateCapabilityPolicy");
+  const policyGate = invoke.indexOf("const policy = evaluateCapabilityPolicy");
   assert.ok(validation >= 0 && authorization > validation && policyGate > authorization);
 });
 
