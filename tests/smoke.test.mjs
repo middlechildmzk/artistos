@@ -7,8 +7,37 @@ const root = path.resolve(import.meta.dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('materialized readable source has required operating routes', () => {
-  for (const file of ['app/(app)/page.tsx','app/(app)/[section]/page.tsx','app/api/gmail/draft/route.ts','app/api/oauth/[provider]/callback/route.ts','lib/data.ts']) {
+  for (const file of [
+    'app/(app)/page.tsx',
+    'app/(app)/[section]/page.tsx',
+    'app/(app)/studio/page.tsx',
+    'app/(app)/campaigns/page.tsx',
+    'app/api/gmail/draft/route.ts',
+    'app/api/oauth/[provider]/callback/route.ts',
+    'lib/data.ts',
+  ]) {
     assert.equal(fs.existsSync(path.join(root, file)), true, `${file} is missing`);
+  }
+});
+
+test('canonical navigation exposes the connected ArtistOS product areas', () => {
+  const source = read('components/Sidebar.tsx');
+  for (const label of ['Release Workspace', 'Creator Studio', 'Campaign Intelligence', 'Network', 'Audience CRM']) {
+    assert.match(source, new RegExp(label));
+  }
+});
+
+test('Creator Studio preserves the fact versus inference trust contract', () => {
+  const source = read('app/(app)/studio/page.tsx');
+  assert.match(source, /Measured facts stay separate from AI judgment/);
+  assert.match(source, /Verified fact/);
+  assert.match(source, /Supported inference/);
+});
+
+test('Campaign Intelligence requires explainable target recommendations', () => {
+  const source = read('app/(app)/campaigns/page.tsx');
+  for (const question of ['Why is this a fit?', 'What evidence supports it?', 'How fresh is the information?', 'What are the risks or restrictions?', 'What should happen next?']) {
+    assert.match(source, new RegExp(question.replace(/[?]/g, '\\?')));
   }
 });
 
