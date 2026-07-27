@@ -1,8 +1,18 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { invokeCapability } from "@/lib/capabilities/invoke";
+import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
+
+async function invoke(name: string, input: Record<string, unknown>) {
+  const ctx = await createActorContext();
+  const idempotencyKey = String(input.idempotencyKey);
+  const result = await invokeCapability({ name, ctx, input, idempotencyKey, dependencies: createServerInvocationDependencies() });
+  if (result.status !== "ok") throw new Error(result.status === "failed" ? result.error.message : `Capability ${result.status}`);
+}
 
 async function requireWorkspace() {
   const supabase = await createSupabaseServerClient();
@@ -14,19 +24,18 @@ async function requireWorkspace() {
 }
 
 export async function addRecommendation(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
-  const { error } = await supabase.from("recommendations").insert({
-    workspace_id: workspaceId,
-    release_id: String(formData.get("releaseId") ?? "") || null,
+  await invoke("planner.create_recommendation", {
+    releaseId: String(formData.get("releaseId") ?? "") || null,
     title,
     rationale: String(formData.get("rationale") ?? "").trim() || null,
     priority: String(formData.get("priority") ?? "medium"),
-    action_path: String(formData.get("actionPath") ?? "").trim() || null,
-    due_date: String(formData.get("dueDate") ?? "") || null,
+    actionPath: String(formData.get("actionPath") ?? "").trim() || null,
+    dueDate: String(formData.get("dueDate") ?? "") || null,
+    evidenceIds: [],
+    idempotencyKey: `recommendation:${randomUUID()}`,
   });
-  if (error) throw error;
   revalidatePath("/command-center");
   revalidatePath("/dashboard");
 }
@@ -43,22 +52,21 @@ export async function updateRecommendation(formData: FormData) {
 }
 
 export async function addContentIdea(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
   const hook = String(formData.get("hook") ?? "").trim();
   if (!hook) return;
-  const { error } = await supabase.from("content_ideas").insert({
-    workspace_id: workspaceId,
-    artist_id: String(formData.get("artistId") ?? "") || null,
-    release_id: String(formData.get("releaseId") ?? "") || null,
+  const scheduledRaw = String(formData.get("scheduledFor") ?? "");
+  await invoke("planner.create_content_idea", {
+    artistId: String(formData.get("artistId") ?? "") || null,
+    releaseId: String(formData.get("releaseId") ?? "") || null,
     platform: String(formData.get("platform") ?? "instagram"),
     format: String(formData.get("format") ?? "reel"),
     hook,
     concept: String(formData.get("concept") ?? "").trim() || null,
     caption: String(formData.get("caption") ?? "").trim() || null,
     status: String(formData.get("status") ?? "idea"),
-    scheduled_for: String(formData.get("scheduledFor") ?? "") || null,
+    scheduledFor: scheduledRaw ? new Date(scheduledRaw).toISOString() : null,
+    idempotencyKey: `content-idea:${randomUUID()}`,
   });
-  if (error) throw error;
   revalidatePath("/studio");
 }
 
@@ -73,39 +81,33 @@ export async function updateContentStatus(formData: FormData) {
 }
 
 export async function addMetric(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
-  const platform = String(formData.get("platform") ?? "spotify").trim();
-  const metric = String(formData.get("metric") ?? "followers").trim();
   const value = Number(formData.get("value") ?? 0);
-  const { error } = await supabase.from("metric_snapshots").upsert({
-    workspace_id: workspaceId,
-    artist_id: String(formData.get("artistId") ?? "") || null,
-    release_id: String(formData.get("releaseId") ?? "") || null,
-    platform,
-    metric,
+  await invoke("analytics.record_metric_snapshot", {
+    artistId: String(formData.get("artistId") ?? "") || null,
+    releaseId: String(formData.get("releaseId") ?? "") || null,
+    platform: String(formData.get("platform") ?? "spotify").trim(),
+    metric: String(formData.get("metric") ?? "followers").trim(),
     value: Number.isFinite(value) ? value : 0,
-    captured_on: String(formData.get("capturedOn") ?? "") || new Date().toISOString().slice(0, 10),
-    source_url: String(formData.get("sourceUrl") ?? "").trim() || null,
-  }, { onConflict: "workspace_id,artist_id,release_id,platform,metric,captured_on" });
-  if (error) throw error;
+    capturedOn: String(formData.get("capturedOn") ?? "") || new Date().toISOString().slice(0, 10),
+    sourceUrl: String(formData.get("sourceUrl") ?? "").trim() || null,
+    evidenceIds: [],
+    idempotencyKey: `metric:${randomUUID()}`,
+  });
   revalidatePath("/analytics");
   revalidatePath("/command-center");
 }
 
 export async function addAutomation(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  const { error } = await supabase.from("automation_rules").insert({
-    workspace_id: workspaceId,
+  await invoke("planner.create_automation_plan", {
     name,
-    trigger_type: String(formData.get("triggerType") ?? "release_date"),
-    action_type: String(formData.get("actionType") ?? "create_task"),
-    trigger_config: { detail: String(formData.get("triggerDetail") ?? "").trim() },
-    action_config: { detail: String(formData.get("actionDetail") ?? "").trim() },
-    enabled: true,
+    triggerType: String(formData.get("triggerType") ?? "release_date"),
+    triggerDetail: String(formData.get("triggerDetail") ?? "").trim() || null,
+    actionType: String(formData.get("actionType") ?? "create_task"),
+    actionDetail: String(formData.get("actionDetail") ?? "").trim() || null,
+    idempotencyKey: `automation-plan:${randomUUID()}`,
   });
-  if (error) throw error;
   revalidatePath("/automations");
 }
 
