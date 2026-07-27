@@ -34,6 +34,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Reconcile migration history
+        run: node scripts/check-remote-migration-manifest.mjs
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
