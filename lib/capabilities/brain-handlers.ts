@@ -19,30 +19,31 @@ async function writeReplay(args: { workspaceId: string; capabilityName: string; 
 
 registerCapabilityHandler(createBrainMemoryCapability, async ({ ctx, input, idempotencyKey }) => {
   const key = idempotencyKey ?? input.idempotencyKey;
+  const evidenceIds = input.evidenceIds ?? [];
   const replay = await readReplay(ctx.workspaceId, createBrainMemoryCapability.name, key);
-  if (replay && typeof replay === "object" && "memoryId" in replay) return { output: replay as any, evidenceIds: input.evidenceIds };
+  if (replay && typeof replay === "object" && "memoryId" in replay) return { output: replay as any, evidenceIds };
   const supabase = await createSupabaseServerClient();
   if (input.artistId) {
     const { data: artist, error } = await supabase.from("artists").select("id").eq("workspace_id", ctx.workspaceId).eq("id", input.artistId).maybeSingle();
     if (error) throw error;
     if (!artist) throw new Error("artist_not_found");
   }
-  if (input.evidenceIds.length) {
-    const { data, error } = await supabase.from("evidence_records").select("id").eq("workspace_id", ctx.workspaceId).in("id", input.evidenceIds);
+  if (evidenceIds.length) {
+    const { data, error } = await supabase.from("evidence_records").select("id").eq("workspace_id", ctx.workspaceId).in("id", evidenceIds);
     if (error) throw error;
-    if ((data ?? []).length !== input.evidenceIds.length) throw new Error("evidence_not_found");
+    if ((data ?? []).length !== evidenceIds.length) throw new Error("evidence_not_found");
   }
   const { data: memory, error: memoryError } = await supabase.from("brain_memories").insert({ workspace_id: ctx.workspaceId, artist_id: input.artistId ?? null, memory_class: input.memoryClass, namespace: input.namespace, title: input.title, summary: input.summary ?? null, content: input.content, source_kind: input.sourceKind, confidence: input.confidence, observed_at: input.observedAt ?? null, created_by: ctx.userId }).select("id").single();
   if (memoryError) throw memoryError;
   const { data: claim, error: claimError } = await supabase.from("brain_claims").insert({ workspace_id: ctx.workspaceId, artist_id: input.artistId ?? null, memory_id: memory.id, claim_type: input.memoryClass, predicate: input.namespace, object_value: input.content, confidence: input.confidence, review_status: input.sourceKind === "human" ? "accepted" : "pending", reviewer_id: input.sourceKind === "human" ? ctx.userId : null, reviewed_at: input.sourceKind === "human" ? new Date().toISOString() : null, created_by: ctx.userId }).select("id").single();
   if (claimError) throw claimError;
-  if (input.evidenceIds.length) {
-    const { error } = await supabase.from("brain_claim_evidence").insert(input.evidenceIds.map((evidenceId) => ({ claim_id: claim.id, evidence_id: evidenceId, relationship: "supports" })));
+  if (evidenceIds.length) {
+    const { error } = await supabase.from("brain_claim_evidence").insert(evidenceIds.map((evidenceId) => ({ claim_id: claim.id, evidence_id: evidenceId, relationship: "supports" })));
     if (error) throw error;
   }
   const result = { memoryId: memory.id, claimId: claim.id, created: true };
   await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: createBrainMemoryCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
-  return { output: result, evidenceIds: input.evidenceIds };
+  return { output: result, evidenceIds };
 });
 
 registerCapabilityHandler(reviewBrainClaimCapability, async ({ ctx, input, idempotencyKey }) => {
