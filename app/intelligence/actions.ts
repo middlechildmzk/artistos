@@ -2,8 +2,6 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { invokeCapability } from "@/lib/capabilities/invoke";
 import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
 
@@ -12,15 +10,6 @@ async function invoke(name: string, input: Record<string, unknown>) {
   const idempotencyKey = String(input.idempotencyKey);
   const result = await invokeCapability({ name, ctx, input, idempotencyKey, dependencies: createServerInvocationDependencies() });
   if (result.status !== "ok") throw new Error(result.status === "failed" ? result.error.message : `Capability ${result.status}`);
-}
-
-async function requireWorkspace() {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) redirect("/login");
-  const { data: membership } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
-  if (!membership) throw new Error("No active workspace");
-  return { supabase, workspaceId: membership.workspace_id };
 }
 
 export async function addRecommendation(formData: FormData) {
@@ -41,12 +30,13 @@ export async function addRecommendation(formData: FormData) {
 }
 
 export async function updateRecommendation(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
-  const id = String(formData.get("id") ?? "");
-  const status = String(formData.get("status") ?? "done");
-  if (!id) return;
-  const { error } = await supabase.from("recommendations").update({ status, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", workspaceId);
-  if (error) throw error;
+  const recommendationId = String(formData.get("id") ?? "");
+  if (!recommendationId) return;
+  await invoke("planner.update_recommendation_status", {
+    recommendationId,
+    status: String(formData.get("status") ?? "done"),
+    idempotencyKey: `recommendation-status:${recommendationId}:${randomUUID()}`,
+  });
   revalidatePath("/command-center");
   revalidatePath("/dashboard");
 }
@@ -71,12 +61,13 @@ export async function addContentIdea(formData: FormData) {
 }
 
 export async function updateContentStatus(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
-  const id = String(formData.get("id") ?? "");
-  const status = String(formData.get("status") ?? "ready");
-  if (!id) return;
-  const { error } = await supabase.from("content_ideas").update({ status, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", workspaceId);
-  if (error) throw error;
+  const contentIdeaId = String(formData.get("id") ?? "");
+  if (!contentIdeaId) return;
+  await invoke("planner.update_content_idea_status", {
+    contentIdeaId,
+    status: String(formData.get("status") ?? "ready"),
+    idempotencyKey: `content-status:${contentIdeaId}:${randomUUID()}`,
+  });
   revalidatePath("/studio");
 }
 
@@ -112,11 +103,13 @@ export async function addAutomation(formData: FormData) {
 }
 
 export async function toggleAutomation(formData: FormData) {
-  const { supabase, workspaceId } = await requireWorkspace();
-  const id = String(formData.get("id") ?? "");
-  const enabled = String(formData.get("enabled") ?? "false") === "true";
-  if (!id) return;
-  const { error } = await supabase.from("automation_rules").update({ enabled: !enabled, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", workspaceId);
-  if (error) throw error;
+  const automationRuleId = String(formData.get("id") ?? "");
+  if (!automationRuleId) return;
+  const currentlyEnabled = String(formData.get("enabled") ?? "false") === "true";
+  await invoke("planner.set_automation_plan_enabled", {
+    automationRuleId,
+    enabled: !currentlyEnabled,
+    idempotencyKey: `automation-state:${automationRuleId}:${randomUUID()}`,
+  });
   revalidatePath("/automations");
 }
