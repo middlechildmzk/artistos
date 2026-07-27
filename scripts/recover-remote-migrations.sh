@@ -6,11 +6,6 @@ MANIFEST="supabase/REMOTE_MIGRATION_MANIFEST.json"
 MIGRATIONS_DIR="supabase/migrations"
 BACKUP_DIR="$(mktemp -d)/pending-migrations"
 
-if ! command -v supabase >/dev/null 2>&1; then
-  echo "Supabase CLI is required. Install it, then rerun this script." >&2
-  exit 2
-fi
-
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker is required for the replay phase." >&2
   exit 2
@@ -19,8 +14,6 @@ fi
 mkdir -p "${BACKUP_DIR}"
 
 # Preserve source-controlled migrations that are newer than the remote ledger.
-# migration fetch is allowed to reconstruct applied history, but it must never
-# silently delete or overwrite pending capability, evidence, Brain, or graph work.
 node <<'NODE' "${MANIFEST}" "${MIGRATIONS_DIR}" "${BACKUP_DIR}"
 const fs = require('node:fs');
 const path = require('node:path');
@@ -36,24 +29,42 @@ for (const file of fs.readdirSync(migrationsDir)) {
 NODE
 
 echo "This workflow is read-only against the linked production project."
-echo "It fetches remote migration history, verifies source files, then replays locally."
+echo "It reconstructs applied migration history, verifies it, then replays locally."
 
-echo "Linking Supabase project ${PROJECT_REF}..."
-supabase link --project-ref "${PROJECT_REF}"
-
-echo "Fetching remote migration history..."
-supabase migration fetch --linked
+if [[ -n "${SUPABASE_DB_URL:-}" ]]; then
+  echo "Exporting historical migrations directly from schema_migrations..."
+  node scripts/export-remote-migrations.mjs
+else
+  if ! command -v supabase >/dev/null 2>&1; then
+    echo "Supabase CLI is required when SUPABASE_DB_URL is not set." >&2
+    exit 2
+  fi
+  echo "Linking Supabase project ${PROJECT_REF}..."
+  supabase link --project-ref "${PROJECT_REF}"
+  echo "Fetching remote migration history through the Supabase CLI..."
+  supabase migration fetch --linked
+fi
 
 echo "Restoring preserved pending migrations..."
 if compgen -G "${BACKUP_DIR}/*.sql" >/dev/null; then
   cp "${BACKUP_DIR}"/*.sql "${MIGRATIONS_DIR}/"
 fi
 
-echo "Verifying fetched files against the reviewed manifest..."
+echo "Verifying recovered files against the reviewed manifest..."
 node scripts/check-remote-migration-manifest.mjs "${MANIFEST}"
 
-echo "Listing local and remote migration status..."
-supabase migration list --linked
+if command -v supabase >/dev/null 2>&1; then
+  echo "Listing local and remote migration status..."
+  supabase link --project-ref "${PROJECT_REF}"
+  supabase migration list --linked
+else
+  echo "Supabase CLI unavailable; skipping linked migration list." >&2
+fi
+
+if ! command -v supabase >/dev/null 2>&1; then
+  echo "Supabase CLI is required for local replay." >&2
+  exit 2
+fi
 
 echo "Starting isolated local Supabase..."
 supabase start
