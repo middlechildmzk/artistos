@@ -7,6 +7,9 @@ import {
   createContentIdeaCapability,
   createRecommendationCapability,
   recordMetricSnapshotCapability,
+  setAutomationPlanEnabledCapability,
+  updateContentIdeaStatusCapability,
+  updateRecommendationStatusCapability,
 } from "./planner-registry";
 
 async function readReplay(workspaceId: string, capabilityName: string, key: string) {
@@ -56,6 +59,24 @@ registerCapabilityHandler(createRecommendationCapability, async ({ ctx, input, i
   return { output: result, evidenceIds };
 });
 
+registerCapabilityHandler(updateRecommendationStatusCapability, async ({ ctx, input, idempotencyKey }) => {
+  const key = idempotencyKey ?? input.idempotencyKey;
+  const replay = await readReplay(ctx.workspaceId, updateRecommendationStatusCapability.name, key);
+  if (replay && typeof replay === "object" && "recommendationId" in replay) return { output: replay as any, evidenceIds: [] };
+  const supabase = await createSupabaseServerClient();
+  const { data: current, error: readError } = await supabase.from("recommendations").select("id,status").eq("workspace_id", ctx.workspaceId).eq("id", input.recommendationId).maybeSingle();
+  if (readError) throw readError;
+  if (!current) throw new Error("recommendation_not_found");
+  const changed = current.status !== input.status;
+  if (changed) {
+    const { error } = await supabase.from("recommendations").update({ status: input.status, updated_at: new Date().toISOString() }).eq("workspace_id", ctx.workspaceId).eq("id", input.recommendationId);
+    if (error) throw error;
+  }
+  const result = { recommendationId: input.recommendationId, status: input.status, changed };
+  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: updateRecommendationStatusCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
+  return { output: result, evidenceIds: [] };
+});
+
 registerCapabilityHandler(createContentIdeaCapability, async ({ ctx, input, idempotencyKey }) => {
   const key = idempotencyKey ?? input.idempotencyKey;
   const replay = await readReplay(ctx.workspaceId, createContentIdeaCapability.name, key);
@@ -65,6 +86,24 @@ registerCapabilityHandler(createContentIdeaCapability, async ({ ctx, input, idem
   if (error) throw error;
   const result = { contentIdeaId: data.id, created: true };
   await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: createContentIdeaCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
+  return { output: result, evidenceIds: [] };
+});
+
+registerCapabilityHandler(updateContentIdeaStatusCapability, async ({ ctx, input, idempotencyKey }) => {
+  const key = idempotencyKey ?? input.idempotencyKey;
+  const replay = await readReplay(ctx.workspaceId, updateContentIdeaStatusCapability.name, key);
+  if (replay && typeof replay === "object" && "contentIdeaId" in replay) return { output: replay as any, evidenceIds: [] };
+  const supabase = await createSupabaseServerClient();
+  const { data: current, error: readError } = await supabase.from("content_ideas").select("id,status").eq("workspace_id", ctx.workspaceId).eq("id", input.contentIdeaId).maybeSingle();
+  if (readError) throw readError;
+  if (!current) throw new Error("content_idea_not_found");
+  const changed = current.status !== input.status;
+  if (changed) {
+    const { error } = await supabase.from("content_ideas").update({ status: input.status, updated_at: new Date().toISOString() }).eq("workspace_id", ctx.workspaceId).eq("id", input.contentIdeaId);
+    if (error) throw error;
+  }
+  const result = { contentIdeaId: input.contentIdeaId, status: input.status, changed };
+  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: updateContentIdeaStatusCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
   return { output: result, evidenceIds: [] };
 });
 
@@ -91,5 +130,23 @@ registerCapabilityHandler(createAutomationPlanCapability, async ({ ctx, input, i
   if (error) throw error;
   const result = { automationRuleId: data.id, created: true, executionMode: "plan_only" as const };
   await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: createAutomationPlanCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
+  return { output: result, evidenceIds: [] };
+});
+
+registerCapabilityHandler(setAutomationPlanEnabledCapability, async ({ ctx, input, idempotencyKey }) => {
+  const key = idempotencyKey ?? input.idempotencyKey;
+  const replay = await readReplay(ctx.workspaceId, setAutomationPlanEnabledCapability.name, key);
+  if (replay && typeof replay === "object" && "automationRuleId" in replay) return { output: replay as any, evidenceIds: [] };
+  const supabase = await createSupabaseServerClient();
+  const { data: current, error: readError } = await supabase.from("automation_rules").select("id,enabled").eq("workspace_id", ctx.workspaceId).eq("id", input.automationRuleId).maybeSingle();
+  if (readError) throw readError;
+  if (!current) throw new Error("automation_rule_not_found");
+  const changed = current.enabled !== input.enabled;
+  if (changed) {
+    const { error } = await supabase.from("automation_rules").update({ enabled: input.enabled, updated_at: new Date().toISOString() }).eq("workspace_id", ctx.workspaceId).eq("id", input.automationRuleId);
+    if (error) throw error;
+  }
+  const result = { automationRuleId: input.automationRuleId, enabled: input.enabled, changed, executionMode: "plan_only" as const };
+  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: setAutomationPlanEnabledCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
   return { output: result, evidenceIds: [] };
 });
