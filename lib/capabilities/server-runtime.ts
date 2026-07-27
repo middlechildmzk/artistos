@@ -80,7 +80,14 @@ export function createServerInvocationDependencies(): InvocationDependencies {
       return { approvalId: data.id, preview: input };
     },
 
-    async execute<O>({ ctx, capabilityName, version, input, idempotencyKey }) {
+    async execute<O>(args: {
+      ctx: ActorContext;
+      capabilityName: string;
+      version: number;
+      input: unknown;
+      idempotencyKey?: string;
+    }) {
+      const { ctx, capabilityName, version, input, idempotencyKey } = args;
       const handler = getCapabilityHandler(capabilityName, version);
       const execution = await handler({ ctx, input, idempotencyKey });
       return {
