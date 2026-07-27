@@ -20,6 +20,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Snapshot tracked source
+        run: git ls-files -z | tar --null -T - -czf source-snapshot.tgz
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-snapshot
+          path: source-snapshot.tgz
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -45,12 +56,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Enforce typecheck
-        if: steps.typecheck.outcome == 'failure'
-        run: exit 1
-
       - name: Build
         id: build
+        if: always()
         continue-on-error: true
         shell: bash
         run: |
@@ -66,6 +74,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Enforce build
-        if: steps.build.outcome == 'failure'
+      - name: Enforce verification
+        if: steps.typecheck.outcome == 'failure' || steps.build.outcome == 'failure'
         run: exit 1
