@@ -57,6 +57,16 @@ export async function invokeCapability<O = unknown>(args: {
     return failure("idempotency_key_required", "This capability requires an idempotency key");
   }
 
+  if (
+    args.idempotencyKey &&
+    typeof parsed.data === "object" &&
+    parsed.data !== null &&
+    "idempotencyKey" in parsed.data &&
+    parsed.data.idempotencyKey !== args.idempotencyKey
+  ) {
+    return failure("idempotency_key_mismatch", "Input and invocation idempotency keys do not match");
+  }
+
   const authorization = await args.dependencies.authorize(args.ctx, capability.name, parsed.data);
   if (!authorization.allowed) {
     return { status: "denied", reason: authorization.reason, policy: authorization.policy };
@@ -100,9 +110,19 @@ export async function invokeCapability<O = unknown>(args: {
       return failure("evidence_missing", "Capability execution produced no required evidence");
     }
 
+    const validatedOutput = capability.output.safeParse(execution.output);
+    if (!validatedOutput.success) {
+      return failure(
+        "invalid_handler_output",
+        "Capability handler returned output that violates its contract",
+        false,
+        validatedOutput.error.flatten(),
+      );
+    }
+
     return {
       status: "ok",
-      output: execution.output,
+      output: validatedOutput.data as O,
       evidenceIds: execution.evidenceIds,
       auditId: execution.auditId ?? randomUUID(),
     };
