@@ -28,7 +28,21 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   if (!membership) {
-    return <main className="login-page"><section className="card"><h1>No workspace yet</h1><p className="muted">Your account is authenticated but has not been added to an ArtistOS workspace.</p></section></main>;
+    const { error: provisioningError } = await supabase.rpc("ensure_artistos_workspace");
+    if (provisioningError) {
+      return (
+        <main className="login-page">
+          <section className="card stack">
+            <div className="eyebrow">Workspace setup</div>
+            <h1>We could not finish onboarding</h1>
+            <p className="muted">Your account is authenticated, but ArtistOS could not create your workspace.</p>
+            <div className="notice">{provisioningError.message}</div>
+            <Link className="button primary" href="/dashboard">Try again</Link>
+          </section>
+        </main>
+      );
+    }
+    redirect("/dashboard");
   }
 
   const workspaceId = membership.workspace_id;
@@ -63,6 +77,8 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="nav-links">
+          <Link className="button ghost" href="/releases">Releases</Link>
+          <Link className="button ghost" href="/campaigns">Campaigns</Link>
           <Link className="button ghost" href="/targets">Targets</Link>
           <Link className="button ghost" href="/audience">Audience</Link>
           <form action={signOut}><button className="button ghost" type="submit">Sign out</button></form>
@@ -75,6 +91,7 @@ export default async function DashboardPage() {
         <p className="muted">
           {release ? `${formatDate(release.release_date)}${releaseCountdown === null ? "" : releaseCountdown > 0 ? ` · ${releaseCountdown} days remaining` : releaseCountdown === 0 ? " · Release day" : ` · Released ${Math.abs(releaseCountdown)} days ago`}` : "ArtistOS will organize readiness, assets, campaigns, and outcomes here."}
         </p>
+        <Link className="button primary" href="/releases">Open release command center</Link>
       </section>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
