@@ -8,6 +8,7 @@ const items = [
   ['/releases', '◉', 'Release Workspace'],
   ['/studio', '✧', 'Creator Studio'],
   ['/campaigns', '◫', 'Campaign Intelligence'],
+  ['/tools', '⌁', 'Free Tools'],
   ['/platforms', '◎', 'Music Intelligence'],
   ['/social', '◈', 'Social'],
   ['/playlists', '♫', 'Playlists'],
