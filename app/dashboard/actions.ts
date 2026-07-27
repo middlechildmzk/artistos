@@ -1,23 +1,44 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { invokeCapability } from "@/lib/capabilities/invoke";
+import {
+  createActorContext,
+  createServerInvocationDependencies,
+} from "@/lib/capabilities/server-runtime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-async function requireWorkspace() {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) redirect("/login");
+async function invokeDashboardMutation(args: {
+  name: string;
+  input: Record<string, unknown>;
+  idempotencyKey: string;
+}) {
+  let ctx;
+  try {
+    ctx = await createActorContext();
+  } catch (error) {
+    if (error instanceof Error && error.message === "not_authenticated") redirect("/login");
+    throw error;
+  }
 
-  const { data: membership, error } = await supabase
-    .from("workspace_members")
-    .select("workspace_id, role")
-    .eq("user_id", userData.user.id)
-    .limit(1)
-    .maybeSingle();
+  const result = await invokeCapability({
+    name: args.name,
+    ctx,
+    input: { ...args.input, idempotencyKey: args.idempotencyKey },
+    idempotencyKey: args.idempotencyKey,
+    dependencies: createServerInvocationDependencies(),
+  });
 
-  if (error || !membership) throw new Error("No active workspace membership found");
-  return { supabase, workspaceId: membership.workspace_id };
+  if (result.status === "ok") return result;
+  if (result.status === "requires_approval") {
+    throw new Error(`Approval required: ${result.approvalId}`);
+  }
+  if (result.status === "denied") {
+    throw new Error(`Action denied by ${result.policy}: ${result.reason}`);
+  }
+  throw new Error(`${result.error.code}: ${result.error.message}`);
 }
 
 export async function toggleTask(formData: FormData) {
@@ -25,18 +46,12 @@ export async function toggleTask(formData: FormData) {
   const currentStatus = String(formData.get("currentStatus") ?? "open");
   if (!taskId) return;
 
-  const { supabase, workspaceId } = await requireWorkspace();
   const nextStatus = currentStatus === "done" ? "open" : "done";
-  const { error } = await supabase
-    .from("tasks")
-    .update({
-      status: nextStatus,
-      completed_at: nextStatus === "done" ? new Date().toISOString() : null,
-    })
-    .eq("id", taskId)
-    .eq("workspace_id", workspaceId);
-
-  if (error) throw error;
+  await invokeDashboardMutation({
+    name: "tasks.update_status",
+    input: { taskId, status: nextStatus },
+    idempotencyKey: randomUUID(),
+  });
   revalidatePath("/dashboard");
 }
 
@@ -44,14 +59,11 @@ export async function completeFollowUp(formData: FormData) {
   const interactionId = String(formData.get("interactionId") ?? "");
   if (!interactionId) return;
 
-  const { supabase, workspaceId } = await requireWorkspace();
-  const { error } = await supabase
-    .from("interactions")
-    .update({ follow_up_done: true })
-    .eq("id", interactionId)
-    .eq("workspace_id", workspaceId);
-
-  if (error) throw error;
+  await invokeDashboardMutation({
+    name: "interactions.complete_follow_up",
+    input: { interactionId },
+    idempotencyKey: randomUUID(),
+  });
   revalidatePath("/dashboard");
 }
 
