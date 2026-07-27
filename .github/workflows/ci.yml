@@ -43,8 +43,6 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Capability and architecture tests
-        id: tests
-        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
@@ -60,8 +58,7 @@ jobs:
           retention-days: 7
 
       - name: Typecheck
-        id: typecheck
-        continue-on-error: true
+        if: always()
         shell: bash
         run: |
           set -o pipefail
@@ -77,9 +74,7 @@ jobs:
           retention-days: 7
 
       - name: Build
-        id: build
         if: always()
-        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
@@ -93,7 +88,3 @@ jobs:
           path: build.log
           if-no-files-found: error
           retention-days: 7
-
-      - name: Enforce verification
-        if: steps.tests.outcome == 'failure' || steps.typecheck.outcome == 'failure' || steps.build.outcome == 'failure'
-        run: exit 1
