@@ -131,6 +131,24 @@ export const updateTaskStatusCapability = registerCapability({
   failureModes: ["task_not_found", "invalid_transition"],
 });
 
+export const completeInteractionFollowUpCapability = registerCapability({
+  name: "interactions.complete_follow_up",
+  version: 1,
+  kind: "command",
+  purpose: "Mark a scheduled outreach follow-up complete without altering the interaction record.",
+  input: z.object({ interactionId: uuid, idempotencyKey: z.string().min(16) }),
+  output: z.object({ interactionId: uuid, completed: z.boolean(), changed: z.boolean() }),
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.interactions.write" },
+  risk: "R1_internal_reversible",
+  approval: "by_policy",
+  idempotency: "key_required",
+  evidence: "optional",
+  auditEvents: ["interactions.follow_up_completed"],
+  retry: defaultWriteRetry,
+  mcp: "gated_write",
+  failureModes: ["interaction_not_found"],
+});
+
 export const suppressAudienceCapability = registerCapability({
   name: "audience.suppress",
   version: 1,
