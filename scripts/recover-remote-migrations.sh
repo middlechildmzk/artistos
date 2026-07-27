@@ -90,4 +90,8 @@ fi
 echo "Running database advisors..."
 supabase db advisors --local
 
-echo "Recovery and clean local replay succeeded. No production migration was applied."
+echo "Verifying linked production schema against the recovered historical baseline..."
+bash scripts/verify-schema-drift.sh
+
+echo "Recovery, clean local replay, workspace isolation, advisors, and linked historical drift verification succeeded."
+echo "No production migration or migration-history repair was applied."
