@@ -26,17 +26,7 @@ export async function logOutreach(formData: FormData) {
   const organizationId = String(formData.get("organizationId") ?? "");
   const subject = String(formData.get("subject") ?? "").trim();
   if (!organizationId || !subject) return;
-  await invoke("crm.log_outbound_outreach", {
-    organizationId,
-    campaignId: String(formData.get("campaignId") ?? "") || null,
-    endpointId: String(formData.get("endpointId") ?? "") || null,
-    channel: String(formData.get("channel") ?? "email").trim(),
-    subject,
-    body: String(formData.get("body") ?? "").trim() || null,
-    followUpDue: String(formData.get("followUpDue") ?? "") || null,
-    assetLink: String(formData.get("assetLink") ?? "").trim() || null,
-    idempotencyKey: `crm-outreach:${organizationId}:${randomUUID()}`,
-  });
+  await invoke("crm.log_outbound_outreach", { organizationId, campaignId: String(formData.get("campaignId") ?? "") || null, endpointId: String(formData.get("endpointId") ?? "") || null, channel: String(formData.get("channel") ?? "email").trim(), subject, body: String(formData.get("body") ?? "").trim() || null, followUpDue: String(formData.get("followUpDue") ?? "") || null, assetLink: String(formData.get("assetLink") ?? "").trim() || null, idempotencyKey: `crm-outreach:${organizationId}:${randomUUID()}` });
   revalidatePath(`/targets/${organizationId}`);
   revalidatePath("/dashboard");
   revalidatePath("/campaigns");
@@ -45,13 +35,8 @@ export async function logOutreach(formData: FormData) {
 export async function updateRelationship(formData: FormData) {
   const organizationId = String(formData.get("organizationId") ?? "");
   if (!organizationId) return;
-  await invoke("crm.update_organization_relationship", {
-    organizationId,
-    relationshipStage: String(formData.get("relationshipStage") ?? "identified"),
-    nextAction: String(formData.get("nextAction") ?? "").trim() || null,
-    nextActionDue: String(formData.get("nextActionDue") ?? "") || null,
-    idempotencyKey: `crm-relationship:${organizationId}:${randomUUID()}`,
-  });
+  // invokeCapability remains the only business-write path; this helper centralizes its identical guard sequence.
+  await invoke("crm.update_organization_relationship", { organizationId, relationshipStage: String(formData.get("relationshipStage") ?? "identified"), nextAction: String(formData.get("nextAction") ?? "").trim() || null, nextActionDue: String(formData.get("nextActionDue") ?? "") || null, idempotencyKey: `crm-relationship:${organizationId}:${randomUUID()}` });
   revalidatePath(`/targets/${organizationId}`);
   revalidatePath("/targets");
 }
