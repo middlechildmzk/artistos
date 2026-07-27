@@ -8,7 +8,10 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
 const invoke = read("lib/capabilities/invoke.ts");
 const runtime = read("lib/capabilities/server-runtime.ts");
+const approvedExecution = read("lib/capabilities/approved-execution.ts");
+const actions = read("app/approvals/actions.ts");
 const page = read("app/approvals/page.tsx");
+const migration = read("supabase/migrations/20260727170000_capability_runtime_ledger.sql");
 
 test("runtime writes receipts for all material policy and execution outcomes", () => {
   for (const decision of ["denied", "requires_approval", "allowed", "failed", "succeeded"]) {
@@ -26,10 +29,24 @@ test("server audit persistence preserves actor, policy, run, step, evidence, and
   }
 });
 
-test("approval center exposes pending work and recent receipts without fake execution controls", () => {
-  assert.match(page, /Pending approvals/);
-  assert.match(page, /Recent runtime receipts/);
-  assert.match(page, /R2, R3, and R4 actions remain human-gated/);
-  assert.match(page, /does not offer a misleading button/);
-  assert.doesNotMatch(page, />Approve</);
+test("approval lifecycle is atomic, role-gated, frozen, evidenced, and auditable", () => {
+  assert.match(migration, /decide_capability_approval/);
+  assert.match(migration, /claim_capability_approval/);
+  assert.match(migration, /finish_capability_approval/);
+  assert.match(migration, /status = 'executing'/);
+  assert.match(approvedExecution, /admin_role_required/);
+  assert.match(approvedExecution, /preview_hash_mismatch/);
+  assert.match(approvedExecution, /capability\.input\.safeParse/);
+  assert.match(approvedExecution, /capability\.output\.safeParse/);
+  assert.match(approvedExecution, /capability\.evidence === "required"/);
+  assert.match(approvedExecution, /approval\.frozen_request_executed/);
+});
+
+test("approval center performs approve-and-execute rather than status-only approval", () => {
+  assert.match(actions, /decideApproval/);
+  assert.match(actions, /executeApprovedCapability/);
+  assert.ok(actions.indexOf("decideApproval") < actions.indexOf("executeApprovedCapability"));
+  assert.match(page, /Approve and execute/);
+  assert.match(page, /verifies its hash/);
+  assert.match(page, /marks the request consumed or failed/);
 });
