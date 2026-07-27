@@ -54,7 +54,7 @@ registerCapabilityHandler(listReleasesCapability, async ({ ctx, input }) => {
     .select("id,artist_id,title,status,release_date")
     .eq("workspace_id", ctx.workspaceId)
     .order("release_date", { ascending: false })
-    .limit(input.limit);
+    .limit(input.limit ?? 50);
   if (input.artistId) query = query.eq("artist_id", input.artistId);
   const { data, error } = await query;
   if (error) throw error;
