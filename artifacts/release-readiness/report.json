@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T21:09:50Z",
+  "git_sha": "4a20c7e690f5ff9621bb6a215a3df8e2c57dd283",
+  "overall": "GO",
+  "counts": {
+    "pass": 8,
+    "fail": 0,
+    "blocked": 0
+  },
+  "gates": [
+    {
+      "id": "migration_manifest",
+      "title": "Historical migration manifest",
+      "required": true,
+      "files": ["supabase/REMOTE_MIGRATION_MANIFEST.json"],
+      "status": "pass",
+      "detail": "Evidence found at supabase/REMOTE_MIGRATION_MANIFEST.json.",
+      "evidence": "supabase/REMOTE_MIGRATION_MANIFEST.json",
+      "sha256": "18470d81369473c8ea994e765ea308e2f3657929049de75c03c5cf03a5695944"
+    },
+    {
+      "id": "historical_sql",
+      "title": "Recovered historical SQL files",
+      "required": true,
+      "status": "pass",
+      "detail": "28 historical migrations are present with reviewed filenames."
+    },
+    {
+      "id": "historical_replay",
+      "title": "Isolated clean-database replay",
+      "required": true,
+      "files": ["artifacts/release-readiness/local-db-replay.json"],
+      "status": "pass",
+      "detail": "Source-bound database replay passed for the approved release source.",
+      "evidence": "artifacts/release-readiness/local-db-replay.json",
+      "sha256": "7003b8090c722eaaf1c9fed29253415d030475959853fce090b950f9e8f40796"
+    },
+    {
+      "id": "linked_schema_drift",
+      "title": "Production schema drift review",
+      "required": true,
+      "files": ["artifacts/schema-drift/summary.txt"],
+      "status": "pass",
+      "detail": "Production and reconstructed historical schemas matched across 2,007 objects.",
+      "evidence": "artifacts/schema-drift/summary.txt",
+      "sha256": "dbcc8f52854a5e1b0dc7e6b3a41c8317822514a7508980ac7bc505eba402bb2a"
+    },
+    {
+      "id": "pending_rehearsal",
+      "title": "Pending migration rehearsal",
+      "required": true,
+      "status": "pass",
+      "detail": "The isolated replay applied the complete tracked historical and pending migration chain."
+    },
+    {
+      "id": "authenticated_e2e",
+      "title": "Authenticated end-to-end verification",
+      "required": true,
+      "files": ["artifacts/authenticated-e2e/summary.json"],
+      "status": "pass",
+      "detail": "All nine authenticated owner, viewer, and second-workspace journeys passed for the approved release source.",
+      "evidence": "artifacts/authenticated-e2e/summary.json",
+      "sha256": "2ac2182f63169ecf2b6ded2e94fb5d65729315addbd1dfba1f9136992e1b26b9"
+    },
+    {
+      "id": "brain_reconciliation",
+      "title": "Brain v1 to v2 reconciliation",
+      "required": true,
+      "files": ["artifacts/brain-reconciliation/summary.json"],
+      "status": "pass",
+      "detail": "Production artist_brain_facts contains zero rows, so no v1 data transformation was required.",
+      "evidence": "artifacts/brain-reconciliation/summary.json",
+      "sha256": "3e2ca1f1c09730ed0c9c8b3bcc5001b08be21921d40033f47c91822a90b8094b"
+    },
+    {
+      "id": "production_approval",
+      "title": "Production rollout approval",
+      "required": true,
+      "files": ["artifacts/production-rollout/approval.json"],
+      "status": "pass",
+      "detail": "Dan Larson approved the verified ArtistOS release source with Dan Larson assigned as rollback owner.",
+      "evidence": "artifacts/production-rollout/approval.json",
+      "sha256": "7299f8efad9f9632cd0f2065a2b9f0529993299ad29175b2a5fc8770dafaa5d9"
+    }
+  ],
+  "production_mutation_authorized": true
+}

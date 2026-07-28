@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "summary": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
+  "source_commit": "4a20c7e690f5ff9621bb6a215a3df8e2c57dd283",
+  "completed_at": "2026-07-28T20:45:30.184Z",
+  "run_id": "30397395741",
+  "base_url": "http://127.0.0.1:3000",
+  "journeys": [
+    {
+      "id": "owner_login_and_workspace_provisioning",
+      "status": "PASS",
+      "detail": "Owner authenticated through the browser and ArtistOS provisioned the first workspace."
+    },
+    {
+      "id": "owner_release_creation",
+      "status": "PASS",
+      "detail": "Owner created a release and its starter operational spine through the authenticated UI."
+    },
+    {
+      "id": "capability_task_execution",
+      "status": "PASS",
+      "detail": "Owner completed a release task through the capability runtime-backed server action."
+    },
+    {
+      "id": "artist_brain_memory",
+      "status": "PASS",
+      "detail": "Owner created a source-visible Artist Brain v2 memory through the UI."
+    },
+    {
+      "id": "ai_manager_request",
+      "status": "PASS",
+      "detail": "Owner created a deterministic cross-functional AI Manager plan through the UI."
+    },
+    {
+      "id": "protected_workspaces_render",
+      "status": "PASS",
+      "detail": "Opportunity Intelligence and Approval Center rendered for the authenticated owner."
+    },
+    {
+      "id": "viewer_read_only",
+      "status": "PASS",
+      "detail": "Viewer read shared release and Brain memory but was denied a direct authenticated write."
+    },
+    {
+      "id": "second_workspace_isolation",
+      "status": "PASS",
+      "detail": "Independent user received a separate workspace and could not see or query owner release data."
+    },
+    {
+      "id": "durable_control_plane",
+      "status": "PASS",
+      "detail": "Runtime actions persisted audit and idempotency receipts alongside business records."
+    }
+  ],
+  "counts": {
+    "releases": 1,
+    "tasks": 5,
+    "brain_memories": 1,
+    "manager_requests": 1,
+    "capability_audit_log": 8,
+    "capability_idempotency": 3
+  },
+  "screenshots": [
+    "owner-approvals.png",
+    "viewer-brain.png",
+    "outsider-dashboard.png"
+  ],
+  "production_mutated": false
+}

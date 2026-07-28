@@ -1,0 +1,47 @@
+{
+    "sha256": "e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07",
+    "categories": {
+        "COL": {
+            "sha256": "efe30dc445b3960fa8fcc1e183b261848aa6e21dea3a4655680f2453f29dcf3d",
+            "object_count": 690
+        },
+        "CON": {
+            "sha256": "8e110effb3676699be0197257521fbd5e6a580f4dc664a86893afecc235406fa",
+            "object_count": 224
+        },
+        "FUN": {
+            "sha256": "c89d0460a4c3026627757139f037d3b7afd79235df0fc4dfee32c851d43ffb88",
+            "object_count": 7
+        },
+        "IDX": {
+            "sha256": "0271d86585e97def393ec1ccb373b992aeff668b2b4f5e363639141a241ea2ae",
+            "object_count": 143
+        },
+        "POL": {
+            "sha256": "d7d42e250a867a42ba3a8dd781352a5901c493595c5e706b49922a7ce8e40647",
+            "object_count": 165
+        },
+        "REL": {
+            "sha256": "c3c0087d5c4f7b6a481fa3532a3e10535e790f4a73ff1f52408ca5fe07332570",
+            "object_count": 47
+        },
+        "TRG": {
+            "sha256": "5cd2c0120f7e92d1b476361b1a6321bcbd5b50ac7308a6caff358e1e5e3355ba",
+            "object_count": 1
+        },
+        "ENUM": {
+            "sha256": "3729eb69e5ec7c1d8330592a6f10aaebfe0c453efdbc1e1371a80d24559887eb",
+            "object_count": 1
+        },
+        "GRANT": {
+            "sha256": "647c3542c685644f124f5024ba72c3c773adedcb2697c9b5709711e96c730341",
+            "object_count": 728
+        },
+        "BUCKET": {
+            "sha256": "62365f79a30bf426e12946f155f0ede9748916b6026952ef64dae9f4984e21ff",
+            "object_count": 1
+        }
+    },
+    "object_count": 2007,
+    "schema_version": 1
+}

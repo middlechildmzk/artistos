@@ -1,0 +1,26 @@
+create table if not exists public.agent_runs (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade, manager_request_id uuid references public.manager_requests(id) on delete set null, agent_profile_id uuid references public.agent_profiles(id) on delete set null, title text not null, objective text not null, status text not null default 'draft' check (status in ('draft','awaiting_approval','approved','queued','running','blocked','completed','failed','cancelled')), approval_required boolean not null default true, approved_by uuid references auth.users(id) on delete set null, approved_at timestamptz, started_at timestamptz, completed_at timestamptz, result_summary text, error_message text, created_by uuid not null default auth.uid() references auth.users(id) on delete cascade, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.agent_run_steps (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade, agent_run_id uuid not null references public.agent_runs(id) on delete cascade, department text not null, action_type text not null, instruction text not null, status text not null default 'pending' check (status in ('pending','approved','queued','running','completed','blocked','failed','skipped')), output_type text, output_ref jsonb not null default '{}'::jsonb, result_summary text, error_message text, sort_order integer not null default 100, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.agent_artifacts (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null references public.workspaces(id) on delete cascade, agent_run_id uuid not null references public.agent_runs(id) on delete cascade, step_id uuid references public.agent_run_steps(id) on delete set null, artifact_type text not null, title text not null, body text, data jsonb not null default '{}'::jsonb, approval_state text not null default 'draft' check (approval_state in ('draft','review','approved','rejected')), created_by uuid not null default auth.uid() references auth.users(id) on delete cascade, created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create index if not exists agent_runs_workspace_status_idx on public.agent_runs(workspace_id,status,created_at desc);
+create index if not exists agent_run_steps_run_sort_idx on public.agent_run_steps(agent_run_id,sort_order);
+create index if not exists agent_artifacts_run_idx on public.agent_artifacts(agent_run_id,created_at desc);
+alter table public.agent_runs enable row level security; alter table public.agent_run_steps enable row level security; alter table public.agent_artifacts enable row level security;
+grant select, insert, update, delete on public.agent_runs, public.agent_run_steps, public.agent_artifacts to authenticated;
+create policy agent_runs_select on public.agent_runs for select to authenticated using (public.artistos_is_workspace_member(workspace_id));
+create policy agent_runs_insert on public.agent_runs for insert to authenticated with check (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_runs_update on public.agent_runs for update to authenticated using (public.artistos_can_manage_workspace(workspace_id)) with check (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_runs_delete on public.agent_runs for delete to authenticated using (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_run_steps_select on public.agent_run_steps for select to authenticated using (public.artistos_is_workspace_member(workspace_id));
+create policy agent_run_steps_insert on public.agent_run_steps for insert to authenticated with check (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_run_steps_update on public.agent_run_steps for update to authenticated using (public.artistos_can_manage_workspace(workspace_id)) with check (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_run_steps_delete on public.agent_run_steps for delete to authenticated using (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_artifacts_select on public.agent_artifacts for select to authenticated using (public.artistos_is_workspace_member(workspace_id));
+create policy agent_artifacts_insert on public.agent_artifacts for insert to authenticated with check (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_artifacts_update on public.agent_artifacts for update to authenticated using (public.artistos_can_manage_workspace(workspace_id)) with check (public.artistos_can_manage_workspace(workspace_id));
+create policy agent_artifacts_delete on public.agent_artifacts for delete to authenticated using (public.artistos_can_manage_workspace(workspace_id));

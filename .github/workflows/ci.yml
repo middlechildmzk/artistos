@@ -1,0 +1,94 @@
+name: ArtistOS CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artistos-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Snapshot tracked source
+        run: git ls-files -z | tar --null -T - -czf source-snapshot.tgz
+
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-snapshot
+          path: source-snapshot.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Reconcile migration history
+        run: node scripts/check-remote-migration-manifest.mjs
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Capability and architecture tests
+        id: tests
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee tests.log
+
+      - name: Upload test diagnostics
+        if: ${{ always() && steps.tests.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: tests.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Typecheck
+        id: typecheck
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee typecheck.log
+
+      - name: Upload TypeScript diagnostics
+        if: ${{ always() && steps.typecheck.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Build
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+
+      - name: Upload build diagnostics
+        if: ${{ always() && steps.build.outcome != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          path: build.log
+          if-no-files-found: warn
+          retention-days: 7

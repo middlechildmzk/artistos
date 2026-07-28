@@ -1,0 +1,265 @@
+name: ArtistOS Database Replay
+
+on:
+  push:
+    branches:
+      - agent/artistos-canonical-integration
+    paths-ignore:
+      - artifacts/**
+      - docs/**
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: artistos-release-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact triggering release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Bind release source and clear stale runtime evidence
+        shell: bash
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$checked_out_sha" != "$GITHUB_SHA" ]]; then
+            echo "Checked out ${checked_out_sha}, expected triggering source ${GITHUB_SHA}." >&2
+            exit 1
+          fi
+          echo "RELEASE_SOURCE_SHA=${checked_out_sha}" >> "$GITHUB_ENV"
+          rm -f artifacts/authenticated-e2e/summary.json artifacts/authenticated-e2e/*.png
+          rm -f artifacts/release-readiness/report.json artifacts/release-readiness/report.md artifacts/release-readiness/events.ndjson
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+
+      - name: Verify historical drift, full replay, RLS, and advisors
+        id: replay
+        shell: bash
+        env:
+          KEEP_SUPABASE_RUNNING: "1"
+        run: |
+          set +e
+          bash scripts/verify-local-supabase.sh 2>&1 | tee database-replay.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Write source-bound replay evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts/release-readiness
+          if [[ "${{ steps.replay.outputs.status }}" == "0" ]]; then
+            result="PASS"
+            rls_checked=true
+          else
+            result="FAIL"
+            rls_checked=false
+          fi
+          if [[ -f artifacts/schema-drift/summary.json ]]; then
+            drift_checked=true
+          else
+            drift_checked=false
+          fi
+          cat > artifacts/release-readiness/local-db-replay.json <<EOF
+          {
+            "schema_version": 1,
+            "result": "${result}",
+            "source_commit": "${RELEASE_SOURCE_SHA}",
+            "workflow_run_id": "${GITHUB_RUN_ID}",
+            "supabase_cli_version": "2.84.2",
+            "historical_schema_drift_checked": ${drift_checked},
+            "workspace_rls_checked": ${rls_checked},
+            "production_mutated": false,
+            "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Export disposable application environment
+        if: steps.replay.outputs.status == '0'
+        shell: bash
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "ARTISTOS_APP_URL=http://127.0.0.1:3000"
+          } >> "$GITHUB_ENV"
+
+      - name: Install application and browser
+        if: steps.replay.outputs.status == '0'
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build and start exact release source
+        if: steps.replay.outputs.status == '0'
+        shell: bash
+        run: |
+          npm run build
+          nohup npm run start -- -H 127.0.0.1 -p 3000 > artistos-e2e-app.log 2>&1 &
+          echo $! > /tmp/artistos-e2e-app.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/login >/dev/null; then
+              echo "ArtistOS is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat artistos-e2e-app.log
+          exit 1
+
+      - name: Run authenticated browser journeys
+        if: steps.replay.outputs.status == '0'
+        id: e2e
+        shell: bash
+        run: |
+          set +e
+          GITHUB_SHA="$RELEASE_SOURCE_SHA" node scripts/run-authenticated-e2e.mjs 2>&1 | tee authenticated-e2e.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Generate source-bound readiness report
+        if: always() && !cancelled() && steps.replay.outputs.status == '0' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
+        shell: bash
+        run: |
+          set +e
+          RELEASE_GIT_SHA="$RELEASE_SOURCE_SHA" node scripts/generate-release-readiness-report.mjs 2>&1 | tee readiness-report.log
+          exit 0
+
+      - name: Validate preapproval evidence contracts
+        if: always() && !cancelled() && steps.replay.outputs.status == '0' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
+        id: contracts
+        shell: bash
+        run: |
+          set +e
+          RELEASE_EVIDENCE_STAGE=preapproval RELEASE_GIT_SHA="$RELEASE_SOURCE_SHA" node scripts/validate-release-evidence.mjs 2>&1 | tee evidence-validation.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload release verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-release-verification-${{ github.run_id }}
+          path: |
+            database-replay.log
+            authenticated-e2e.log
+            artistos-e2e-app.log
+            readiness-report.log
+            evidence-validation.log
+            artifacts/release-readiness/local-db-replay.json
+            artifacts/release-readiness/report.json
+            artifacts/release-readiness/report.md
+            artifacts/release-readiness/events.ndjson
+            artifacts/authenticated-e2e/summary.json
+            artifacts/authenticated-e2e/*.png
+            artifacts/schema-drift/local-historical-fingerprint.json
+            artifacts/schema-drift/local-historical-inventory.json
+            artifacts/schema-drift/summary.json
+            artifacts/schema-drift/summary.txt
+
+      - name: Commit atomic verification evidence
+        if: always() && !cancelled()
+        shell: bash
+        run: |
+          rm -rf /tmp/artistos-release-evidence
+          mkdir -p /tmp/artistos-release-evidence/artifacts/release-readiness
+          mkdir -p /tmp/artistos-release-evidence/artifacts/schema-drift
+          mkdir -p /tmp/artistos-release-evidence/artifacts/authenticated-e2e
+
+          for evidence in local-db-replay.json report.json report.md events.ndjson; do
+            if [[ -f "artifacts/release-readiness/${evidence}" ]]; then
+              cp "artifacts/release-readiness/${evidence}" "/tmp/artistos-release-evidence/artifacts/release-readiness/${evidence}"
+            fi
+          done
+          for evidence in local-historical-fingerprint.json local-historical-inventory.json summary.json summary.txt; do
+            if [[ -f "artifacts/schema-drift/${evidence}" ]]; then
+              cp "artifacts/schema-drift/${evidence}" "/tmp/artistos-release-evidence/artifacts/schema-drift/${evidence}"
+            fi
+          done
+          if [[ -f artifacts/authenticated-e2e/summary.json ]]; then
+            cp artifacts/authenticated-e2e/summary.json /tmp/artistos-release-evidence/artifacts/authenticated-e2e/
+          fi
+          for screenshot in artifacts/authenticated-e2e/*.png; do
+            if [[ -f "$screenshot" ]]; then
+              cp "$screenshot" /tmp/artistos-release-evidence/artifacts/authenticated-e2e/
+            fi
+          done
+
+          git config user.name "artistos-release-verification[bot]"
+          git config user.email "artistos-release-verification[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch origin agent/artistos-canonical-integration
+            git reset --hard origin/agent/artistos-canonical-integration
+            rm -f artifacts/authenticated-e2e/summary.json artifacts/authenticated-e2e/*.png
+            rm -f artifacts/release-readiness/local-db-replay.json artifacts/release-readiness/report.json artifacts/release-readiness/report.md artifacts/release-readiness/events.ndjson
+            cp -a /tmp/artistos-release-evidence/. .
+            git add -A artifacts/authenticated-e2e artifacts/release-readiness artifacts/schema-drift
+
+            if git diff --cached --quiet; then
+              echo "Release verification evidence is unchanged."
+              exit 0
+            fi
+
+            git commit -m "Record atomic ArtistOS release verification"
+            if git push origin HEAD:agent/artistos-canonical-integration; then
+              exit 0
+            fi
+            echo "Branch advanced during evidence publication; retrying (${attempt}/3)."
+          done
+
+          echo "Could not publish release verification evidence after three fast-forward attempts." >&2
+          exit 1
+
+      - name: Enforce atomic verification result
+        if: always() && !cancelled()
+        shell: bash
+        run: |
+          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
+            echo "Isolated database verification failed. Review the uploaded diagnostics." >&2
+            exit 1
+          fi
+          if [[ "${{ steps.e2e.outputs.status }}" != "0" ]]; then
+            echo "Authenticated ArtistOS E2E failed. Review the uploaded diagnostics." >&2
+            exit 1
+          fi
+          if [[ "${{ steps.contracts.outputs.status }}" != "0" ]]; then
+            echo "Source-bound release evidence validation failed." >&2
+            exit 1
+          fi
+
+      - name: Clean up local services
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/artistos-e2e-app.pid ]]; then
+            kill "$(cat /tmp/artistos-e2e-app.pid)" >/dev/null 2>&1 || true
+          fi
+          supabase stop --no-backup >/dev/null 2>&1 || true
