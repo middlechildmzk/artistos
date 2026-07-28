@@ -56,8 +56,8 @@ fi
 cat > "${FIXTURE_PATH}" <<'SQL'
 -- Local replay fixture only. Never commit or apply to production.
 -- Models verified state that existed before the tracked migration ledger became
--- complete. Column order is preserved because the schema fingerprint includes
--- PostgreSQL attribute positions.
+-- complete. Column order and canonical identity are preserved because the
+-- schema fingerprint includes attribute positions and default expressions.
 
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -78,11 +78,9 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into public.workspaces (name)
-select 'Dan Larson / BVSS FVM'
-where not exists (
-  select 1 from public.workspaces where name = 'Dan Larson / BVSS FVM'
-);
+insert into public.workspaces (id, name)
+values ('7fe2a999-41d0-4ba7-af23-98f1e58a5982'::uuid, 'Dan Larson / BVSS FVM')
+on conflict (id) do update set name = excluded.name;
 
 insert into storage.buckets (id, name, public)
 values ('app', 'app', false)
