@@ -34,6 +34,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Bind replay to release source
+        shell: bash
+        run: echo "RELEASE_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v2
         with:
@@ -70,7 +74,7 @@ jobs:
           {
             "schema_version": 1,
             "result": "${result}",
-            "source_commit": "${GITHUB_SHA}",
+            "source_commit": "${RELEASE_SOURCE_SHA}",
             "workflow_run_id": "${GITHUB_RUN_ID}",
             "supabase_cli_version": "2.84.2",
             "historical_schema_drift_checked": ${drift_checked},
