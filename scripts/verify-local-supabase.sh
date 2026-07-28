@@ -11,6 +11,11 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v psql >/dev/null 2>&1; then
+  echo "The PostgreSQL psql client is required for RLS assertions." >&2
+  exit 1
+fi
+
 cleanup() {
   if [[ "${KEEP_SUPABASE_RUNNING:-0}" != "1" ]]; then
     supabase stop --no-backup >/dev/null 2>&1 || true
@@ -18,9 +23,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Checking Supabase CLI..."
+echo "Checking Supabase CLI and Docker..."
 supabase --version
 supabase --help >/dev/null
+docker version >/dev/null
+psql --version
+
+if [[ ! -f supabase/config.toml ]]; then
+  echo "Initializing disposable local Supabase configuration..."
+  supabase init --force
+fi
 
 echo "Starting isolated local Supabase..."
 supabase start
@@ -29,7 +41,7 @@ echo "Replaying every tracked migration from a clean database..."
 supabase db reset --local --yes
 
 echo "Running workspace-isolation and RLS assertions..."
-DB_URL="$(supabase status -o env | awk -F= '/^DB_URL=/{gsub(/\"/, "", $2); print $2}')"
+DB_URL="$(supabase status -o env | awk -F= '/^DB_URL=/{gsub(/"/, "", $2); print $2}')"
 if [[ -z "${DB_URL}" ]]; then
   echo "Could not resolve the local database URL." >&2
   exit 1
