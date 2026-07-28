@@ -1,4 +1,4 @@
-name: Recover Production Migration History
+name: Finalize Production Migration History
 
 on:
   push:
@@ -12,17 +12,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: recover-production-migrations
+  group: finalize-production-migrations
   cancel-in-progress: false
 
 jobs:
-  recover:
+  finalize:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SUPABASE_PROJECT_REF: myrtdfyjoxvtubusrrmf
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,54 +26,41 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Validate credentials
+      - name: Remove exporter-only trailing newline
         run: |
-          test -n "$SUPABASE_ACCESS_TOKEN" || { echo 'SUPABASE_ACCESS_TOKEN is required'; exit 2; }
-          test -n "$SUPABASE_DB_PASSWORD" || { echo 'SUPABASE_DB_PASSWORD is required'; exit 2; }
+          python - <<'PY'
+          import json
+          from pathlib import Path
 
-      - name: Preserve pending source migrations
-        run: |
-          mkdir -p /tmp/artistos-pending
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const manifest = JSON.parse(fs.readFileSync('supabase/REMOTE_MIGRATION_MANIFEST.json', 'utf8'));
-          const applied = new Set(manifest.map((row) => String(row.version)));
-          for (const file of fs.readdirSync('supabase/migrations')) {
-            const match = file.match(/^(\d{14})_.+\.sql$/);
-            if (match && !applied.has(match[1])) {
-              fs.copyFileSync(path.join('supabase/migrations', file), path.join('/tmp/artistos-pending', file));
-            }
-          }
-          NODE
+          manifest = json.loads(Path('supabase/REMOTE_MIGRATION_MANIFEST.json').read_text())
+          migrations_dir = Path('supabase/migrations')
+          changed = 0
 
-      - name: Fetch exact production migration history
-        run: |
-          supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
-          supabase migration fetch --linked
-          cp /tmp/artistos-pending/*.sql supabase/migrations/ 2>/dev/null || true
+          for row in manifest:
+              path = migrations_dir / f"{row['version']}_{row['name']}.sql"
+              data = path.read_bytes()
+              if data.endswith(b'\n'):
+                  path.write_bytes(data[:-1])
+                  changed += 1
 
-      - name: Verify exact manifest
+          print(f'Removed one trailing newline from {changed} historical migrations.')
+          PY
+
+      - name: Verify exact manifest bytes
         run: node scripts/check-remote-migration-manifest.mjs supabase/REMOTE_MIGRATION_MANIFEST.json
 
-      - name: Commit recovered files
+      - name: Commit exact recovered history
         run: |
           git config user.name "artistos-migration-recovery[bot]"
           git config user.email "artistos-migration-recovery[bot]@users.noreply.github.com"
           git add supabase/migrations
           if git diff --cached --quiet; then
-            echo 'No migration changes to commit.'
+            echo 'Historical migrations are already byte-exact.'
             exit 0
           fi
-          git commit -m "Recover exact production migration history"
+          git commit -m "Finalize exact production migration history"
           git push origin HEAD:agent/artistos-migration-reconciliation
-
-# Trigger marker: 2026-07-28T02:00:00-05:00
