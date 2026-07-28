@@ -17,8 +17,19 @@ if ! command -v psql >/dev/null 2>&1; then
 fi
 
 FIXTURE_PATH="supabase/migrations/20260726000000_local_replay_fixture.sql"
+PENDING_DIR="$(mktemp -d)"
+
+restore_pending() {
+  shopt -s nullglob
+  for migration in "${PENDING_DIR}"/*.sql; do
+    mv "${migration}" supabase/migrations/
+  done
+  shopt -u nullglob
+}
 
 cleanup() {
+  restore_pending
+  rm -rf "${PENDING_DIR}"
   rm -f "${FIXTURE_PATH}"
   if [[ "${KEEP_SUPABASE_RUNNING:-0}" != "1" ]]; then
     supabase stop --no-backup >/dev/null 2>&1 || true
@@ -91,20 +102,45 @@ SQL
 echo "Starting isolated local Supabase..."
 supabase start
 
-echo "Replaying every tracked migration from a clean database..."
-supabase db reset --local --yes
-rm -f "${FIXTURE_PATH}"
+LAST_HISTORICAL="$(node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('supabase/REMOTE_MIGRATION_MANIFEST.json','utf8'));const rows=Array.isArray(d)?d:d.migrations;if(!Array.isArray(rows)||!rows.length)process.exit(2);process.stdout.write(String(rows.at(-1).version));")"
 
-echo "Running workspace-isolation and RLS assertions..."
+echo "Separating migrations newer than reviewed production history ${LAST_HISTORICAL}..."
+shopt -s nullglob
+for migration in supabase/migrations/*.sql; do
+  filename="$(basename "${migration}")"
+  version="${filename%%_*}"
+  if [[ "${version}" =~ ^[0-9]{14}$ ]] && [[ "${version}" > "${LAST_HISTORICAL}" ]]; then
+    mv "${migration}" "${PENDING_DIR}/"
+  fi
+done
+shopt -u nullglob
+
+echo "Replaying reviewed historical production schema..."
+supabase db reset --local --yes
 DB_URL="$(supabase status -o env | awk -F= '/^DB_URL=/{gsub(/"/, "", $2); print $2}')"
 if [[ -z "${DB_URL}" ]]; then
   echo "Could not resolve the local database URL." >&2
   exit 1
 fi
 
+mkdir -p artifacts/schema-drift
+psql "${DB_URL}" -X -tA -v ON_ERROR_STOP=1 -f scripts/application-schema-fingerprint.sql \
+  > artifacts/schema-drift/local-historical-fingerprint.json
+node scripts/compare-schema-fingerprints.mjs \
+  artifacts/schema-drift/production-fingerprint.json \
+  artifacts/schema-drift/local-historical-fingerprint.json \
+  artifacts/schema-drift
+
+restore_pending
+
+echo "Replaying every tracked historical and pending migration from a clean database..."
+supabase db reset --local --yes
+rm -f "${FIXTURE_PATH}"
+
+echo "Running workspace-isolation and RLS assertions..."
 psql "${DB_URL}" -v ON_ERROR_STOP=1 -f tests/rls/workspace-isolation.sql
 
 echo "Running database advisors..."
 supabase db advisors --local
 
-echo "Local migration replay and RLS verification passed."
+echo "Historical drift, full migration replay, RLS, and advisor verification passed."
