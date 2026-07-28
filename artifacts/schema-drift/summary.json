@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "result": "FAIL",
+  "result": "PASS",
   "production": {
     "project_ref": "myrtdfyjoxvtubusrrmf",
     "verified_at_utc": "2026-07-28T19:08:15.676253Z",
@@ -8,9 +8,9 @@
     "sha256": "e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07"
   },
   "local": {
-    "source_commit": "46dd1e5be25184dd23aa790015e20ab19b79e526",
+    "source_commit": "c5f973185813e8c464f3955707460e51c1b9c6d7",
     "object_count": 2007,
-    "sha256": "889c563c554bd1f3c952c3bad66e0d16e0718c7a30636e4f0ce1cae27b7f5098"
+    "sha256": "e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07"
   },
   "categories": [
     {
@@ -27,13 +27,13 @@
     },
     {
       "category": "COL",
-      "status": "FAIL",
+      "status": "PASS",
       "expected": {
         "object_count": 690,
         "sha256": "efe30dc445b3960fa8fcc1e183b261848aa6e21dea3a4655680f2453f29dcf3d"
       },
       "actual": {
-        "sha256": "b87e4ac71ed592d7bec20e494f0f890e61f6d4f5b57b2083ca5d83545011eea3",
+        "sha256": "efe30dc445b3960fa8fcc1e183b261848aa6e21dea3a4655680f2453f29dcf3d",
         "object_count": 690
       }
     },
@@ -134,8 +134,6 @@
       }
     }
   ],
-  "unexpected_drift_categories": [
-    "COL"
-  ],
+  "unexpected_drift_categories": [],
   "production_mutated": false
 }

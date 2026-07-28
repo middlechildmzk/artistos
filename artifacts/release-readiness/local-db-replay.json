@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "result": "FAIL",
-  "source_commit": "46dd1e5be25184dd23aa790015e20ab19b79e526",
-  "workflow_run_id": "30392124124",
+  "result": "PASS",
+  "source_commit": "c5f973185813e8c464f3955707460e51c1b9c6d7",
+  "workflow_run_id": "30392537473",
   "supabase_cli_version": "2.84.2",
   "historical_schema_drift_checked": true,
-  "workspace_rls_checked": false,
+  "workspace_rls_checked": true,
   "production_mutated": false,
-  "completed_at": "2026-07-28T19:31:35Z"
+  "completed_at": "2026-07-28T19:38:00Z"
 }

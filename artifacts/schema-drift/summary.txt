@@ -1,6 +1,5 @@
-RESULT: FAIL
-UNEXPECTED LINKED SCHEMA DRIFT DETECTED
-Production objects/hash: 2007 / e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07
-Local historical objects/hash: 2007 / 889c563c554bd1f3c952c3bad66e0d16e0718c7a30636e4f0ce1cae27b7f5098
-Mismatched categories: COL
+NO LINKED SCHEMA DRIFT DETECTED
+Application schema objects: 2007
+SHA-256: e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07
+Compared with production fingerprint captured at 2026-07-28T19:08:15.676253Z.
 Production mutated: false
