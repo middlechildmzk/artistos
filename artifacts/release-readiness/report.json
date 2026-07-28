@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-28T20:45:30.311Z",
-  "git_sha": "4a20c7e690f5ff9621bb6a215a3df8e2c57dd283",
-  "overall": "BLOCKED",
+  "generated_at": "2026-07-28T21:04:58.413Z",
+  "git_sha": "749ffeb2e7d7ae68caf54402e28712ac190df7c3",
+  "overall": "NO_GO",
   "counts": {
-    "pass": 7,
-    "fail": 0,
+    "pass": 5,
+    "fail": 2,
     "blocked": 1
   },
   "gates": [
@@ -35,8 +35,8 @@
       "files": [
         "artifacts/release-readiness/local-db-replay.json"
       ],
-      "status": "pass",
-      "detail": "Evidence found at artifacts/release-readiness/local-db-replay.json.",
+      "status": "fail",
+      "detail": "Database replay evidence is stale for the selected release source.",
       "evidence": "artifacts/release-readiness/local-db-replay.json",
       "sha256": "7003b8090c722eaaf1c9fed29253415d030475959853fce090b950f9e8f40796"
     },
@@ -57,8 +57,8 @@
       "id": "pending_rehearsal",
       "title": "Pending migration rehearsal",
       "required": true,
-      "status": "pass",
-      "detail": "The isolated clean-database replay applied the complete tracked historical and pending migration chain."
+      "status": "blocked",
+      "detail": "Missing successful source-bound isolated replay or dedicated pending-migration rehearsal evidence."
     },
     {
       "id": "authenticated_e2e",
@@ -67,8 +67,8 @@
       "files": [
         "artifacts/authenticated-e2e/summary.json"
       ],
-      "status": "pass",
-      "detail": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
+      "status": "fail",
+      "detail": "Authenticated E2E evidence is stale for the selected release source.",
       "evidence": "artifacts/authenticated-e2e/summary.json",
       "sha256": "2ac2182f63169ecf2b6ded2e94fb5d65729315addbd1dfba1f9136992e1b26b9"
     },
@@ -93,8 +93,10 @@
         "artifacts/production-rollout/approval.json"
       ],
       "jsonStatus": true,
-      "status": "blocked",
-      "detail": "Missing evidence: artifacts/production-rollout/approval.json"
+      "status": "pass",
+      "detail": "Dan Larson approved the verified ArtistOS release source for production rollout.",
+      "evidence": "artifacts/production-rollout/approval.json",
+      "sha256": "7299f8efad9f9632cd0f2065a2b9f0529993299ad29175b2a5fc8770dafaa5d9"
     }
   ],
   "production_mutation_authorized": false
