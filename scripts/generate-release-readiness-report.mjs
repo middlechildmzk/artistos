@@ -8,6 +8,17 @@ const outputDir = process.env.RELEASE_READINESS_OUTPUT_DIR || 'artifacts/release
 const absoluteOutput = path.join(root, outputDir);
 fs.mkdirSync(absoluteOutput, { recursive: true });
 
+function readJson(relativePath) {
+  const absolute = path.join(root, relativePath);
+  if (!fs.existsSync(absolute)) return null;
+  return JSON.parse(fs.readFileSync(absolute, 'utf8'));
+}
+
+function replayPassed() {
+  const replay = readJson('artifacts/release-readiness/local-db-replay.json');
+  return replay && String(replay.result || replay.status || '').toLowerCase() === 'pass';
+}
+
 const definitions = [
   {
     id: 'migration_manifest',
@@ -22,18 +33,27 @@ const definitions = [
     evaluate() {
       const manifestPath = path.join(root, 'supabase/REMOTE_MIGRATION_MANIFEST.json');
       if (!fs.existsSync(manifestPath)) return { status: 'fail', detail: 'Manifest missing.' };
-      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const document = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const manifest = Array.isArray(document) ? document : document.migrations;
+      if (!Array.isArray(manifest)) return { status: 'fail', detail: 'Manifest migrations array is invalid.' };
       const migrationDir = path.join(root, 'supabase/migrations');
       const files = fs.existsSync(migrationDir) ? fs.readdirSync(migrationDir) : [];
-      const missing = manifest.filter((entry) => !files.some((file) => file.startsWith(`${entry.version}_`) && file.endsWith('.sql')));
+      const missing = manifest.filter((entry) => !files.some((file) => file === `${entry.version}_${entry.name}.sql`));
       return missing.length === 0
-        ? { status: 'pass', detail: `${manifest.length} historical migrations are present.` }
+        ? { status: 'pass', detail: `${manifest.length} historical migrations are present with reviewed filenames.` }
         : { status: 'blocked', detail: `${missing.length} historical migrations are still missing.`, missing: missing.map((row) => row.version) };
     },
   },
   {
     id: 'historical_replay',
-    title: 'Historical recovery and replay',
+    title: 'Isolated clean-database replay',
+    required: true,
+    files: ['artifacts/release-readiness/local-db-replay.json'],
+    jsonStatus: true,
+  },
+  {
+    id: 'linked_schema_drift',
+    title: 'Production schema drift review',
     required: true,
     files: ['artifacts/schema-drift/summary.txt'],
     successPattern: /NO LINKED SCHEMA DRIFT DETECTED/i,
@@ -42,8 +62,19 @@ const definitions = [
     id: 'pending_rehearsal',
     title: 'Pending migration rehearsal',
     required: true,
-    files: ['artifacts/pending-migration-rehearsal/summary.txt'],
-    successPattern: /RESULT:\s*PASS/i,
+    evaluate() {
+      const summary = path.join(root, 'artifacts/pending-migration-rehearsal/summary.txt');
+      if (fs.existsSync(summary)) {
+        const raw = fs.readFileSync(summary, 'utf8');
+        return /RESULT:\s*PASS/i.test(raw)
+          ? { status: 'pass', detail: 'Dedicated pending-migration rehearsal passed.', evidence: 'artifacts/pending-migration-rehearsal/summary.txt', sha256: digest(summary) }
+          : { status: 'fail', detail: 'Pending-migration rehearsal evidence does not contain RESULT: PASS.', evidence: 'artifacts/pending-migration-rehearsal/summary.txt', sha256: digest(summary) };
+      }
+      if (replayPassed()) {
+        return { status: 'pass', detail: 'The isolated clean-database replay applied the complete tracked historical and pending migration chain.' };
+      }
+      return { status: 'blocked', detail: 'Missing successful isolated replay or dedicated pending-migration rehearsal evidence.' };
+    },
   },
   {
     id: 'authenticated_e2e',
@@ -91,7 +122,7 @@ function evaluate(definition) {
     }
   } else if (definition.successPattern && !definition.successPattern.test(raw)) {
     status = 'fail';
-    detail = `Evidence exists but does not contain the required success marker.`;
+    detail = 'Evidence exists but does not contain the required success marker.';
   }
   return { ...definition, status, detail, evidence: found, sha256: digest(absolute) };
 }
