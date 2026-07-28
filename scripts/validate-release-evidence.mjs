@@ -3,8 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const root = process.cwd();
+const root = process.env.RELEASE_EVIDENCE_ROOT || process.cwd();
 const errors = [];
+const requireProductionApproval = process.env.RELEASE_EVIDENCE_STAGE !== 'preapproval';
 
 function readJson(relativePath, required = true) {
   const absolute = path.join(root, relativePath);
@@ -62,21 +63,33 @@ const brainFile = 'artifacts/brain-reconciliation/summary.json';
 const brain = readJson(brainFile);
 if (brain) {
   requirePass(brain, brainFile);
-  requireIsoDate(brain, 'completed_at', brainFile);
-  for (const key of ['source_rows', 'mapped_rows', 'exception_rows', 'duplicate_rows', 'confidence_promotions']) {
-    if (!Number.isInteger(brain[key]) || brain[key] < 0) errors.push(`${brainFile}: ${key} must be a non-negative integer`);
+  const completedAt = brain.completed_at ?? brain.verified_at_utc;
+  if (typeof completedAt !== 'string' || completedAt.trim() === '' || Number.isNaN(Date.parse(completedAt))) {
+    errors.push(`${brainFile}: completed_at or verified_at_utc must be an ISO-compatible timestamp`);
   }
-  if (Number.isInteger(brain.source_rows) && Number.isInteger(brain.mapped_rows) && Number.isInteger(brain.exception_rows)) {
-    if (brain.mapped_rows + brain.exception_rows !== brain.source_rows) {
+
+  const normalized = {
+    source_rows: brain.source_rows ?? brain.source?.rows,
+    mapped_rows: brain.mapped_rows ?? brain.reconciliation?.mapped_rows,
+    exception_rows: brain.exception_rows ?? brain.reconciliation?.exception_rows,
+    duplicate_rows: brain.duplicate_rows ?? brain.reconciliation?.duplicate_rows,
+    confidence_promotions: brain.confidence_promotions ?? brain.reconciliation?.confidence_promotions,
+  };
+
+  for (const [key, value] of Object.entries(normalized)) {
+    if (!Number.isInteger(value) || value < 0) errors.push(`${brainFile}: ${key} must be a non-negative integer`);
+  }
+  if (Number.isInteger(normalized.source_rows) && Number.isInteger(normalized.mapped_rows) && Number.isInteger(normalized.exception_rows)) {
+    if (normalized.mapped_rows + normalized.exception_rows !== normalized.source_rows) {
       errors.push(`${brainFile}: mapped_rows + exception_rows must equal source_rows`);
     }
   }
-  if (brain.confidence_promotions !== 0) errors.push(`${brainFile}: confidence_promotions must equal zero`);
-  if (brain.duplicate_rows !== 0) errors.push(`${brainFile}: duplicate_rows must equal zero`);
+  if (normalized.confidence_promotions !== 0) errors.push(`${brainFile}: confidence_promotions must equal zero`);
+  if (normalized.duplicate_rows !== 0) errors.push(`${brainFile}: duplicate_rows must equal zero`);
 }
 
 const approvalFile = 'artifacts/production-rollout/approval.json';
-const approval = readJson(approvalFile);
+const approval = readJson(approvalFile, requireProductionApproval);
 if (approval) {
   requirePass(approval, approvalFile);
   for (const key of ['git_sha', 'migration_manifest_sha256', 'approved_by', 'rollback_owner']) requireString(approval, key, approvalFile);
