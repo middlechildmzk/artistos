@@ -79,15 +79,31 @@ jobs:
       - name: Commit replay evidence
         shell: bash
         run: |
+          cp artifacts/release-readiness/local-db-replay.json /tmp/local-db-replay.json
           git config user.name "artistos-database-replay[bot]"
           git config user.email "artistos-database-replay[bot]@users.noreply.github.com"
-          git add artifacts/release-readiness/local-db-replay.json
-          if git diff --cached --quiet; then
-            echo "Replay evidence is unchanged."
-          else
+
+          for attempt in 1 2 3; do
+            git fetch origin agent/artistos-canonical-integration
+            git reset --hard origin/agent/artistos-canonical-integration
+            mkdir -p artifacts/release-readiness
+            cp /tmp/local-db-replay.json artifacts/release-readiness/local-db-replay.json
+            git add artifacts/release-readiness/local-db-replay.json
+
+            if git diff --cached --quiet; then
+              echo "Replay evidence is unchanged."
+              exit 0
+            fi
+
             git commit -m "Record isolated database replay result"
-            git push origin HEAD:agent/artistos-canonical-integration
-          fi
+            if git push origin HEAD:agent/artistos-canonical-integration; then
+              exit 0
+            fi
+            echo "Branch advanced during receipt publication; retrying (${attempt}/3)."
+          done
+
+          echo "Could not publish replay evidence after three fast-forward attempts." >&2
+          exit 1
 
       - name: Enforce replay result
         shell: bash
