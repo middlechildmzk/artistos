@@ -1,0 +1,81 @@
+name: ArtistOS Release Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Readiness mode
+        required: true
+        default: static
+        type: choice
+        options:
+          - static
+          - full-local
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artistos-release-readiness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  static-readiness:
+    name: Static readiness and evidence report
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run static readiness
+        env:
+          ARTISTOS_RUN_E2E_ENV_CHECK: '0'
+        run: npm run readiness
+      - name: Upload readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-release-readiness-static-${{ github.sha }}
+          path: artifacts/release-readiness
+          if-no-files-found: error
+          retention-days: 30
+
+  full-local-readiness:
+    name: Full local recovery rehearsal
+    if: ${{ inputs.mode == 'full-local' }}
+    runs-on: [self-hosted, artistos-release]
+    timeout-minutes: 90
+    environment: artistos-release-rehearsal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Validate required secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          test -n "${SUPABASE_ACCESS_TOKEN}" || { echo 'SUPABASE_ACCESS_TOKEN is required'; exit 2; }
+          test -n "${SUPABASE_DB_PASSWORD}" || { echo 'SUPABASE_DB_PASSWORD is required'; exit 2; }
+      - name: Run full local readiness
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: myrtdfyjoxvtubusrrmf
+          ARTISTOS_RUN_E2E_ENV_CHECK: '0'
+        run: npm run readiness:full-local
+      - name: Upload complete readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-release-readiness-full-${{ github.sha }}
+          path: artifacts
+          if-no-files-found: warn
+          retention-days: 30
