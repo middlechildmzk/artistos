@@ -2,9 +2,9 @@
   "schema_version": 1,
   "status": "PASS",
   "summary": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
-  "source_commit": "98873de1bd2afc87870e682e4bd4f6b51b18ece8",
-  "completed_at": "2026-07-28T20:03:20.491Z",
-  "run_id": "30394259840",
+  "source_commit": "22b2eb9552c11524c96d38d9c6c5e4e2448ed6a9",
+  "completed_at": "2026-07-28T20:09:41.689Z",
+  "run_id": "30394784095",
   "base_url": "http://127.0.0.1:3000",
   "journeys": [
     {
