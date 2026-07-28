@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: artistos-database-replay-${{ github.ref }}
@@ -25,6 +25,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: agent/artistos-canonical-integration
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v2
@@ -33,4 +37,62 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Verify local database replay and RLS
-        run: bash scripts/verify-local-supabase.sh
+        id: replay
+        shell: bash
+        run: |
+          set +e
+          bash scripts/verify-local-supabase.sh 2>&1 | tee database-replay.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Write replay evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts/release-readiness
+          if [[ "${{ steps.replay.outputs.status }}" == "0" ]]; then
+            result="PASS"
+          else
+            result="FAIL"
+          fi
+          cat > artifacts/release-readiness/local-db-replay.json <<EOF
+          {
+            "schema_version": 1,
+            "result": "${result}",
+            "source_commit": "${GITHUB_SHA}",
+            "workflow_run_id": "${GITHUB_RUN_ID}",
+            "supabase_cli_version": "2.84.2",
+            "production_mutated": false,
+            "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Upload replay diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-database-replay-${{ github.run_id }}
+          path: |
+            database-replay.log
+            artifacts/release-readiness/local-db-replay.json
+
+      - name: Commit replay evidence
+        shell: bash
+        run: |
+          git config user.name "artistos-database-replay[bot]"
+          git config user.email "artistos-database-replay[bot]@users.noreply.github.com"
+          git add artifacts/release-readiness/local-db-replay.json
+          if git diff --cached --quiet; then
+            echo "Replay evidence is unchanged."
+          else
+            git commit -m "Record isolated database replay result"
+            git push origin HEAD:agent/artistos-canonical-integration
+          fi
+
+      - name: Enforce replay result
+        shell: bash
+        run: |
+          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
+            echo "Isolated database replay failed. See the uploaded diagnostics and committed evidence receipt." >&2
+            exit 1
+          fi
