@@ -16,7 +16,10 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
+FIXTURE_PATH="supabase/migrations/20260726000000_local_replay_fixture.sql"
+
 cleanup() {
+  rm -f "${FIXTURE_PATH}"
   if [[ "${KEEP_SUPABASE_RUNNING:-0}" != "1" ]]; then
     supabase stop --no-backup >/dev/null 2>&1 || true
   fi
@@ -34,11 +37,28 @@ if [[ ! -f supabase/config.toml ]]; then
   supabase init --force
 fi
 
+if [[ -e "${FIXTURE_PATH}" ]]; then
+  echo "Reserved local replay fixture path already exists: ${FIXTURE_PATH}" >&2
+  exit 1
+fi
+
+cat > "${FIXTURE_PATH}" <<'SQL'
+-- Local replay fixture only. Never commit or apply to production.
+-- Historical migration 20260726184029 backfills tenant rows into the
+-- production workspace that already existed when that migration ran.
+insert into public.workspaces (name)
+select 'Dan Larson / BVSS FVM'
+where not exists (
+  select 1 from public.workspaces where name = 'Dan Larson / BVSS FVM'
+);
+SQL
+
 echo "Starting isolated local Supabase..."
 supabase start
 
 echo "Replaying every tracked migration from a clean database..."
 supabase db reset --local --yes
+rm -f "${FIXTURE_PATH}"
 
 echo "Running workspace-isolation and RLS assertions..."
 DB_URL="$(supabase status -o env | awk -F= '/^DB_URL=/{gsub(/"/, "", $2); print $2}')"
