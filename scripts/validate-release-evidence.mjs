@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 const root = process.env.RELEASE_EVIDENCE_ROOT || process.cwd();
 const errors = [];
 const requireProductionApproval = process.env.RELEASE_EVIDENCE_STAGE !== 'preapproval';
+const expectedReleaseSha = process.env.RELEASE_GIT_SHA || process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA;
 
 function readJson(relativePath, required = true) {
   const absolute = path.join(root, relativePath);
@@ -40,17 +41,34 @@ function requireIsoDate(object, key, file) {
   }
 }
 
+function requireReleaseSource(object, file, key = 'source_commit') {
+  requireString(object, key, file);
+  if (expectedReleaseSha && object?.[key] !== expectedReleaseSha) {
+    errors.push(`${file}: ${key} does not match the release commit`);
+  }
+}
+
+const replayFile = 'artifacts/release-readiness/local-db-replay.json';
+const replay = readJson(replayFile);
+if (replay) {
+  requirePass(replay, replayFile);
+  requireReleaseSource(replay, replayFile);
+  requireString(replay, 'workflow_run_id', replayFile);
+  requireIsoDate(replay, 'completed_at', replayFile);
+  if (replay.historical_schema_drift_checked !== true) errors.push(`${replayFile}: historical_schema_drift_checked must equal true`);
+  if (replay.workspace_rls_checked !== true) errors.push(`${replayFile}: workspace_rls_checked must equal true`);
+  if (replay.production_mutated !== false) errors.push(`${replayFile}: production_mutated must equal false`);
+}
+
 const e2eFile = 'artifacts/authenticated-e2e/summary.json';
 const e2e = readJson(e2eFile);
 if (e2e) {
   requirePass(e2e, e2eFile);
   requireString(e2e, 'run_id', e2eFile);
   requireString(e2e, 'base_url', e2eFile);
-  requireString(e2e, 'source_commit', e2eFile);
+  requireReleaseSource(e2e, e2eFile);
   requireIsoDate(e2e, 'completed_at', e2eFile);
   if (e2e.production_mutated !== false) errors.push(`${e2eFile}: production_mutated must equal false`);
-  const expectedE2ESha = process.env.RELEASE_GIT_SHA || process.env.GITHUB_SHA;
-  if (expectedE2ESha && e2e.source_commit !== expectedE2ESha) errors.push(`${e2eFile}: source_commit does not match the release commit`);
   if (!Array.isArray(e2e.journeys) || e2e.journeys.length === 0) {
     errors.push(`${e2eFile}: journeys must contain executed authenticated journeys`);
   } else {
@@ -115,8 +133,7 @@ if (approval) {
   requirePass(approval, approvalFile);
   for (const key of ['git_sha', 'migration_manifest_sha256', 'approved_by', 'rollback_owner']) requireString(approval, key, approvalFile);
   requireIsoDate(approval, 'approved_at', approvalFile);
-  const expectedSha = process.env.RELEASE_GIT_SHA || process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA;
-  if (expectedSha && approval.git_sha !== expectedSha) errors.push(`${approvalFile}: git_sha does not match the release commit`);
+  if (expectedReleaseSha && approval.git_sha !== expectedReleaseSha) errors.push(`${approvalFile}: git_sha does not match the release commit`);
   const manifestPath = path.join(root, 'supabase/REMOTE_MIGRATION_MANIFEST.json');
   if (fs.existsSync(manifestPath)) {
     const actual = crypto.createHash('sha256').update(fs.readFileSync(manifestPath)).digest('hex');
