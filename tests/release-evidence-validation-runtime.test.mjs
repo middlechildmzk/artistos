@@ -17,10 +17,22 @@ function writeJson(root, relativePath, value) {
   fs.writeFileSync(destination, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-function createFixture({ legacyE2E = false, omitApproval = false } = {}) {
+function createFixture({ legacyE2E = false, omitApproval = false, replayCommit = 'fixture-commit' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'artistos-release-evidence-'));
   fs.mkdirSync(path.join(root, 'supabase'), { recursive: true });
   fs.writeFileSync(path.join(root, 'supabase/REMOTE_MIGRATION_MANIFEST.json'), manifest);
+
+  writeJson(root, 'artifacts/release-readiness/local-db-replay.json', {
+    schema_version: 1,
+    result: 'PASS',
+    source_commit: replayCommit,
+    workflow_run_id: '30389999999',
+    supabase_cli_version: '2.84.2',
+    historical_schema_drift_checked: true,
+    workspace_rls_checked: true,
+    production_mutated: false,
+    completed_at: '2026-07-28T19:59:00.000Z',
+  });
 
   writeJson(root, 'artifacts/authenticated-e2e/summary.json', legacyE2E
     ? {
@@ -100,12 +112,23 @@ test('authenticated E2E producer emits the executable release-evidence contract'
   assert.doesNotMatch(producer, /const checks = \[\]/);
 });
 
-test('release validator accepts authenticated journeys and the current nested Brain report', () => {
+test('release validator accepts source-bound database, authenticated journeys, and the current Brain report', () => {
   const root = createFixture();
   try {
     const result = validate(root);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /contracts are valid/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release validator rejects a database replay receipt from another source commit', () => {
+  const root = createFixture({ replayCommit: 'stale-database-commit' });
+  try {
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /local-db-replay\.json: source_commit does not match the release commit/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -123,7 +146,7 @@ test('release validator rejects the legacy checks-only E2E shape', () => {
   }
 });
 
-test('preapproval validation checks E2E and Brain without fabricating human approval', () => {
+test('preapproval validation checks replay, E2E, and Brain without fabricating human approval', () => {
   const root = createFixture({ omitApproval: true });
   try {
     const result = validate(root, 'preapproval');
