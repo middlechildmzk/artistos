@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-28T19:37:53.680Z",
-  "git_sha": "f9a53e68ad7e8f6b326fafdc368e54223b9da165",
-  "overall": "NO_GO",
+  "generated_at": "2026-07-28T19:56:36.702Z",
+  "git_sha": "b1e20daf06ed3ee067a477a02a9f8e2af771a99f",
+  "overall": "BLOCKED",
   "counts": {
-    "pass": 3,
-    "fail": 2,
-    "blocked": 3
+    "pass": 7,
+    "fail": 0,
+    "blocked": 1
   },
   "gates": [
     {
@@ -36,10 +36,10 @@
         "artifacts/release-readiness/local-db-replay.json"
       ],
       "jsonStatus": true,
-      "status": "fail",
+      "status": "pass",
       "detail": "Evidence found at artifacts/release-readiness/local-db-replay.json.",
       "evidence": "artifacts/release-readiness/local-db-replay.json",
-      "sha256": "3b86a3ce5d7dcd53336251545384c0c7aa55ebbdcb96c027067aff53a03b2369"
+      "sha256": "f944499f2903541298a3a037778014cf8f7ba9d20709f33eaafba543402dc8c7"
     },
     {
       "id": "linked_schema_drift",
@@ -49,17 +49,17 @@
         "artifacts/schema-drift/summary.txt"
       ],
       "successPattern": {},
-      "status": "fail",
-      "detail": "Evidence exists but does not contain the required success marker.",
+      "status": "pass",
+      "detail": "Evidence found at artifacts/schema-drift/summary.txt.",
       "evidence": "artifacts/schema-drift/summary.txt",
-      "sha256": "788b435ab05bdd2053dde41cfbf265ceca21a16cd2cfc8b6ba8a8b04990fd1cd"
+      "sha256": "dbcc8f52854a5e1b0dc7e6b3a41c8317822514a7508980ac7bc505eba402bb2a"
     },
     {
       "id": "pending_rehearsal",
       "title": "Pending migration rehearsal",
       "required": true,
-      "status": "blocked",
-      "detail": "Missing successful isolated replay or dedicated pending-migration rehearsal evidence."
+      "status": "pass",
+      "detail": "The isolated clean-database replay applied the complete tracked historical and pending migration chain."
     },
     {
       "id": "authenticated_e2e",
@@ -69,8 +69,10 @@
         "artifacts/authenticated-e2e/summary.json"
       ],
       "jsonStatus": true,
-      "status": "blocked",
-      "detail": "Missing evidence: artifacts/authenticated-e2e/summary.json"
+      "status": "pass",
+      "detail": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
+      "evidence": "artifacts/authenticated-e2e/summary.json",
+      "sha256": "329e671cbb6c169a182a10b5eba25461d1110d03fc0807bdff932897e1a081b2"
     },
     {
       "id": "brain_reconciliation",

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "status": "PASS",
   "summary": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
-  "source_commit": "89423227301edc736c38b57c7406cf1e26b325df",
-  "completed_at": "2026-07-28T19:50:56.980Z",
+  "source_commit": "b1e20daf06ed3ee067a477a02a9f8e2af771a99f",
+  "completed_at": "2026-07-28T19:56:36.553Z",
   "checks": [
     {
       "name": "owner_login_and_workspace_provisioning",
