@@ -44,8 +44,36 @@ fi
 
 cat > "${FIXTURE_PATH}" <<'SQL'
 -- Local replay fixture only. Never commit or apply to production.
--- Historical migration 20260726184029 backfills tenant rows into the
--- production workspace that already existed when that migration ran.
+-- Historical migration 20260726184029 expects the canonical production
+-- workspace and its owner identity to exist before tenancy backfill begins.
+insert into auth.users (
+  id,
+  instance_id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at
+)
+values (
+  '1117df01-6442-4c59-9d94-3ffa7e15612f'::uuid,
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  'authenticated',
+  'authenticated',
+  'local-replay-owner@artistos.invalid',
+  crypt('local-replay-only', gen_salt('bf')),
+  now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{}'::jsonb,
+  now(),
+  now()
+)
+on conflict (id) do nothing;
+
 insert into public.workspaces (name)
 select 'Dan Larson / BVSS FVM'
 where not exists (
