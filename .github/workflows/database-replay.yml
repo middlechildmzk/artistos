@@ -22,17 +22,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Checkout release source
+      - name: Checkout exact triggering release source
         uses: actions/checkout@v4
         with:
-          ref: agent/artistos-canonical-integration
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
 
       - name: Bind release source and clear stale runtime evidence
         shell: bash
         run: |
-          echo "RELEASE_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "$checked_out_sha" != "$GITHUB_SHA" ]]; then
+            echo "Checked out ${checked_out_sha}, expected triggering source ${GITHUB_SHA}." >&2
+            exit 1
+          fi
+          echo "RELEASE_SOURCE_SHA=${checked_out_sha}" >> "$GITHUB_ENV"
           rm -f artifacts/authenticated-e2e/summary.json artifacts/authenticated-e2e/*.png
           rm -f artifacts/release-readiness/report.json artifacts/release-readiness/report.md artifacts/release-readiness/events.ndjson
 
@@ -139,7 +144,7 @@ jobs:
           exit 0
 
       - name: Generate source-bound readiness report
-        if: always() && steps.replay.outputs.status == '0' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
+        if: always() && !cancelled() && steps.replay.outputs.status == '0' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
         shell: bash
         run: |
           set +e
@@ -147,7 +152,7 @@ jobs:
           exit 0
 
       - name: Validate preapproval evidence contracts
-        if: always() && steps.replay.outputs.status == '0' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
+        if: always() && !cancelled() && steps.replay.outputs.status == '0' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
         id: contracts
         shell: bash
         run: |
@@ -180,7 +185,7 @@ jobs:
             artifacts/schema-drift/summary.txt
 
       - name: Commit atomic verification evidence
-        if: always()
+        if: always() && !cancelled()
         shell: bash
         run: |
           rm -rf /tmp/artistos-release-evidence
@@ -234,7 +239,7 @@ jobs:
           exit 1
 
       - name: Enforce atomic verification result
-        if: always()
+        if: always() && !cancelled()
         shell: bash
         run: |
           if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
