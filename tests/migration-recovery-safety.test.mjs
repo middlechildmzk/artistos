@@ -11,11 +11,18 @@ const recovery = read("scripts/recover-remote-migrations.sh");
 const manifestCheck = read("scripts/check-remote-migration-manifest.mjs");
 const workflow = read(".github/workflows/ci.yml");
 
-test("remote exporter is read-only and verifies reviewed hashes", () => {
+test("remote exporter is read-only and verifies exact reviewed bytes", () => {
   assert.match(exporter, /select coalesce\(/i);
   assert.match(exporter, /supabase_migrations\.schema_migrations/);
+  assert.match(exporter, /manifestDocument\.migrations/);
   assert.match(exporter, /normalized_sha256/);
-  assert.match(exporter, /Hash mismatch/);
+  assert.match(exporter, /raw_sha256/);
+  assert.match(exporter, /sql_length/);
+  assert.match(exporter, /Normalized hash mismatch/);
+  assert.match(exporter, /Raw hash mismatch/);
+  assert.match(exporter, /Length mismatch/);
+  assert.match(exporter, /writeFile\(path\.join\(migrationsDir, filename\), sql, "utf8"\)/);
+  assert.doesNotMatch(exporter, /sql\.endsWith\("\\n"\)/);
   assert.doesNotMatch(exporter, /\b(insert|update|delete|alter|drop|truncate)\b[\s\S]*schema_migrations/i);
   assert.doesNotMatch(exporter, /migration repair/i);
 });

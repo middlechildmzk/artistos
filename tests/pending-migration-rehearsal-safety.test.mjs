@@ -16,7 +16,7 @@ test('pending migration rehearsal remains local-only', () => {
 test('historical baseline is replayed before pending migrations', () => {
   const isolate = script.indexOf('isolated pending migration');
   const baseline = script.indexOf('Replaying recovered historical baseline only');
-  const restore = script.indexOf('cp "${PENDING_DIR}"/*.sql');
+  const restore = script.lastIndexOf('\nrestore_pending\n');
   const pending = script.indexOf('Replaying historical baseline plus all pending migrations');
 
   assert.ok(isolate >= 0, 'pending migrations must be isolated');
@@ -27,6 +27,7 @@ test('historical baseline is replayed before pending migrations', () => {
 
 test('cleanup restores pending files even after failure', () => {
   assert.match(script, /trap cleanup EXIT/);
+  assert.match(script, /restore_pending/);
   assert.match(script, /cp "\$\{PENDING_DIR\}"\/\*\.sql "\$\{MIGRATIONS_DIR\}\/"/);
 });
 

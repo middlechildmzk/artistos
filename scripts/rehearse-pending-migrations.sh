@@ -8,10 +8,18 @@ PENDING_DIR="$(mktemp -d)/pending"
 BASELINE_LIST="${ARTIFACT_DIR}/historical-baseline.txt"
 FINAL_LIST="${ARTIFACT_DIR}/with-pending.txt"
 SUMMARY="${ARTIFACT_DIR}/summary.txt"
+PENDING_RESTORED=false
 
-cleanup() {
+restore_pending() {
   if compgen -G "${PENDING_DIR}/*.sql" >/dev/null; then
     cp "${PENDING_DIR}"/*.sql "${MIGRATIONS_DIR}/"
+  fi
+  PENDING_RESTORED=true
+}
+
+cleanup() {
+  if [[ "${PENDING_RESTORED}" != "true" ]]; then
+    restore_pending
   fi
   supabase stop --no-backup >/dev/null 2>&1 || true
   rm -rf "$(dirname "${PENDING_DIR}")"
@@ -28,14 +36,16 @@ done
 mkdir -p "${ARTIFACT_DIR}" "${PENDING_DIR}"
 node scripts/check-remote-migration-manifest.mjs "${MANIFEST}"
 
-# Move every migration not present in the reviewed remote manifest out of the
-# active directory. These are pending source-controlled migrations and must be
-# rehearsed only after the recovered production baseline succeeds by itself.
 node <<'NODE' "${MANIFEST}" "${MIGRATIONS_DIR}" "${PENDING_DIR}"
 const fs = require('node:fs');
 const path = require('node:path');
 const [manifestPath, migrationsDir, pendingDir] = process.argv.slice(2);
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const document = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const manifest = Array.isArray(document) ? document : document.migrations;
+if (!Array.isArray(manifest)) {
+  console.error('Migration manifest must be an array or contain a migrations array.');
+  process.exit(2);
+}
 const historical = new Set(manifest.map((row) => String(row.version)));
 let count = 0;
 for (const filename of fs.readdirSync(migrationsDir)) {
@@ -61,10 +71,7 @@ if [[ -f tests/rls/workspace-isolation.sql ]]; then
   supabase db query --local --file tests/rls/workspace-isolation.sql
 fi
 
-# Restore pending migrations in their original names and order, then replay the
-# entire repository from zero. This tests upgrade ordering without mutating the
-# linked production project.
-cp "${PENDING_DIR}"/*.sql "${MIGRATIONS_DIR}/"
+restore_pending
 
 echo "Replaying historical baseline plus all pending migrations..."
 supabase db reset --local

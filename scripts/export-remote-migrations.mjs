@@ -34,8 +34,12 @@ function normalizeSql(sql) {
     .toLowerCase();
 }
 
-function hash(sql) {
+function normalizedHash(sql) {
   return createHash("sha256").update(normalizeSql(sql), "utf8").digest("hex");
+}
+
+function rawHash(sql) {
+  return createHash("sha256").update(sql, "utf8").digest("hex");
 }
 
 const connectionString = process.env.SUPABASE_DB_URL;
@@ -52,7 +56,12 @@ try {
 }
 
 await mkdir(migrationsDir, { recursive: true });
-const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+const manifestDocument = JSON.parse(await readFile(manifestPath, "utf8"));
+const manifest = Array.isArray(manifestDocument) ? manifestDocument : manifestDocument.migrations;
+if (!Array.isArray(manifest)) {
+  console.error("Migration manifest must be an array or contain a migrations array.");
+  process.exit(2);
+}
 const manifestByVersion = new Map(manifest.map((row) => [String(row.version), row]));
 
 const existing = await readdir(migrationsDir);
@@ -113,14 +122,21 @@ for (const row of rows) {
   }
 
   const sql = Array.isArray(row.statements) ? row.statements.join("\n") : String(row.statements ?? "");
-  const normalizedHash = hash(sql);
-  if (normalizedHash !== expected.normalized_sha256) {
-    console.error(`Hash mismatch for ${version}_${row.name}`);
+  if (normalizedHash(sql) !== expected.normalized_sha256) {
+    console.error(`Normalized hash mismatch for ${version}_${row.name}`);
+    process.exit(1);
+  }
+  if (expected.raw_sha256 && rawHash(sql) !== expected.raw_sha256) {
+    console.error(`Raw hash mismatch for ${version}_${row.name}`);
+    process.exit(1);
+  }
+  if (typeof expected.sql_length === "number" && sql.length !== expected.sql_length) {
+    console.error(`Length mismatch for ${version}_${row.name}: ledger=${sql.length}, manifest=${expected.sql_length}`);
     process.exit(1);
   }
 
   const filename = `${version}_${row.name}.sql`;
-  await writeFile(path.join(migrationsDir, filename), sql.endsWith("\n") ? sql : `${sql}\n`, "utf8");
+  await writeFile(path.join(migrationsDir, filename), sql, "utf8");
   console.log(`exported ${filename}`);
 }
 

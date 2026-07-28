@@ -13,11 +13,15 @@ import "./campaign-registry";
 import "./crm-release-registry";
 import "./brain-registry";
 import "./planner-registry";
+import "./execution-registry";
+import "./operating-registry";
 import "./core-handlers";
 import "./campaign-handlers";
 import "./crm-release-handlers";
 import "./brain-handlers";
 import "./planner-handlers";
+import "./execution-handlers";
+import "./operating-handlers";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 0, contributor: 1, editor: 2, admin: 3, owner: 4 };
 
@@ -30,7 +34,6 @@ export function createServerInvocationDependencies(): InvocationDependencies {
       return { allowed: true };
     },
     async loadPolicies(ctx, capabilityName) {
-      // Agent principals receive no implicit grant and default to approval.
       if (ctx.userId && ctx.principalId === `user:${ctx.userId}`) {
         const policy: AutonomyPolicy = { id: "system.explicit_human_action", effect: "allow", capabilityName, actorPrincipalId: ctx.principalId, workspaceId: ctx.workspaceId, level: "L3", reason: "The authenticated human explicitly initiated this reversible action" };
         return [policy];
