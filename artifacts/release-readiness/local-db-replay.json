@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "result": "FAIL",
-  "source_commit": "61dd93013407f8b94e85ce3d8109ea18e1e52a9a",
-  "workflow_run_id": "30391540122",
+  "source_commit": "46dd1e5be25184dd23aa790015e20ab19b79e526",
+  "workflow_run_id": "30392124124",
   "supabase_cli_version": "2.84.2",
   "historical_schema_drift_checked": true,
   "workspace_rls_checked": false,
   "production_mutated": false,
-  "completed_at": "2026-07-28T19:23:44Z"
+  "completed_at": "2026-07-28T19:31:35Z"
 }
