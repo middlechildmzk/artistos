@@ -2,51 +2,53 @@
   "schema_version": 1,
   "status": "PASS",
   "summary": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
-  "source_commit": "b1e20daf06ed3ee067a477a02a9f8e2af771a99f",
-  "completed_at": "2026-07-28T19:56:36.553Z",
-  "checks": [
+  "source_commit": "98873de1bd2afc87870e682e4bd4f6b51b18ece8",
+  "completed_at": "2026-07-28T20:03:20.491Z",
+  "run_id": "30394259840",
+  "base_url": "http://127.0.0.1:3000",
+  "journeys": [
     {
-      "name": "owner_login_and_workspace_provisioning",
+      "id": "owner_login_and_workspace_provisioning",
       "status": "PASS",
       "detail": "Owner authenticated through the browser and ArtistOS provisioned the first workspace."
     },
     {
-      "name": "owner_release_creation",
+      "id": "owner_release_creation",
       "status": "PASS",
       "detail": "Owner created a release and its starter operational spine through the authenticated UI."
     },
     {
-      "name": "capability_task_execution",
+      "id": "capability_task_execution",
       "status": "PASS",
       "detail": "Owner completed a release task through the capability runtime-backed server action."
     },
     {
-      "name": "artist_brain_memory",
+      "id": "artist_brain_memory",
       "status": "PASS",
       "detail": "Owner created a source-visible Artist Brain v2 memory through the UI."
     },
     {
-      "name": "ai_manager_request",
+      "id": "ai_manager_request",
       "status": "PASS",
       "detail": "Owner created a deterministic cross-functional AI Manager plan through the UI."
     },
     {
-      "name": "protected_workspaces_render",
+      "id": "protected_workspaces_render",
       "status": "PASS",
       "detail": "Opportunity Intelligence and Approval Center rendered for the authenticated owner."
     },
     {
-      "name": "viewer_read_only",
+      "id": "viewer_read_only",
       "status": "PASS",
       "detail": "Viewer read shared release and Brain memory but was denied a direct authenticated write."
     },
     {
-      "name": "second_workspace_isolation",
+      "id": "second_workspace_isolation",
       "status": "PASS",
       "detail": "Independent user received a separate workspace and could not see or query owner release data."
     },
     {
-      "name": "durable_control_plane",
+      "id": "durable_control_plane",
       "status": "PASS",
       "detail": "Runtime actions persisted audit and idempotency receipts alongside business records."
     }

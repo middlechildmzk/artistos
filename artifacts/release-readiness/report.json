@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-28T19:56:36.702Z",
-  "git_sha": "b1e20daf06ed3ee067a477a02a9f8e2af771a99f",
+  "generated_at": "2026-07-28T20:03:20.612Z",
+  "git_sha": "98873de1bd2afc87870e682e4bd4f6b51b18ece8",
   "overall": "BLOCKED",
   "counts": {
     "pass": 7,
@@ -72,7 +72,7 @@
       "status": "pass",
       "detail": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
       "evidence": "artifacts/authenticated-e2e/summary.json",
-      "sha256": "329e671cbb6c169a182a10b5eba25461d1110d03fc0807bdff932897e1a081b2"
+      "sha256": "1d2d25569116da46c2abbfe606db08416669ba67ec19f24a08b2b5523b26dc26"
     },
     {
       "id": "brain_reconciliation",
