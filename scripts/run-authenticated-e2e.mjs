@@ -61,8 +61,8 @@ async function count(table, workspaceId) {
 }
 
 let browser;
-const checks = [];
-const record = (name, detail) => checks.push({ name, status: "PASS", detail });
+const journeys = [];
+const record = (id, detail) => journeys.push({ id, status: "PASS", detail });
 
 try {
   const ownerUser = await createUser(users.owner.email);
@@ -188,7 +188,9 @@ try {
     summary: "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
     source_commit: process.env.GITHUB_SHA ?? null,
     completed_at: new Date().toISOString(),
-    checks,
+    run_id: process.env.GITHUB_RUN_ID ?? "local",
+    base_url: appUrl,
+    journeys,
     counts,
     screenshots: ["owner-approvals.png", "viewer-brain.png", "outsider-dashboard.png"],
     production_mutated: false,
@@ -203,7 +205,9 @@ try {
     summary: error instanceof Error ? error.message : String(error),
     source_commit: process.env.GITHUB_SHA ?? null,
     completed_at: new Date().toISOString(),
-    checks,
+    run_id: process.env.GITHUB_RUN_ID ?? "local",
+    base_url: appUrl,
+    journeys,
     production_mutated: false,
   };
   fs.writeFileSync(path.join(outputDir, "summary.json"), `${JSON.stringify(report, null, 2)}\n`);
