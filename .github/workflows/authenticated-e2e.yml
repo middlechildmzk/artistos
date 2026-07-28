@@ -1,6 +1,13 @@
 name: ArtistOS Authenticated E2E
 
 on:
+  workflow_run:
+    workflows:
+      - ArtistOS Database Replay
+    types:
+      - completed
+    branches:
+      - agent/artistos-canonical-integration
   push:
     branches:
       - agent/artistos-canonical-integration
@@ -19,6 +26,7 @@ concurrency:
 
 jobs:
   authenticated-e2e:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
