@@ -8,20 +8,13 @@ on:
       - completed
     branches:
       - agent/artistos-canonical-integration
-  push:
-    branches:
-      - agent/artistos-canonical-integration
-    paths:
-      - .github/workflows/authenticated-e2e.yml
-      - scripts/run-authenticated-e2e.mjs
-      - artifacts/release-readiness/local-db-replay.json
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: artistos-authenticated-e2e-${{ github.ref }}
+  group: artistos-authenticated-e2e-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -30,17 +23,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout
+      - name: Checkout evidence branch
         uses: actions/checkout@v4
         with:
           ref: agent/artistos-canonical-integration
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Bind release candidate and clear prior runtime evidence
+      - name: Resolve release candidate from database replay
         shell: bash
         run: |
-          echo "RELEASE_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          cp artifacts/release-readiness/local-db-replay.json /tmp/local-db-replay.json
+          release_source_sha="$(node -e "const fs=require('fs'); const receipt=JSON.parse(fs.readFileSync('/tmp/local-db-replay.json','utf8')); process.stdout.write(receipt.source_commit || '')")"
+          if [[ -z "$release_source_sha" ]]; then
+            echo "Database replay receipt does not identify a source commit." >&2
+            exit 1
+          fi
+          git cat-file -e "${release_source_sha}^{commit}"
+          echo "RELEASE_SOURCE_SHA=${release_source_sha}" >> "$GITHUB_ENV"
+          echo "RELEASE_GIT_SHA=${release_source_sha}" >> "$GITHUB_ENV"
+          git checkout --detach "$release_source_sha"
+          mkdir -p artifacts/release-readiness artifacts/authenticated-e2e
+          cp /tmp/local-db-replay.json artifacts/release-readiness/local-db-replay.json
           rm -f artifacts/authenticated-e2e/summary.json artifacts/authenticated-e2e/*.png
 
       - name: Check database verification eligibility
@@ -50,11 +54,15 @@ jobs:
           node <<'NODE'
           const fs = require('fs');
           const receipt = JSON.parse(fs.readFileSync('artifacts/release-readiness/local-db-replay.json', 'utf8'));
-          const eligible = receipt.result === 'PASS' && receipt.historical_schema_drift_checked === true && receipt.workspace_rls_checked === true;
+          const eligible = receipt.result === 'PASS'
+            && receipt.historical_schema_drift_checked === true
+            && receipt.workspace_rls_checked === true
+            && receipt.production_mutated === false
+            && receipt.source_commit === process.env.RELEASE_SOURCE_SHA;
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `eligible=${eligible}\n`);
           console.log(eligible
-            ? 'Database replay, historical drift, and RLS evidence are eligible for browser E2E.'
-            : 'Browser E2E deferred until the upgraded database verification receipt is PASS.');
+            ? `Database replay evidence is eligible for browser E2E at ${receipt.source_commit}.`
+            : 'Browser E2E deferred until the database receipt is PASS and bound to the resolved release source.');
           NODE
 
       - name: Set up Node
@@ -120,7 +128,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          node scripts/run-authenticated-e2e.mjs 2>&1 | tee authenticated-e2e.log
+          GITHUB_SHA="$RELEASE_SOURCE_SHA" node scripts/run-authenticated-e2e.mjs 2>&1 | tee authenticated-e2e.log
           status=${PIPESTATUS[0]}
           echo "status=${status}" >> "$GITHUB_OUTPUT"
           exit 0
@@ -130,7 +138,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          RELEASE_GIT_SHA="$RELEASE_SOURCE_SHA" node scripts/generate-release-readiness-report.mjs 2>&1 | tee readiness-report.log
+          GITHUB_SHA="$RELEASE_SOURCE_SHA" RELEASE_GIT_SHA="$RELEASE_SOURCE_SHA" node scripts/generate-release-readiness-report.mjs 2>&1 | tee readiness-report.log
           exit 0
 
       - name: Validate preapproval evidence contracts
