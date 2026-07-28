@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 const root = process.cwd();
 const outputDir = process.env.RELEASE_READINESS_OUTPUT_DIR || 'artifacts/release-readiness';
 const absoluteOutput = path.join(root, outputDir);
+const expectedReleaseSha = process.env.RELEASE_GIT_SHA || process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null;
 fs.mkdirSync(absoluteOutput, { recursive: true });
 
 function readJson(relativePath) {
@@ -14,9 +15,53 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(absolute, 'utf8'));
 }
 
+function digest(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function evidenceResult(relativePath, validate) {
+  const absolute = path.join(root, relativePath);
+  if (!fs.existsSync(absolute)) return { status: 'blocked', detail: `Missing evidence: ${relativePath}` };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(absolute, 'utf8'));
+    const failure = validate(parsed);
+    return failure
+      ? { status: 'fail', detail: failure, evidence: relativePath, sha256: digest(absolute) }
+      : {
+          status: 'pass',
+          detail: parsed.detail || parsed.summary || `Evidence found at ${relativePath}.`,
+          evidence: relativePath,
+          sha256: digest(absolute),
+        };
+  } catch (error) {
+    return { status: 'fail', detail: `Invalid JSON evidence: ${error.message}`, evidence: relativePath, sha256: digest(absolute) };
+  }
+}
+
+function replayEvaluation() {
+  return evidenceResult('artifacts/release-readiness/local-db-replay.json', (replay) => {
+    if (String(replay.result || replay.status || '').toLowerCase() !== 'pass') return 'Database replay evidence is not PASS.';
+    if (expectedReleaseSha && replay.source_commit !== expectedReleaseSha) return 'Database replay evidence is stale for the selected release source.';
+    if (replay.historical_schema_drift_checked !== true) return 'Historical schema drift was not verified.';
+    if (replay.workspace_rls_checked !== true) return 'Workspace RLS was not verified.';
+    if (replay.production_mutated !== false) return 'Database replay evidence must confirm production was not mutated.';
+    return null;
+  });
+}
+
+function e2eEvaluation() {
+  return evidenceResult('artifacts/authenticated-e2e/summary.json', (e2e) => {
+    if (String(e2e.status || e2e.result || '').toLowerCase() !== 'pass') return 'Authenticated E2E evidence is not PASS.';
+    if (expectedReleaseSha && e2e.source_commit !== expectedReleaseSha) return 'Authenticated E2E evidence is stale for the selected release source.';
+    if (!Array.isArray(e2e.journeys) || e2e.journeys.length === 0) return 'Authenticated E2E evidence does not contain executed journeys.';
+    if (e2e.journeys.some((journey) => String(journey.status).toLowerCase() !== 'pass')) return 'At least one authenticated E2E journey did not pass.';
+    if (e2e.production_mutated !== false) return 'Authenticated E2E evidence must confirm production was not mutated.';
+    return null;
+  });
+}
+
 function replayPassed() {
-  const replay = readJson('artifacts/release-readiness/local-db-replay.json');
-  return replay && String(replay.result || replay.status || '').toLowerCase() === 'pass';
+  return replayEvaluation().status === 'pass';
 }
 
 const definitions = [
@@ -49,7 +94,7 @@ const definitions = [
     title: 'Isolated clean-database replay',
     required: true,
     files: ['artifacts/release-readiness/local-db-replay.json'],
-    jsonStatus: true,
+    evaluate: replayEvaluation,
   },
   {
     id: 'linked_schema_drift',
@@ -73,7 +118,7 @@ const definitions = [
       if (replayPassed()) {
         return { status: 'pass', detail: 'The isolated clean-database replay applied the complete tracked historical and pending migration chain.' };
       }
-      return { status: 'blocked', detail: 'Missing successful isolated replay or dedicated pending-migration rehearsal evidence.' };
+      return { status: 'blocked', detail: 'Missing successful source-bound isolated replay or dedicated pending-migration rehearsal evidence.' };
     },
   },
   {
@@ -81,7 +126,7 @@ const definitions = [
     title: 'Authenticated end-to-end verification',
     required: true,
     files: ['artifacts/authenticated-e2e/summary.json'],
-    jsonStatus: true,
+    evaluate: e2eEvaluation,
   },
   {
     id: 'brain_reconciliation',
@@ -98,10 +143,6 @@ const definitions = [
     jsonStatus: true,
   },
 ];
-
-function digest(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
 
 function evaluate(definition) {
   if (definition.evaluate) return { ...definition, ...definition.evaluate() };
@@ -132,11 +173,10 @@ const failed = gates.filter((gate) => gate.required && gate.status === 'fail');
 const blocked = gates.filter((gate) => gate.required && gate.status === 'blocked');
 const overall = failed.length > 0 ? 'NO_GO' : blocked.length > 0 ? 'BLOCKED' : 'GO';
 const generatedAt = new Date().toISOString();
-const gitSha = process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null;
 const report = {
   schema_version: 1,
   generated_at: generatedAt,
-  git_sha: gitSha,
+  git_sha: expectedReleaseSha,
   overall,
   counts: {
     pass: gates.filter((gate) => gate.status === 'pass').length,
@@ -153,7 +193,7 @@ const events = [
     schema_version: 1,
     event_type: 'release_readiness_decision',
     occurred_at: generatedAt,
-    git_sha: gitSha,
+    git_sha: expectedReleaseSha,
     overall,
     counts: report.counts,
     production_mutation_authorized: false,
@@ -162,7 +202,7 @@ const events = [
     schema_version: 1,
     event_type: 'release_readiness_gate',
     occurred_at: generatedAt,
-    git_sha: gitSha,
+    git_sha: expectedReleaseSha,
     gate_id: gate.id,
     gate_title: gate.title,
     required: gate.required,
@@ -179,6 +219,8 @@ const lines = [
   '# ArtistOS release readiness',
   '',
   `**Decision: ${overall}**`,
+  '',
+  `Release source: ${expectedReleaseSha ?? 'unknown'}`,
   '',
   `Generated: ${report.generated_at}`,
   '',
