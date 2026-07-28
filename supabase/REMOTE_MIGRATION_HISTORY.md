@@ -1,6 +1,19 @@
 # Remote Migration History Recovery
 
-ArtistOS production currently has 28 applied Supabase migrations that must be preserved exactly in source control before any pending runtime, evidence, Brain, or graph migration is deployed.
+ArtistOS production has 28 applied Supabase migrations that are now preserved byte-for-byte in source control before any pending runtime, evidence, Brain, or graph migration is deployed.
+
+## Recovery status
+
+Recovery completed on July 28, 2026.
+
+- recovered files: 28 of 28
+- first migration: `20260711232934_artistos_core_foundation`
+- last migration: `20260727144623_add_agent_execution_control_plane_v2`
+- reviewed manifest: `supabase/REMOTE_MIGRATION_MANIFEST.json`
+- recovery commit: `56369c2fae2c011a954ab63dfd69ac9496001987`
+- production mutations performed: none
+
+The historical files match the reviewed production ledger by version, name, byte length, and raw SHA-256.
 
 ## Reviewed production ledger
 
@@ -51,9 +64,7 @@ The workflow does not contain:
 
 ## CI behavior
 
-`.github/workflows/ci.yml` runs historical reconciliation before dependency installation. Until all 28 historical files are committed, CI intentionally fails at that single gate and skips unrelated tests.
-
-Once the historical files are committed, CI allows reviewed pending migrations but continues to reject missing, renamed, resized, or modified historical migrations.
+`.github/workflows/ci.yml` runs historical reconciliation before dependency installation. With all 28 historical files committed, CI allows reviewed pending migrations but continues to reject missing, renamed, resized, or modified historical migrations.
 
 ## Required evidence before deployment
 
