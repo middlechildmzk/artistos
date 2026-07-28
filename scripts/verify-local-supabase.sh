@@ -16,7 +16,7 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-FIXTURE_PATH="supabase/migrations/20260726000000_local_replay_fixture.sql"
+FIXTURE_PATH="supabase/migrations/20260714110000_local_preledger_fixture.sql"
 PENDING_DIR="$(mktemp -d)"
 
 restore_pending() {
@@ -55,21 +55,13 @@ fi
 
 cat > "${FIXTURE_PATH}" <<'SQL'
 -- Local replay fixture only. Never commit or apply to production.
--- This models production state that existed before the tracked ledger became
--- complete: the canonical owner/workspace and two dedupe columns later
--- referenced by historical migration 20260726193925.
+-- Models verified state that existed before the tracked migration ledger became
+-- complete. Column order is preserved because the schema fingerprint includes
+-- PostgreSQL attribute positions.
+
 insert into auth.users (
-  id,
-  instance_id,
-  aud,
-  role,
-  email,
-  encrypted_password,
-  email_confirmed_at,
-  raw_app_meta_data,
-  raw_user_meta_data,
-  created_at,
-  updated_at
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 )
 values (
   '1117df01-6442-4c59-9d94-3ffa7e15612f'::uuid,
@@ -92,11 +84,61 @@ where not exists (
   select 1 from public.workspaces where name = 'Dan Larson / BVSS FVM'
 );
 
+insert into storage.buckets (id, name, public)
+values ('app', 'app', false)
+on conflict (id) do nothing;
+
+alter table public.import_batches
+  add column if not exists imported_count integer,
+  add column if not exists completed_at timestamptz,
+  add column if not exists error_message text;
+
 alter table public.people
-  add column if not exists normalized_email text;
+  add column if not exists normalized_email text,
+  add column if not exists contact_type text,
+  add column if not exists recommended_segment text,
+  add column if not exists consent_status text,
+  add column if not exists first_seen text,
+  add column if not exists source_category text,
+  add column if not exists source_count integer,
+  add column if not exists source_files text,
+  add column if not exists source_sheets text,
+  add column if not exists titles_tracks_playlists text,
+  add column if not exists genres text,
+  add column if not exists links text,
+  add column if not exists engagement_source_notes text,
+  add column if not exists relationship_signal text,
+  add column if not exists relationship_strength text,
+  add column if not exists last_known_interaction text,
+  add column if not exists gmail_evidence text,
+  add column if not exists source_file text,
+  add column if not exists source_sheet text,
+  add column if not exists source_row integer,
+  add column if not exists source_record_hash text,
+  add column if not exists raw_record jsonb,
+  add column if not exists imported_at timestamptz default now();
 
 alter table public.properties
-  add column if not exists canonical_property_key text;
+  add column if not exists platform_url text,
+  add column if not exists spotify_playlist_id text,
+  add column if not exists owner_or_operator text,
+  add column if not exists genres text,
+  add column if not exists followers_legacy text,
+  add column if not exists contact_emails text,
+  add column if not exists source text,
+  add column if not exists source_file text,
+  add column if not exists source_sheet text,
+  add column if not exists source_row integer,
+  add column if not exists original_source_sheet text,
+  add column if not exists original_source_row text,
+  add column if not exists canonical_property_key text,
+  add column if not exists source_record_hash text,
+  add column if not exists raw_record jsonb,
+  add column if not exists imported_at timestamptz default now();
+
+create unique index if not exists properties_spotify_playlist_id_unique
+  on public.properties (spotify_playlist_id)
+  where spotify_playlist_id is not null and spotify_playlist_id <> '';
 SQL
 
 echo "Starting isolated local Supabase..."
@@ -123,6 +165,7 @@ if [[ -z "${DB_URL}" ]]; then
   exit 1
 fi
 
+psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -f scripts/production-schema-reconciliation.sql
 mkdir -p artifacts/schema-drift
 psql "${DB_URL}" -X -tA -v ON_ERROR_STOP=1 -f scripts/application-schema-fingerprint.sql \
   > artifacts/schema-drift/local-historical-fingerprint.json
@@ -137,10 +180,11 @@ restore_pending
 
 echo "Replaying every tracked historical and pending migration from a clean database..."
 supabase db reset --local --yes
+psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -f scripts/production-schema-reconciliation.sql
 rm -f "${FIXTURE_PATH}"
 
 echo "Running workspace-isolation and RLS assertions..."
-psql "${DB_URL}" -v ON_ERROR_STOP=1 -f tests/rls/workspace-isolation.sql
+psql "${DB_URL}" -X -v ON_ERROR_STOP=1 -f tests/rls/workspace-isolation.sql
 
 echo "Running database advisors..."
 supabase db advisors --local
