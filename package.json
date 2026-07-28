@@ -13,7 +13,8 @@
     "db:verify-local": "bash scripts/verify-local-supabase.sh",
     "readiness": "bash scripts/artistos-release-readiness.sh --static",
     "readiness:full-local": "bash scripts/artistos-release-readiness.sh --full-local",
-    "readiness:report": "node scripts/generate-release-readiness-report.mjs"
+    "readiness:report": "node scripts/generate-release-readiness-report.mjs",
+    "readiness:validate-evidence": "node scripts/validate-release-evidence.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
