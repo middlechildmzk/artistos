@@ -46,15 +46,36 @@ if (e2e) {
   requirePass(e2e, e2eFile);
   requireString(e2e, 'run_id', e2eFile);
   requireString(e2e, 'base_url', e2eFile);
+  requireString(e2e, 'source_commit', e2eFile);
   requireIsoDate(e2e, 'completed_at', e2eFile);
+  if (e2e.production_mutated !== false) errors.push(`${e2eFile}: production_mutated must equal false`);
+  const expectedE2ESha = process.env.RELEASE_GIT_SHA || process.env.GITHUB_SHA;
+  if (expectedE2ESha && e2e.source_commit !== expectedE2ESha) errors.push(`${e2eFile}: source_commit does not match the release commit`);
   if (!Array.isArray(e2e.journeys) || e2e.journeys.length === 0) {
     errors.push(`${e2eFile}: journeys must contain executed authenticated journeys`);
   } else {
+    const passedJourneyIds = new Set();
     for (const [index, journey] of e2e.journeys.entries()) {
       requireString(journey, 'id', `${e2eFile} journey ${index}`);
       if (String(journey.status).toLowerCase() !== 'pass') {
         errors.push(`${e2eFile}: journey ${journey.id || index} did not pass`);
+      } else if (typeof journey.id === 'string') {
+        passedJourneyIds.add(journey.id);
       }
+    }
+    const requiredJourneyIds = [
+      'owner_login_and_workspace_provisioning',
+      'owner_release_creation',
+      'capability_task_execution',
+      'artist_brain_memory',
+      'ai_manager_request',
+      'protected_workspaces_render',
+      'viewer_read_only',
+      'second_workspace_isolation',
+      'durable_control_plane',
+    ];
+    for (const journeyId of requiredJourneyIds) {
+      if (!passedJourneyIds.has(journeyId)) errors.push(`${e2eFile}: required journey ${journeyId} is missing or did not pass`);
     }
   }
 }
