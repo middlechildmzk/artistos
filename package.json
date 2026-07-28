@@ -10,7 +10,10 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "check": "npm run typecheck && npm test && npm run build",
-    "db:verify-local": "bash scripts/verify-local-supabase.sh"
+    "db:verify-local": "bash scripts/verify-local-supabase.sh",
+    "readiness": "bash scripts/artistos-release-readiness.sh --static",
+    "readiness:full-local": "bash scripts/artistos-release-readiness.sh --full-local",
+    "readiness:report": "node scripts/generate-release-readiness-report.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
