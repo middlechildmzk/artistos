@@ -3,6 +3,15 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const validator = fs.readFileSync('scripts/validate-release-evidence.mjs', 'utf8');
+const reportGenerator = fs.readFileSync('scripts/generate-release-readiness-report.mjs', 'utf8');
+
+test('database replay evidence is complete and release-source bound', () => {
+  assert.match(validator, /local-db-replay\.json/);
+  assert.match(validator, /historical_schema_drift_checked/);
+  assert.match(validator, /workspace_rls_checked/);
+  assert.match(validator, /requireReleaseSource\(replay/);
+  assert.match(reportGenerator, /Database replay evidence is stale for the selected release source/);
+});
 
 test('authenticated E2E evidence requires executed passing journeys', () => {
   assert.match(validator, /journeys/);
@@ -10,8 +19,9 @@ test('authenticated E2E evidence requires executed passing journeys', () => {
   assert.match(validator, /journey\.status/);
   assert.match(validator, /run_id/);
   assert.match(validator, /base_url/);
-  assert.match(validator, /source_commit does not match the release commit/);
+  assert.match(validator, /requireReleaseSource\(e2e/);
   assert.match(validator, /requiredJourneyIds/);
+  assert.match(reportGenerator, /Authenticated E2E evidence is stale for the selected release source/);
 });
 
 test('Brain reconciliation is count-balanced and confidence-safe', () => {
