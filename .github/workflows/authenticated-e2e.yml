@@ -37,6 +37,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Bind release candidate and clear prior runtime evidence
+        shell: bash
+        run: |
+          echo "RELEASE_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          rm -f artifacts/authenticated-e2e/summary.json artifacts/authenticated-e2e/*.png
+
       - name: Check database verification eligibility
         id: gate
         shell: bash
@@ -124,7 +130,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          node scripts/generate-release-readiness-report.mjs 2>&1 | tee readiness-report.log
+          RELEASE_GIT_SHA="$RELEASE_SOURCE_SHA" node scripts/generate-release-readiness-report.mjs 2>&1 | tee readiness-report.log
           exit 0
 
       - name: Validate preapproval evidence contracts
@@ -133,7 +139,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          RELEASE_EVIDENCE_STAGE=preapproval node scripts/validate-release-evidence.mjs 2>&1 | tee evidence-validation.log
+          RELEASE_EVIDENCE_STAGE=preapproval RELEASE_GIT_SHA="$RELEASE_SOURCE_SHA" node scripts/validate-release-evidence.mjs 2>&1 | tee evidence-validation.log
           status=${PIPESTATUS[0]}
           echo "status=${status}" >> "$GITHUB_OUTPUT"
           exit 0
