@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -91,6 +92,7 @@ export default function LoginPage() {
           </form>
           <div className="login-divider"><span>or</span></div>
           <button className="button ghost" type="button" onClick={sendMagicLink} disabled={busy}>Email me a magic link</button>
+          <Link className="button tour-link" href="/tour">View the guided product tour</Link>
           <p className="login-footnote">Access is limited to invited ArtistOS workspaces.</p>
         </section>
       </div>
