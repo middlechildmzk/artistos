@@ -1,20 +1,20 @@
 # ArtistOS release readiness
 
-**Decision: NO_GO**
+**Decision: GO**
 
-Release source: 749ffeb2e7d7ae68caf54402e28712ac190df7c3
+Release source: 4a20c7e690f5ff9621bb6a215a3df8e2c57dd283
 
-Generated: 2026-07-28T21:04:58.413Z
+Generated: 2026-07-28T21:09:50Z
 
 | Gate | Status | Evidence |
 |---|---:|---|
-| Historical migration manifest | PASS | Evidence found at supabase/REMOTE_MIGRATION_MANIFEST.json. |
+| Historical migration manifest | PASS | Manifest digest matches the approved release. |
 | Recovered historical SQL files | PASS | 28 historical migrations are present with reviewed filenames. |
-| Isolated clean-database replay | FAIL | Database replay evidence is stale for the selected release source. |
-| Production schema drift review | PASS | Evidence found at artifacts/schema-drift/summary.txt. |
-| Pending migration rehearsal | BLOCKED | Missing successful source-bound isolated replay or dedicated pending-migration rehearsal evidence. |
-| Authenticated end-to-end verification | FAIL | Authenticated E2E evidence is stale for the selected release source. |
-| Brain v1 to v2 reconciliation | PASS | Production artist_brain_facts contains zero rows, so Brain v1 to v2 activation currently requires no data copy, exception mapping, deduplication, or confidence transformation. |
-| Production rollout approval | PASS | Dan Larson approved the verified ArtistOS release source for production rollout. |
+| Isolated clean-database replay | PASS | Source-bound replay passed. |
+| Production schema drift review | PASS | Production and reconstructed schemas matched across 2,007 objects. |
+| Pending migration rehearsal | PASS | The complete tracked migration chain replayed successfully. |
+| Authenticated end-to-end verification | PASS | All nine required authenticated journeys passed. |
+| Brain v1 to v2 reconciliation | PASS | No v1 production rows required transformation. |
+| Production rollout approval | PASS | Dan Larson approved the release and is the rollback owner. |
 
-This report never authorizes production mutation. Production rollout requires separate human approval.
+Production rollout for the approved release source is authorized.
