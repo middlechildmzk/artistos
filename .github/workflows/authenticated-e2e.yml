@@ -119,6 +119,14 @@ jobs:
           echo "status=${status}" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Generate updated readiness report
+        if: always() && steps.gate.outputs.eligible == 'true' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
+        shell: bash
+        run: |
+          set +e
+          node scripts/generate-release-readiness-report.mjs 2>&1 | tee readiness-report.log
+          exit 0
+
       - name: Upload authenticated diagnostics
         if: always() && steps.gate.outputs.eligible == 'true'
         uses: actions/upload-artifact@v4
@@ -127,23 +135,33 @@ jobs:
           path: |
             authenticated-e2e.log
             artistos-e2e-app.log
+            readiness-report.log
             artifacts/authenticated-e2e/summary.json
             artifacts/authenticated-e2e/*.png
+            artifacts/release-readiness/report.json
+            artifacts/release-readiness/report.md
+            artifacts/release-readiness/events.ndjson
 
       - name: Commit authenticated evidence
         if: steps.gate.outputs.eligible == 'true' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
         shell: bash
         run: |
           cp artifacts/authenticated-e2e/summary.json /tmp/authenticated-e2e-summary.json
+          rm -rf /tmp/authenticated-readiness
+          mkdir -p /tmp/authenticated-readiness
+          cp artifacts/release-readiness/report.json /tmp/authenticated-readiness/
+          cp artifacts/release-readiness/report.md /tmp/authenticated-readiness/
+          cp artifacts/release-readiness/events.ndjson /tmp/authenticated-readiness/
           git config user.name "artistos-authenticated-e2e[bot]"
           git config user.email "artistos-authenticated-e2e[bot]@users.noreply.github.com"
 
           for attempt in 1 2 3; do
             git fetch origin agent/artistos-canonical-integration
             git reset --hard origin/agent/artistos-canonical-integration
-            mkdir -p artifacts/authenticated-e2e
+            mkdir -p artifacts/authenticated-e2e artifacts/release-readiness
             cp /tmp/authenticated-e2e-summary.json artifacts/authenticated-e2e/summary.json
-            git add artifacts/authenticated-e2e/summary.json
+            cp /tmp/authenticated-readiness/* artifacts/release-readiness/
+            git add artifacts/authenticated-e2e/summary.json artifacts/release-readiness/report.json artifacts/release-readiness/report.md artifacts/release-readiness/events.ndjson
 
             if git diff --cached --quiet; then
               echo "Authenticated evidence is unchanged."
