@@ -10,6 +10,7 @@ on:
       - tests/rls/**
       - scripts/verify-local-supabase.sh
       - scripts/application-schema-fingerprint.sql
+      - scripts/application-schema-inventory.sql
       - scripts/compare-schema-fingerprints.mjs
       - artifacts/schema-drift/production-fingerprint.json
   workflow_dispatch:
@@ -88,6 +89,7 @@ jobs:
             database-replay.log
             artifacts/release-readiness/local-db-replay.json
             artifacts/schema-drift/local-historical-fingerprint.json
+            artifacts/schema-drift/local-historical-inventory.json
             artifacts/schema-drift/summary.json
             artifacts/schema-drift/summary.txt
 
@@ -97,7 +99,7 @@ jobs:
           rm -rf /tmp/artistos-db-evidence
           mkdir -p /tmp/artistos-db-evidence/artifacts/release-readiness /tmp/artistos-db-evidence/artifacts/schema-drift
           cp artifacts/release-readiness/local-db-replay.json /tmp/artistos-db-evidence/artifacts/release-readiness/
-          for evidence in local-historical-fingerprint.json summary.json summary.txt; do
+          for evidence in local-historical-fingerprint.json local-historical-inventory.json summary.json summary.txt; do
             if [[ -f "artifacts/schema-drift/${evidence}" ]]; then
               cp "artifacts/schema-drift/${evidence}" "/tmp/artistos-db-evidence/artifacts/schema-drift/${evidence}"
             fi
