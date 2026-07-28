@@ -12,8 +12,10 @@ const manifestCheck = read("scripts/check-remote-migration-manifest.mjs");
 const workflow = read(".github/workflows/ci.yml");
 
 test("remote exporter is read-only and verifies exact reviewed bytes", () => {
-  assert.match(exporter, /select coalesce\(/i);
-  assert.match(exporter, /supabase_migrations\.schema_migrations/);
+  const query = exporter.match(/const query = `([\s\S]*?)`;/)?.[1] ?? "";
+  assert.match(query, /select coalesce\(/i);
+  assert.match(query, /supabase_migrations\.schema_migrations/);
+  assert.doesNotMatch(query, /\b(insert|update|delete|alter|drop|truncate)\b/i);
   assert.match(exporter, /manifestDocument\.migrations/);
   assert.match(exporter, /normalized_sha256/);
   assert.match(exporter, /raw_sha256/);
@@ -23,7 +25,6 @@ test("remote exporter is read-only and verifies exact reviewed bytes", () => {
   assert.match(exporter, /Length mismatch/);
   assert.match(exporter, /writeFile\(path\.join\(migrationsDir, filename\), sql, "utf8"\)/);
   assert.doesNotMatch(exporter, /sql\.endsWith\("\\n"\)/);
-  assert.doesNotMatch(exporter, /\b(insert|update|delete|alter|drop|truncate)\b[\s\S]*schema_migrations/i);
   assert.doesNotMatch(exporter, /migration repair/i);
 });
 
@@ -37,10 +38,10 @@ test("recovery preserves pending migrations and resets only local Supabase", () 
 });
 
 test("manifest gate blocks historical absence, renames, and content drift", () => {
-  assert.match(manifestCheck, /Missing historical migrations/);
-  assert.match(manifestCheck, /Name mismatches/);
-  assert.match(manifestCheck, /Hash mismatches/);
-  assert.match(manifestCheck, /Length mismatches/);
+  assert.match(manifestCheck, /HISTORICAL FILES MISSING/);
+  assert.match(manifestCheck, /NAME MISMATCH/);
+  assert.match(manifestCheck, /BYTE HASH MISMATCH/);
+  assert.match(manifestCheck, /BYTE LENGTH MISMATCH/);
   assert.match(manifestCheck, /process\.exit\(1\)/);
 });
 
