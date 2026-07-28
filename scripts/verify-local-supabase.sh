@@ -126,6 +126,8 @@ fi
 mkdir -p artifacts/schema-drift
 psql "${DB_URL}" -X -tA -v ON_ERROR_STOP=1 -f scripts/application-schema-fingerprint.sql \
   > artifacts/schema-drift/local-historical-fingerprint.json
+psql "${DB_URL}" -X -tA -v ON_ERROR_STOP=1 -f scripts/application-schema-inventory.sql \
+  > artifacts/schema-drift/local-historical-inventory.json
 node scripts/compare-schema-fingerprints.mjs \
   artifacts/schema-drift/production-fingerprint.json \
   artifacts/schema-drift/local-historical-fingerprint.json \
