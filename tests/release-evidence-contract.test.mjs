@@ -13,9 +13,9 @@ test('authenticated E2E evidence requires executed passing journeys', () => {
 });
 
 test('Brain reconciliation is count-balanced and confidence-safe', () => {
-  assert.match(validator, /mapped_rows \+ brain\.exception_rows !== brain\.source_rows/);
-  assert.match(validator, /confidence_promotions !== 0/);
-  assert.match(validator, /duplicate_rows !== 0/);
+  assert.match(validator, /normalized\.mapped_rows \+ normalized\.exception_rows !== normalized\.source_rows/);
+  assert.match(validator, /normalized\.confidence_promotions !== 0/);
+  assert.match(validator, /normalized\.duplicate_rows !== 0/);
 });
 
 test('production approval binds commit and migration manifest digest', () => {
