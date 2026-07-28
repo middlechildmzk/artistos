@@ -1,0 +1,77 @@
+name: ArtistOS Release Readiness
+
+on:
+  push:
+    branches:
+      - agent/artistos-canonical-integration
+    paths:
+      - .github/workflows/release-readiness-report.yml
+      - scripts/generate-release-readiness-report.mjs
+      - supabase/REMOTE_MIGRATION_MANIFEST.json
+      - artifacts/release-readiness/local-db-replay.json
+      - artifacts/schema-drift/summary.txt
+      - artifacts/authenticated-e2e/summary.json
+      - artifacts/brain-reconciliation/summary.json
+      - artifacts/production-rollout/approval.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: artistos-release-readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/artistos-canonical-integration
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Generate readiness report
+        run: node scripts/generate-release-readiness-report.mjs
+
+      - name: Commit readiness evidence
+        shell: bash
+        run: |
+          rm -rf /tmp/artistos-readiness
+          mkdir -p /tmp/artistos-readiness
+          cp artifacts/release-readiness/report.json /tmp/artistos-readiness/
+          cp artifacts/release-readiness/report.md /tmp/artistos-readiness/
+          cp artifacts/release-readiness/events.ndjson /tmp/artistos-readiness/
+
+          git config user.name "artistos-release-readiness[bot]"
+          git config user.email "artistos-release-readiness[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch origin agent/artistos-canonical-integration
+            git reset --hard origin/agent/artistos-canonical-integration
+            mkdir -p artifacts/release-readiness
+            cp /tmp/artistos-readiness/* artifacts/release-readiness/
+            git add artifacts/release-readiness/report.json artifacts/release-readiness/report.md artifacts/release-readiness/events.ndjson
+
+            if git diff --cached --quiet; then
+              echo "Readiness evidence is unchanged."
+              exit 0
+            fi
+
+            git commit -m "Record ArtistOS release-readiness decision"
+            if git push origin HEAD:agent/artistos-canonical-integration; then
+              exit 0
+            fi
+            echo "Branch advanced during report publication; retrying (${attempt}/3)."
+          done
+
+          echo "Could not publish readiness evidence." >&2
+          exit 1
