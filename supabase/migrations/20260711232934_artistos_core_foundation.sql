@@ -4,7 +4,7 @@
 
 create extension if not exists "pgcrypto";
 
--- ============= WORKSPACE / IDENTITY =============
+-- ============ WORKSPACE / IDENTITY ============
 create table workspaces (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -51,7 +51,7 @@ create table assets (
   created_at timestamptz not null default now()
 );
 
--- ============= IMPORT / PROVENANCE (rollback backbone) =============
+-- ============ IMPORT / PROVENANCE (rollback backbone) ============
 create table import_batches (
   id uuid primary key default gen_random_uuid(),
   source_file text not null,
@@ -73,7 +73,7 @@ create table source_records (
   created_at timestamptz not null default now()
 );
 
--- ============= INDUSTRY GRAPH =============
+-- ============ INDUSTRY GRAPH ============
 create table organizations (
   id uuid primary key default gen_random_uuid(),
   canonical_name text not null,
@@ -167,7 +167,7 @@ create table submission_endpoints (
   updated_at timestamptz not null default now()
 );
 
--- ============= CAMPAIGN / EXECUTION =============
+-- ============ CAMPAIGN / EXECUTION ============
 create table campaigns (
   id uuid primary key default gen_random_uuid(),
   release_id uuid not null references releases(id),
@@ -275,7 +275,7 @@ create table verification_events (
   notes text
 );
 
--- ============= FAN CRM (strictly separate) =============
+-- ============ FAN CRM (strictly separate) ============
 create table fans (
   id uuid primary key default gen_random_uuid(),
   email text not null,

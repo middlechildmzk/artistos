@@ -1,5 +1,5 @@
 -- ArtistOS multi-tenant foundation, Phase A.
--- Additive and idempotent. Introduces workspace tenanty WITHOUT changing any
+-- Additive and idempotent. Introduces workspace tenancy WITHOUT changing any
 -- existing RLS policy, so the current apps keep working unchanged.
 
 -- 1. Roles
