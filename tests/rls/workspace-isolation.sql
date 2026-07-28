@@ -29,20 +29,23 @@ values
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'owner')
 on conflict (workspace_id, user_id) do update set role = excluded.role;
 
+insert into public.artists (id, workspace_id, name)
+values ('aaaaaaaa-0000-0000-0000-000000000000', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Workspace A Artist')
+on conflict (id) do nothing;
+
 insert into public.people (id, workspace_id, full_name)
 values ('aaaaaaaa-0000-0000-0000-000000000001', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Workspace A Person')
 on conflict (id) do nothing;
 
 insert into public.releases (id, workspace_id, artist_id, title, status)
-select
+values (
   'aaaaaaaa-0000-0000-0000-000000000002',
   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-  a.id,
+  'aaaaaaaa-0000-0000-0000-000000000000',
   'Workspace A Release',
   'upcoming'
-from public.artists a
-where a.workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-limit 1;
+)
+on conflict (id) do nothing;
 
 -- Owner in workspace A can read and write workspace A.
 set local role authenticated;
