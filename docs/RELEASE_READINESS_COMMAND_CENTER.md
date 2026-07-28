@@ -50,6 +50,14 @@ Requirements:
 
 The command remains local-only for replay and does not call `supabase db push`.
 
+### Strict final-evidence validation
+
+```bash
+npm run readiness:validate-evidence
+```
+
+This validator rejects superficial pass files. It requires completed authenticated journeys, exact Brain count reconciliation, zero duplicate rows, zero confidence promotion, and production approval bound to the exact commit and migration-manifest digest.
+
 ## Decision model
 
 ### `GO`
@@ -103,7 +111,10 @@ Expected evidence:
   "run_id": "...",
   "base_url": "...",
   "completed_at": "...",
-  "journeys": []
+  "journeys": [
+    { "id": "owner-release-workflow", "status": "pass" },
+    { "id": "cross-workspace-denial", "status": "pass" }
+  ]
 }
 ```
 
@@ -136,7 +147,7 @@ Stored at:
 artifacts/brain-reconciliation/summary.json
 ```
 
-`source_rows` may be zero only when Brain v1 is genuinely empty. Every source row must be mapped or included in an explicit exception report. Confidence promotions must always equal zero.
+`source_rows` may be zero only when Brain v1 is genuinely empty. Every source row must be mapped or included in an explicit exception report. Confidence promotions and duplicate rows must always equal zero.
 
 ### Production approval
 
