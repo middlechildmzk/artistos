@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "result": "FAIL",
+  "production": {
+    "project_ref": "myrtdfyjoxvtubusrrmf",
+    "verified_at_utc": "2026-07-28T19:08:15.676253Z",
+    "object_count": 2007,
+    "sha256": "e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07"
+  },
+  "local": {
+    "source_commit": "9d175bf303b506d4fd055be2c749bef3b23a045e",
+    "object_count": 2018,
+    "sha256": "c0c20523da1cb23548e663781c4aad7f074110a9c3e337ff38f3c531ccbf7550"
+  },
+  "categories": [
+    {
+      "category": "BUCKET",
+      "status": "FAIL",
+      "expected": {
+        "object_count": 1,
+        "sha256": "62365f79a30bf426e12946f155f0ede9748916b6026952ef64dae9f4984e21ff"
+      },
+      "actual": null
+    },
+    {
+      "category": "COL",
+      "status": "FAIL",
+      "expected": {
+        "object_count": 690,
+        "sha256": "efe30dc445b3960fa8fcc1e183b261848aa6e21dea3a4655680f2453f29dcf3d"
+      },
+      "actual": {
+        "sha256": "47a9795182d1329d0b5cd621e678a5b5bed1760c14a7a342074e824e3880c4f7",
+        "object_count": 679
+      }
+    },
+    {
+      "category": "CON",
+      "status": "FAIL",
+      "expected": {
+        "object_count": 224,
+        "sha256": "8e110effb3676699be0197257521fbd5e6a580f4dc664a86893afecc235406fa"
+      },
+      "actual": {
+        "sha256": "0a1249e26283b7dbf49d280212cbbd3f197bf961ed07696b66abfce69427c03f",
+        "object_count": 226
+      }
+    },
+    {
+      "category": "ENUM",
+      "status": "PASS",
+      "expected": {
+        "object_count": 1,
+        "sha256": "3729eb69e5ec7c1d8330592a6f10aaebfe0c453efdbc1e1371a80d24559887eb"
+      },
+      "actual": {
+        "sha256": "3729eb69e5ec7c1d8330592a6f10aaebfe0c453efdbc1e1371a80d24559887eb",
+        "object_count": 1
+      }
+    },
+    {
+      "category": "FUN",
+      "status": "PASS",
+      "expected": {
+        "object_count": 7,
+        "sha256": "c89d0460a4c3026627757139f037d3b7afd79235df0fc4dfee32c851d43ffb88"
+      },
+      "actual": {
+        "sha256": "c89d0460a4c3026627757139f037d3b7afd79235df0fc4dfee32c851d43ffb88",
+        "object_count": 7
+      }
+    },
+    {
+      "category": "GRANT",
+      "status": "FAIL",
+      "expected": {
+        "object_count": 728,
+        "sha256": "647c3542c685644f124f5024ba72c3c773adedcb2697c9b5709711e96c730341"
+      },
+      "actual": {
+        "sha256": "db9b46da284e0d98c8fc863ef6a95294ec22787ccb07a126ff42ecdd048fc770",
+        "object_count": 744
+      }
+    },
+    {
+      "category": "IDX",
+      "status": "FAIL",
+      "expected": {
+        "object_count": 143,
+        "sha256": "0271d86585e97def393ec1ccb373b992aeff668b2b4f5e363639141a241ea2ae"
+      },
+      "actual": {
+        "sha256": "0c7ddb721b8405814e0fbbc29d5085ce0d5d28bea46c575fc8ffa658b6774b52",
+        "object_count": 146
+      }
+    },
+    {
+      "category": "POL",
+      "status": "PASS",
+      "expected": {
+        "object_count": 165,
+        "sha256": "d7d42e250a867a42ba3a8dd781352a5901c493595c5e706b49922a7ce8e40647"
+      },
+      "actual": {
+        "sha256": "d7d42e250a867a42ba3a8dd781352a5901c493595c5e706b49922a7ce8e40647",
+        "object_count": 165
+      }
+    },
+    {
+      "category": "REL",
+      "status": "FAIL",
+      "expected": {
+        "object_count": 47,
+        "sha256": "c3c0087d5c4f7b6a481fa3532a3e10535e790f4a73ff1f52408ca5fe07332570"
+      },
+      "actual": {
+        "sha256": "b050b23f6972a47b57281e93f6daab7f231c3d1f58e104f175d8e2fa399f0821",
+        "object_count": 49
+      }
+    },
+    {
+      "category": "TRG",
+      "status": "PASS",
+      "expected": {
+        "object_count": 1,
+        "sha256": "5cd2c0120f7e92d1b476361b1a6321bcbd5b50ac7308a6caff358e1e5e3355ba"
+      },
+      "actual": {
+        "sha256": "5cd2c0120f7e92d1b476361b1a6321bcbd5b50ac7308a6caff358e1e5e3355ba",
+        "object_count": 1
+      }
+    }
+  ],
+  "unexpected_drift_categories": [
+    "BUCKET",
+    "COL",
+    "CON",
+    "GRANT",
+    "IDX",
+    "REL"
+  ],
+  "production_mutated": false
+}
