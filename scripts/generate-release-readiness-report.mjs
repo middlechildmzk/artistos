@@ -131,10 +131,12 @@ const gates = definitions.map(evaluate);
 const failed = gates.filter((gate) => gate.required && gate.status === 'fail');
 const blocked = gates.filter((gate) => gate.required && gate.status === 'blocked');
 const overall = failed.length > 0 ? 'NO_GO' : blocked.length > 0 ? 'BLOCKED' : 'GO';
+const generatedAt = new Date().toISOString();
+const gitSha = process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null;
 const report = {
   schema_version: 1,
-  generated_at: new Date().toISOString(),
-  git_sha: process.env.GITHUB_SHA || process.env.VERCEL_GIT_COMMIT_SHA || null,
+  generated_at: generatedAt,
+  git_sha: gitSha,
   overall,
   counts: {
     pass: gates.filter((gate) => gate.status === 'pass').length,
@@ -146,6 +148,33 @@ const report = {
 };
 
 fs.writeFileSync(path.join(absoluteOutput, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
+const events = [
+  {
+    schema_version: 1,
+    event_type: 'release_readiness_decision',
+    occurred_at: generatedAt,
+    git_sha: gitSha,
+    overall,
+    counts: report.counts,
+    production_mutation_authorized: false,
+  },
+  ...gates.map((gate) => ({
+    schema_version: 1,
+    event_type: 'release_readiness_gate',
+    occurred_at: generatedAt,
+    git_sha: gitSha,
+    gate_id: gate.id,
+    gate_title: gate.title,
+    required: gate.required,
+    status: gate.status,
+    detail: gate.detail,
+    evidence: gate.evidence ?? null,
+    evidence_sha256: gate.sha256 ?? null,
+    production_mutation_authorized: false,
+  })),
+];
+fs.writeFileSync(path.join(absoluteOutput, 'events.ndjson'), `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);
+
 const lines = [
   '# ArtistOS release readiness',
   '',
