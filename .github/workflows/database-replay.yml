@@ -1,0 +1,36 @@
+name: ArtistOS Database Replay
+
+on:
+  push:
+    branches:
+      - agent/artistos-canonical-integration
+    paths:
+      - .github/workflows/database-replay.yml
+      - supabase/**
+      - tests/rls/**
+      - scripts/verify-local-supabase.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artistos-database-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+
+      - name: Verify local database replay and RLS
+        run: bash scripts/verify-local-supabase.sh
