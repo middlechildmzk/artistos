@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-28T20:09:41.804Z",
-  "git_sha": "22b2eb9552c11524c96d38d9c6c5e4e2448ed6a9",
-  "overall": "BLOCKED",
+  "generated_at": "2026-07-28T20:35:17.768Z",
+  "git_sha": "e8afe6c00e079fb52b1bbc72711786c5338985af",
+  "overall": "NO_GO",
   "counts": {
-    "pass": 7,
-    "fail": 0,
-    "blocked": 1
+    "pass": 4,
+    "fail": 2,
+    "blocked": 2
   },
   "gates": [
     {
@@ -35,11 +35,10 @@
       "files": [
         "artifacts/release-readiness/local-db-replay.json"
       ],
-      "jsonStatus": true,
-      "status": "pass",
-      "detail": "Evidence found at artifacts/release-readiness/local-db-replay.json.",
+      "status": "fail",
+      "detail": "Database replay evidence is stale for the selected release source.",
       "evidence": "artifacts/release-readiness/local-db-replay.json",
-      "sha256": "f944499f2903541298a3a037778014cf8f7ba9d20709f33eaafba543402dc8c7"
+      "sha256": "8cae4ab82db81e40eb538febdff8d7d593629cf0ad085e6f9d5a0f98f1b37fed"
     },
     {
       "id": "linked_schema_drift",
@@ -58,8 +57,8 @@
       "id": "pending_rehearsal",
       "title": "Pending migration rehearsal",
       "required": true,
-      "status": "pass",
-      "detail": "The isolated clean-database replay applied the complete tracked historical and pending migration chain."
+      "status": "blocked",
+      "detail": "Missing successful source-bound isolated replay or dedicated pending-migration rehearsal evidence."
     },
     {
       "id": "authenticated_e2e",
@@ -68,9 +67,8 @@
       "files": [
         "artifacts/authenticated-e2e/summary.json"
       ],
-      "jsonStatus": true,
-      "status": "pass",
-      "detail": "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
+      "status": "fail",
+      "detail": "Authenticated E2E evidence is stale for the selected release source.",
       "evidence": "artifacts/authenticated-e2e/summary.json",
       "sha256": "292149272390e6539939b39447cd19102c171872b1e370fcf7bf42fcc4d877ec"
     },
