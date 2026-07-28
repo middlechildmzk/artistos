@@ -36,7 +36,8 @@ jobs:
           import json
           from pathlib import Path
 
-          manifest = json.loads(Path('supabase/REMOTE_MIGRATION_MANIFEST.json').read_text())
+          document = json.loads(Path('supabase/REMOTE_MIGRATION_MANIFEST.json').read_text())
+          manifest = document['migrations']
           migrations_dir = Path('supabase/migrations')
           changed = 0
 
