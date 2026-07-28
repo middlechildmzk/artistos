@@ -40,7 +40,25 @@ jobs:
           node-version: 24
 
       - name: Generate readiness report
-        run: node scripts/generate-release-readiness-report.mjs
+        id: generate
+        shell: bash
+        run: |
+          set +e
+          node scripts/generate-release-readiness-report.mjs | tee readiness-report.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload readiness diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-release-readiness-${{ github.run_id }}
+          path: |
+            readiness-report.log
+            artifacts/release-readiness/report.json
+            artifacts/release-readiness/report.md
+            artifacts/release-readiness/events.ndjson
 
       - name: Commit readiness evidence
         shell: bash
@@ -75,3 +93,11 @@ jobs:
 
           echo "Could not publish readiness evidence." >&2
           exit 1
+
+      - name: Enforce NO_GO decision
+        shell: bash
+        run: |
+          if [[ "${{ steps.generate.outputs.status }}" != "0" ]]; then
+            echo "ArtistOS readiness decision is NO_GO. Evidence was published before this enforcement step." >&2
+            exit 1
+          fi
