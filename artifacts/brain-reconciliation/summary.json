@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "summary": "Production artist_brain_facts contains zero rows, so Brain v1 to v2 activation currently requires no data copy, exception mapping, deduplication, or confidence transformation.",
+  "verified_at_utc": "2026-07-28T19:03:33.301844Z",
+  "source": {
+    "project_ref": "myrtdfyjoxvtubusrrmf",
+    "table": "public.artist_brain_facts",
+    "rows": 0,
+    "workspaces": 0,
+    "locked_rows": 0,
+    "missing_source_rows": 0
+  },
+  "reconciliation": {
+    "mapped_rows": 0,
+    "duplicate_rows": 0,
+    "exception_rows": 0,
+    "confidence_promotions": 0,
+    "silent_loss": 0,
+    "rollback_source_preserved": true
+  },
+  "production_mutated": false,
+  "activation_note": "Re-run this read-only inventory immediately before production migration approval. If rows have been added, the gate returns to BLOCKED until every row is mapped or explicitly excepted."
+}
