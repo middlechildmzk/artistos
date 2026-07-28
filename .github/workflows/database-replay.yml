@@ -55,8 +55,15 @@ jobs:
           mkdir -p artifacts/release-readiness
           if [[ "${{ steps.replay.outputs.status }}" == "0" ]]; then
             result="PASS"
+            rls_checked=true
           else
             result="FAIL"
+            rls_checked=false
+          fi
+          if [[ -f artifacts/schema-drift/summary.json ]]; then
+            drift_checked=true
+          else
+            drift_checked=false
           fi
           cat > artifacts/release-readiness/local-db-replay.json <<EOF
           {
@@ -65,13 +72,12 @@ jobs:
             "source_commit": "${GITHUB_SHA}",
             "workflow_run_id": "${GITHUB_RUN_ID}",
             "supabase_cli_version": "2.84.2",
-            "historical_schema_drift_checked": $([[ -f artifacts/schema-drift/summary.json ]] && echo true || echo false),
-            "workspace_rls_checked": ${result,,} == "pass",
+            "historical_schema_drift_checked": ${drift_checked},
+            "workspace_rls_checked": ${rls_checked},
             "production_mutated": false,
             "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }
           EOF
-          node -e "const fs=require('fs');const p='artifacts/release-readiness/local-db-replay.json';const j=JSON.parse(fs.readFileSync(p));j.workspace_rls_checked=j.result==='PASS';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n')"
 
       - name: Upload replay diagnostics
         if: always()
