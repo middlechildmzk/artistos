@@ -1,6 +1,6 @@
 RESULT: FAIL
 UNEXPECTED LINKED SCHEMA DRIFT DETECTED
 Production objects/hash: 2007 / e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07
-Local historical objects/hash: 2018 / c0c20523da1cb23548e663781c4aad7f074110a9c3e337ff38f3c531ccbf7550
+Local historical objects/hash: 2018 / 708957c8212a50feaca744ee3507c35488844cece93a3919c6226ef25a9bfc71
 Mismatched categories: BUCKET, COL, CON, GRANT, IDX, REL
 Production mutated: false
