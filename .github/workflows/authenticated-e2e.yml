@@ -1,0 +1,171 @@
+name: ArtistOS Authenticated E2E
+
+on:
+  push:
+    branches:
+      - agent/artistos-canonical-integration
+    paths:
+      - .github/workflows/authenticated-e2e.yml
+      - scripts/run-authenticated-e2e.mjs
+      - artifacts/release-readiness/local-db-replay.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: artistos-authenticated-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authenticated-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: agent/artistos-canonical-integration
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Check database verification eligibility
+        id: gate
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const receipt = JSON.parse(fs.readFileSync('artifacts/release-readiness/local-db-replay.json', 'utf8'));
+          const eligible = receipt.result === 'PASS' && receipt.historical_schema_drift_checked === true && receipt.workspace_rls_checked === true;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `eligible=${eligible}\n`);
+          console.log(eligible
+            ? 'Database replay, historical drift, and RLS evidence are eligible for browser E2E.'
+            : 'Browser E2E deferred until the upgraded database verification receipt is PASS.');
+          NODE
+
+      - name: Set up Node
+        if: steps.gate.outputs.eligible == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up Supabase CLI
+        if: steps.gate.outputs.eligible == 'true'
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+
+      - name: Start and verify disposable Supabase
+        if: steps.gate.outputs.eligible == 'true'
+        env:
+          KEEP_SUPABASE_RUNNING: "1"
+        run: bash scripts/verify-local-supabase.sh
+
+      - name: Export local environment
+        if: steps.gate.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "ARTISTOS_APP_URL=http://127.0.0.1:3000"
+          } >> "$GITHUB_ENV"
+
+      - name: Install application and browser
+        if: steps.gate.outputs.eligible == 'true'
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build and start ArtistOS
+        if: steps.gate.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          npm run build
+          nohup npm run start -- -H 127.0.0.1 -p 3000 > artistos-e2e-app.log 2>&1 &
+          echo $! > /tmp/artistos-e2e-app.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/login >/dev/null; then
+              echo "ArtistOS is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat artistos-e2e-app.log
+          exit 1
+
+      - name: Run authenticated browser journeys
+        if: steps.gate.outputs.eligible == 'true'
+        id: e2e
+        shell: bash
+        run: |
+          set +e
+          node scripts/run-authenticated-e2e.mjs 2>&1 | tee authenticated-e2e.log
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload authenticated diagnostics
+        if: always() && steps.gate.outputs.eligible == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-authenticated-e2e-${{ github.run_id }}
+          path: |
+            authenticated-e2e.log
+            artistos-e2e-app.log
+            artifacts/authenticated-e2e/summary.json
+            artifacts/authenticated-e2e/*.png
+
+      - name: Commit authenticated evidence
+        if: steps.gate.outputs.eligible == 'true' && hashFiles('artifacts/authenticated-e2e/summary.json') != ''
+        shell: bash
+        run: |
+          cp artifacts/authenticated-e2e/summary.json /tmp/authenticated-e2e-summary.json
+          git config user.name "artistos-authenticated-e2e[bot]"
+          git config user.email "artistos-authenticated-e2e[bot]@users.noreply.github.com"
+
+          for attempt in 1 2 3; do
+            git fetch origin agent/artistos-canonical-integration
+            git reset --hard origin/agent/artistos-canonical-integration
+            mkdir -p artifacts/authenticated-e2e
+            cp /tmp/authenticated-e2e-summary.json artifacts/authenticated-e2e/summary.json
+            git add artifacts/authenticated-e2e/summary.json
+
+            if git diff --cached --quiet; then
+              echo "Authenticated evidence is unchanged."
+              exit 0
+            fi
+
+            git commit -m "Record authenticated ArtistOS E2E result"
+            if git push origin HEAD:agent/artistos-canonical-integration; then
+              exit 0
+            fi
+            echo "Branch advanced during evidence publication; retrying (${attempt}/3)."
+          done
+
+          echo "Could not publish authenticated E2E evidence." >&2
+          exit 1
+
+      - name: Enforce authenticated result
+        if: steps.gate.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          if [[ "${{ steps.e2e.outputs.status }}" != "0" ]]; then
+            echo "Authenticated ArtistOS E2E failed. Review the uploaded browser and application diagnostics." >&2
+            exit 1
+          fi
+
+      - name: Clean up local services
+        if: always() && steps.gate.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          if [[ -f /tmp/artistos-e2e-app.pid ]]; then
+            kill "$(cat /tmp/artistos-e2e-app.pid)" >/dev/null 2>&1 || true
+          fi
+          supabase stop --no-backup >/dev/null 2>&1 || true
