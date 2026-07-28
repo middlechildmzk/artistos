@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "result": "PASS",
-  "source_commit": "c5f973185813e8c464f3955707460e51c1b9c6d7",
-  "workflow_run_id": "30392537473",
+  "source_commit": "ce8df7f6a3bc7545b4c91516e703206d39ca535d",
+  "workflow_run_id": "30395354873",
   "supabase_cli_version": "2.84.2",
   "historical_schema_drift_checked": true,
   "workspace_rls_checked": true,
   "production_mutated": false,
-  "completed_at": "2026-07-28T19:38:00Z"
+  "completed_at": "2026-07-28T20:16:34Z"
 }
