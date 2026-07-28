@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-28T19:37:53.680Z",
+  "git_sha": "f9a53e68ad7e8f6b326fafdc368e54223b9da165",
+  "overall": "NO_GO",
+  "counts": {
+    "pass": 3,
+    "fail": 2,
+    "blocked": 3
+  },
+  "gates": [
+    {
+      "id": "migration_manifest",
+      "title": "Historical migration manifest",
+      "required": true,
+      "files": [
+        "supabase/REMOTE_MIGRATION_MANIFEST.json"
+      ],
+      "status": "pass",
+      "detail": "Evidence found at supabase/REMOTE_MIGRATION_MANIFEST.json.",
+      "evidence": "supabase/REMOTE_MIGRATION_MANIFEST.json",
+      "sha256": "18470d81369473c8ea994e765ea308e2f3657929049de75c03c5cf03a5695944"
+    },
+    {
+      "id": "historical_sql",
+      "title": "Recovered historical SQL files",
+      "required": true,
+      "status": "pass",
+      "detail": "28 historical migrations are present with reviewed filenames."
+    },
+    {
+      "id": "historical_replay",
+      "title": "Isolated clean-database replay",
+      "required": true,
+      "files": [
+        "artifacts/release-readiness/local-db-replay.json"
+      ],
+      "jsonStatus": true,
+      "status": "fail",
+      "detail": "Evidence found at artifacts/release-readiness/local-db-replay.json.",
+      "evidence": "artifacts/release-readiness/local-db-replay.json",
+      "sha256": "3b86a3ce5d7dcd53336251545384c0c7aa55ebbdcb96c027067aff53a03b2369"
+    },
+    {
+      "id": "linked_schema_drift",
+      "title": "Production schema drift review",
+      "required": true,
+      "files": [
+        "artifacts/schema-drift/summary.txt"
+      ],
+      "successPattern": {},
+      "status": "fail",
+      "detail": "Evidence exists but does not contain the required success marker.",
+      "evidence": "artifacts/schema-drift/summary.txt",
+      "sha256": "788b435ab05bdd2053dde41cfbf265ceca21a16cd2cfc8b6ba8a8b04990fd1cd"
+    },
+    {
+      "id": "pending_rehearsal",
+      "title": "Pending migration rehearsal",
+      "required": true,
+      "status": "blocked",
+      "detail": "Missing successful isolated replay or dedicated pending-migration rehearsal evidence."
+    },
+    {
+      "id": "authenticated_e2e",
+      "title": "Authenticated end-to-end verification",
+      "required": true,
+      "files": [
+        "artifacts/authenticated-e2e/summary.json"
+      ],
+      "jsonStatus": true,
+      "status": "blocked",
+      "detail": "Missing evidence: artifacts/authenticated-e2e/summary.json"
+    },
+    {
+      "id": "brain_reconciliation",
+      "title": "Brain v1 to v2 reconciliation",
+      "required": true,
+      "files": [
+        "artifacts/brain-reconciliation/summary.json"
+      ],
+      "jsonStatus": true,
+      "status": "pass",
+      "detail": "Production artist_brain_facts contains zero rows, so Brain v1 to v2 activation currently requires no data copy, exception mapping, deduplication, or confidence transformation.",
+      "evidence": "artifacts/brain-reconciliation/summary.json",
+      "sha256": "3e2ca1f1c09730ed0c9c8b3bcc5001b08be21921d40033f47c91822a90b8094b"
+    },
+    {
+      "id": "production_approval",
+      "title": "Production rollout approval",
+      "required": true,
+      "files": [
+        "artifacts/production-rollout/approval.json"
+      ],
+      "jsonStatus": true,
+      "status": "blocked",
+      "detail": "Missing evidence: artifacts/production-rollout/approval.json"
+    }
+  ],
+  "production_mutation_authorized": false
+}
