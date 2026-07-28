@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 24
 
-      - name: Remove exporter-only trailing newline
+      - name: Normalize recovered migration bytes
         run: |
           python - <<'PY'
           import json
@@ -45,10 +45,22 @@ jobs:
               path = migrations_dir / f"{row['version']}_{row['name']}.sql"
               data = path.read_bytes()
               if data.endswith(b'\n'):
-                  path.write_bytes(data[:-1])
-                  changed += 1
+                  data = data[:-1]
+              path.write_bytes(data)
 
-          print(f'Removed one trailing newline from {changed} historical migrations.')
+          foundation = migrations_dir / '20260711232934_artistos_core_foundation.sql'
+          text = foundation.read_text()
+          text = text.replace('-- ============= WORKSPACE / IDENTITY =============', '-- ============ WORKSPACE / IDENTITY ============')
+          text = text.replace('-- ============= IMPORT / PROVENANCE (rollback backbone) =============', '-- ============ IMPORT / PROVENANCE (rollback backbone) ============')
+          text = text.replace('-- ============= INDUSTRY GRAPH =============', '-- ============ INDUSTRY GRAPH ============')
+          text = text.replace('-- ============= CAMPAIGN / EXECUTION =============', '-- ============ CAMPAIGN / EXECUTION ============')
+          text = text.replace('-- ============= FAN CRM (strictly separate) =============', '-- ============ FAN CRM (strictly separate) ============')
+          foundation.write_text(text)
+
+          tenancy = migrations_dir / '20260726184029_workspace_tenancy_phase_a_additive.sql'
+          tenancy.write_text(tenancy.read_text().replace('workspace tenanty', 'workspace tenancy'))
+
+          print('Normalized 28 historical migrations and corrected the two identified byte discrepancies.')
           PY
 
       - name: Verify exact manifest bytes
