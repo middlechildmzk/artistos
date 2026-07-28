@@ -44,8 +44,9 @@ fi
 
 cat > "${FIXTURE_PATH}" <<'SQL'
 -- Local replay fixture only. Never commit or apply to production.
--- Historical migration 20260726184029 expects the canonical production
--- workspace and its owner identity to exist before tenancy backfill begins.
+-- This models production state that existed before the tracked ledger became
+-- complete: the canonical owner/workspace and two dedupe columns later
+-- referenced by historical migration 20260726193925.
 insert into auth.users (
   id,
   instance_id,
@@ -79,6 +80,12 @@ select 'Dan Larson / BVSS FVM'
 where not exists (
   select 1 from public.workspaces where name = 'Dan Larson / BVSS FVM'
 );
+
+alter table public.people
+  add column if not exists normalized_email text;
+
+alter table public.properties
+  add column if not exists canonical_property_key text;
 SQL
 
 echo "Starting isolated local Supabase..."
