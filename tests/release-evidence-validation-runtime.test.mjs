@@ -26,7 +26,9 @@ function createFixture({ legacyE2E = false, omitApproval = false } = {}) {
     ? {
         status: 'PASS',
         summary: 'Legacy shape that must not satisfy the release contract.',
+        source_commit: 'fixture-commit',
         completed_at: '2026-07-28T20:00:00.000Z',
+        production_mutated: false,
         checks: [{ name: 'owner_login', status: 'PASS' }],
       }
     : {
@@ -34,11 +36,19 @@ function createFixture({ legacyE2E = false, omitApproval = false } = {}) {
         summary: 'Authenticated journeys passed.',
         run_id: '30390000000',
         base_url: 'http://127.0.0.1:3000',
+        source_commit: 'fixture-commit',
         completed_at: '2026-07-28T20:00:00.000Z',
+        production_mutated: false,
         journeys: [
-          { id: 'owner_release_workflow', status: 'PASS' },
+          { id: 'owner_login_and_workspace_provisioning', status: 'PASS' },
+          { id: 'owner_release_creation', status: 'PASS' },
+          { id: 'capability_task_execution', status: 'PASS' },
+          { id: 'artist_brain_memory', status: 'PASS' },
+          { id: 'ai_manager_request', status: 'PASS' },
+          { id: 'protected_workspaces_render', status: 'PASS' },
           { id: 'viewer_read_only', status: 'PASS' },
           { id: 'second_workspace_isolation', status: 'PASS' },
+          { id: 'durable_control_plane', status: 'PASS' },
         ],
       });
 
@@ -118,6 +128,21 @@ test('preapproval validation checks E2E and Brain without fabricating human appr
   try {
     const result = validate(root, 'preapproval');
     assert.equal(result.status, 0, result.stderr || result.stdout);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release validator rejects incomplete critical journey evidence', () => {
+  const root = createFixture();
+  try {
+    const summaryPath = path.join(root, 'artifacts/authenticated-e2e/summary.json');
+    const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+    summary.journeys = summary.journeys.filter((journey) => journey.id !== 'durable_control_plane');
+    fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
+    const result = validate(root);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /required journey durable_control_plane is missing or did not pass/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
