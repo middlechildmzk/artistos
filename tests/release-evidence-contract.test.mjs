@@ -10,6 +10,8 @@ test('authenticated E2E evidence requires executed passing journeys', () => {
   assert.match(validator, /journey\.status/);
   assert.match(validator, /run_id/);
   assert.match(validator, /base_url/);
+  assert.match(validator, /source_commit does not match the release commit/);
+  assert.match(validator, /requiredJourneyIds/);
 });
 
 test('Brain reconciliation is count-balanced and confidence-safe', () => {
