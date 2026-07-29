@@ -1,6 +1,6 @@
 {
   "project_ref": "myrtdfyjoxvtubusrrmf",
-  "captured_at": "2026-07-27",
+  "captured_at": "2026-07-29",
   "hash_algorithm": "sha256",
   "hash_input": "array_to_string(statements, newline)",
   "migrations": [
@@ -31,6 +31,18 @@
     {"version":"20260727132555","name":"automatic_workspace_provisioning","sha256":"33565c972c880406c49f9befa44cce5fceef74ecabb29b24a51110e10aafa0ba","sql_chars":1665},
     {"version":"20260727134616","name":"add_artistos_intelligence_modules","sha256":"b82b4cb3b230e4c095e4f0097f5c3c44b3a6b5c6b0cb82119aa54f3f0750ff03","sql_chars":4311},
     {"version":"20260727143513","name":"artistos_intelligence_operating_layer_v2","sha256":"003d430151a69b0d625d28b1abb83315c7c54dc6cbb4b16d37f7a3c008b2bf24","sql_chars":9486},
-    {"version":"20260727144623","name":"add_agent_execution_control_plane_v2","sha256":"25722b6f138f546396f42d7cd5c3a5124846d3413df63d37239e9729ecd4c3b2","sql_chars":5022}
+    {"version":"20260727144623","name":"add_agent_execution_control_plane_v2","sha256":"25722b6f138f546396f42d7cd5c3a5124846d3413df63d37239e9729ecd4c3b2","sql_chars":5022},
+    {"version":"20260727170000","name":"capability_runtime_ledger","sha256":"577015df32c2dbc81ea663b01f4d105958a76ff7c11583b6b385643153c88ce8","sql_chars":8188},
+    {"version":"20260727183000","name":"evidence_records","sha256":"d94abf76da30f843e53788b66771e47267c4365b893f9b870acca737b05c8121","sql_chars":2397},
+    {"version":"20260727190000","name":"artist_brain_v2","sha256":"a4f0fd64f24ee2fc1976c0e91c3cdac91a151f1303600cb3aeb887535913b949","sql_chars":7199},
+    {"version":"20260727203000","name":"artist_knowledge_curator_graph","sha256":"3613de6daee3840d72e2a86293986d1295c311209aa277941688a1e9e939c1b4","sql_chars":13495},
+    {"version":"20260728202000","name":"harden_workspace_policy_helpers","sha256":"e958428d49b29dcd1a3b2164f8c6aaeef431a862c17e658e5bab31b07b40fa39","sql_chars":2793},
+    {"version":"20260728222022","name":"artistos_release_command_center_compatibility","sha256":"3d09bdd008e6dac4c9c1f5cab4f43b49ab6a6c737c0f931ed32663035906414a","sql_chars":9357},
+    {"version":"20260728222113","name":"artistos_release_foundation_advisor_hardening","sha256":"7f1bee7721cb069bfe27e931578ab64c615add8d26cc9d6c5f07c0c41954e1fd","sql_chars":3217},
+    {"version":"20260728222155","name":"seed_existing_artistos_release_links","sha256":"5a794f9fa9a8fe01780afe5cef77ff77a248ae0bf71256ec7ebafa49f9559e36","sql_chars":1947},
+    {"version":"20260728223443","name":"minimize_fan_consent_evidence","sha256":"6bb796f50f03a05735de159b6070eefc3d3aeca8fe30c6e4cf7396f6655d2ce6","sql_chars":359},
+    {"version":"20260729003724","name":"artistos_marketplace_identity","sha256":"56331d87ab267a9a30de21842daee63a007163feb00a3ad64020dad2304431e0","sql_chars":18207},
+    {"version":"20260729005648","name":"marketplace_function_grants","sha256":"5f694b1f0e88f48145e5f59369be92794ea586ead5e57d74c5b59ea50a4f7b71","sql_chars":681},
+    {"version":"20260729005831","name":"marketplace_rls_performance","sha256":"15652ec1235e40a27532430b67ebf164c230c4c85136b89d637423e1faf95ab4","sql_chars":8894}
   ]
 }
