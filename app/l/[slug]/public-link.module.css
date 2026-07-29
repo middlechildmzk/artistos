@@ -1,0 +1,225 @@
+.shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(124, 99, 255, .28), transparent 34rem),
+    radial-gradient(circle at 88% 85%, rgba(77, 163, 255, .18), transparent 30rem),
+    #080910;
+}
+
+.card {
+  width: min(620px, 100%);
+  padding: clamp(24px, 6vw, 46px);
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 30px;
+  background: linear-gradient(155deg, rgba(23, 25, 39, .96), rgba(12, 13, 21, .96));
+  box-shadow: 0 38px 120px rgba(0, 0, 0, .48);
+  text-align: center;
+}
+
+.mark {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #7c63ff, #4da3ff);
+  box-shadow: 0 18px 48px rgba(92, 75, 232, .32);
+  font-weight: 900;
+  font-size: 1.15rem;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #a9b0c6;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 9vw, 4rem);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.artist {
+  margin: 16px 0 0;
+  color: #f5f7ff;
+  font-size: 1.12rem;
+  font-weight: 720;
+}
+
+.date {
+  margin: 7px 0 0;
+  color: #a9b0c6;
+  font-size: .88rem;
+}
+
+.description {
+  max-width: 500px;
+  margin: 22px auto 0;
+  color: #c8cde0;
+  line-height: 1.65;
+}
+
+.destinations {
+  display: grid;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.destination {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 17px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .045);
+  text-align: left;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.destination:hover {
+  transform: translateY(-2px);
+  border-color: rgba(124, 99, 255, .72);
+  background: rgba(124, 99, 255, .1);
+}
+
+.destination strong {
+  color: #a99cff;
+  font-size: .82rem;
+}
+
+.empty {
+  padding: 20px;
+  border: 1px dashed rgba(255, 255, 255, .15);
+  border-radius: 15px;
+  color: #a9b0c6;
+}
+
+.capture {
+  margin-top: 34px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  text-align: left;
+}
+
+.capture h2 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  letter-spacing: -.03em;
+}
+
+.capture > p:not(.eyebrow) {
+  color: #a9b0c6;
+  line-height: 1.55;
+}
+
+.form {
+  display: grid;
+  gap: 13px;
+  margin-top: 20px;
+}
+
+.form label:not(.check) {
+  display: grid;
+  gap: 7px;
+}
+
+.form label > span {
+  color: #c8cde0;
+  font-size: .82rem;
+  font-weight: 650;
+}
+
+.form small {
+  color: #777f97;
+  font-weight: 500;
+}
+
+.form input[type="text"],
+.form input[type="email"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 13px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 12px;
+  background: rgba(3, 4, 8, .48);
+  color: #f5f7ff;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: #a9b0c6;
+  font-size: .77rem;
+  line-height: 1.45;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+}
+
+.form button {
+  min-height: 50px;
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #7c63ff, #5c4be8);
+  color: white;
+  cursor: pointer;
+  font-weight: 760;
+  box-shadow: 0 16px 36px rgba(92, 75, 232, .24);
+}
+
+.notice {
+  margin: 16px 0;
+  padding: 12px 13px;
+  border: 1px solid rgba(255, 119, 119, .28);
+  border-radius: 12px;
+  background: rgba(255, 119, 119, .09);
+  color: #ffc2c2;
+  font-size: .84rem;
+}
+
+.success {
+  border-color: rgba(94, 217, 147, .26);
+  background: rgba(94, 217, 147, .09);
+  color: #baf4d1;
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 30px;
+  color: #737b92;
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+
+.footer span + span::before {
+  content: "·";
+  margin-right: 12px;
+}
+
+@media (max-width: 540px) {
+  .shell { padding: 10px; place-items: start center; }
+  .card { border-radius: 20px; padding: 28px 18px; }
+  .footer { display: grid; gap: 5px; text-align: center; }
+  .footer span + span::before { content: none; }
+}
