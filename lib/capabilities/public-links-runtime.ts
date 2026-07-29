@@ -46,7 +46,13 @@ export function createPublicLinkInvocationDependencies(link: { id: string; works
     async createApproval() {
       throw new Error("public_link_capability_must_not_request_approval");
     },
-    async execute<O>(args) {
+    async execute<O>(args: {
+      ctx: ActorContext;
+      capabilityName: string;
+      version: number;
+      input: unknown;
+      idempotencyKey?: string;
+    }) {
       const handler = getCapabilityHandler(args.capabilityName, args.version);
       const execution = await handler({ ctx: args.ctx, input: args.input, idempotencyKey: args.idempotencyKey });
       return { output: execution.output as O, evidenceIds: execution.evidenceIds, auditId: execution.auditId };
