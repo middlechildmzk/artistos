@@ -1,4 +1,3 @@
-# Registered on the default branch; this push binds verification to the exact public-links commit.
 name: ArtistOS Public Links Verification
 
 on:
