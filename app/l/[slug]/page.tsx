@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PublicLinkTracker } from "@/components/public-link-tracker";
 import { cleanPublicText, loadPublicLink } from "@/lib/public-links";
 import { capturePublicLinkFan } from "./actions";
+import styles from "./public-link.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -68,20 +69,20 @@ export default async function PublicLinkPage({
   const title = `${link.releaseTitle}${link.featuredArtist ? ` (feat. ${link.featuredArtist})` : ""}`;
 
   return (
-    <main className="public-link-shell">
+    <main className={styles.shell}>
       <PublicLinkTracker slug={link.slug} />
-      <section className="public-link-card" aria-labelledby="release-title">
-        <div className="public-link-mark" aria-hidden="true">A</div>
-        <p className="public-link-eyebrow">{link.mode === "presave" ? "Upcoming release" : "Out now"}</p>
+      <section className={styles.card} aria-labelledby="release-title">
+        <div className={styles.mark} aria-hidden="true">A</div>
+        <p className={styles.eyebrow}>{link.mode === "presave" ? "Upcoming release" : "Out now"}</p>
         <h1 id="release-title">{link.headline || title}</h1>
-        <p className="public-link-artist">{link.artistName}</p>
-        {releaseDate ? <p className="public-link-date">{releaseDate}</p> : null}
-        {link.description ? <p className="public-link-description">{link.description}</p> : null}
+        <p className={styles.artist}>{link.artistName}</p>
+        {releaseDate ? <p className={styles.date}>{releaseDate}</p> : null}
+        {link.description ? <p className={styles.description}>{link.description}</p> : null}
 
-        <div className="public-link-destinations" aria-label="Choose a music service">
+        <div className={styles.destinations} aria-label="Choose a music service">
           {link.destinations.length ? link.destinations.map((destination) => (
             <a
-              className="public-link-destination"
+              className={styles.destination}
               href={trackedDestinationHref({
                 slug: link.slug,
                 destinationId: destination.id,
@@ -95,21 +96,21 @@ export default async function PublicLinkPage({
               <span>{serviceLabel(destination.service)}</span>
               <strong>{link.mode === "presave" ? "Continue" : "Listen"}</strong>
             </a>
-          )) : <div className="public-link-empty">Streaming destinations are being added.</div>}
+          )) : <div className={styles.empty}>Streaming destinations are being added.</div>}
         </div>
 
         {link.captureEmail ? (
-          <section className="public-link-capture" aria-labelledby="fan-capture-title">
-            <p className="public-link-eyebrow">Stay connected</p>
+          <section className={styles.capture} aria-labelledby="fan-capture-title">
+            <p className={styles.eyebrow}>Stay connected</p>
             <h2 id="fan-capture-title">Get the next release update</h2>
             <p>Join {link.artistName}&apos;s artist-owned list. Your address is not sold to advertisers.</p>
 
-            {signup === "success" ? <div className="public-link-notice success" role="status">You&apos;re on the list. Check your inbox when confirmation is enabled.</div> : null}
-            {signup === "invalid" ? <div className="public-link-notice" role="alert">Enter a valid email and accept both consent choices.</div> : null}
-            {signup === "unavailable" ? <div className="public-link-notice" role="alert">Fan signup is unavailable for this link.</div> : null}
+            {signup === "success" ? <div className={`${styles.notice} ${styles.success}`} role="status">You&apos;re on the list. Check your inbox when confirmation is enabled.</div> : null}
+            {signup === "invalid" ? <div className={styles.notice} role="alert">Enter a valid email and accept both consent choices.</div> : null}
+            {signup === "unavailable" ? <div className={styles.notice} role="alert">Fan signup is unavailable for this link.</div> : null}
 
             {signup !== "success" ? (
-              <form action={capturePublicLinkFan} className="public-link-form">
+              <form action={capturePublicLinkFan} className={styles.form}>
                 <input type="hidden" name="slug" value={link.slug} />
                 <input type="hidden" name="utmSource" value={utmSource} />
                 <input type="hidden" name="utmMedium" value={utmMedium} />
@@ -122,11 +123,11 @@ export default async function PublicLinkPage({
                   <span>Email</span>
                   <input name="email" type="email" autoComplete="email" inputMode="email" maxLength={320} required />
                 </label>
-                <label className="public-link-check">
+                <label className={styles.check}>
                   <input name="emailConsent" type="checkbox" required />
                   <span>I agree to receive release and artist updates by email. I can unsubscribe at any time.</span>
                 </label>
-                <label className="public-link-check">
+                <label className={styles.check}>
                   <input name="privacyAcknowledged" type="checkbox" required />
                   <span>I acknowledge the privacy notice and consent record for this signup.</span>
                 </label>
@@ -136,7 +137,7 @@ export default async function PublicLinkPage({
           </section>
         ) : null}
 
-        <footer className="public-link-footer">
+        <footer className={styles.footer}>
           <span>Powered by ArtistOS</span>
           <span>Privacy-minimized attribution</span>
         </footer>
