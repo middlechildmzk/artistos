@@ -141,10 +141,10 @@ registerCapabilityHandler(logOutboundOutreachCapability, async ({ ctx, input, id
         release_id: campaign.release_id,
         campaign_target_id: campaignTargetId,
         property_id: endpoint?.property_id ?? null,
-        submission_mode: input.channel,
-        status: "submitted",
+        submission_mode: "outreach",
+        status: "in_review",
         artist_message: input.body ?? null,
-        terms: endpoint ? { endpointId: endpoint.id } : {},
+        terms: endpoint ? { endpointId: endpoint.id, channel: input.channel } : { channel: input.channel },
         submitted_at: now,
       })
       .select("id")
