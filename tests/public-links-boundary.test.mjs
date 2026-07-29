@@ -12,6 +12,9 @@ const page = read("app/l/[slug]/page.tsx");
 const viewRoute = read("app/api/public-links/[slug]/view/route.ts");
 const clickRoute = read("app/l/[slug]/go/[destinationId]/route.ts");
 const fanAction = read("app/l/[slug]/actions.ts");
+const fanRegistry = read("lib/capabilities/public-links-registry.ts");
+const fanHandler = read("lib/capabilities/public-links-handlers.ts");
+const publicRuntime = read("lib/capabilities/public-links-runtime.ts");
 
 test("public links use a server-only service-role boundary", () => {
   assert.match(admin, /import "server-only"/);
@@ -42,14 +45,23 @@ test("page-view collection is deduplicated without persistent fingerprints", () 
   assert.doesNotMatch(loader, /x-forwarded-for|user-agent|ip_hash|user_agent_hash/);
 });
 
-test("fan capture requires explicit consent and appends consent evidence", () => {
-  assert.match(fanAction, /emailConsent/);
-  assert.match(fanAction, /privacyAcknowledged/);
-  assert.match(fanAction, /consent_type: "email_marketing"/);
-  assert.match(fanAction, /consent_type: "privacy_terms"/);
-  assert.match(fanAction, /email_confirmation_status: "unverified"/);
-  assert.match(fanAction, /eventType: "fan_signup"/);
-  assert.doesNotMatch(fanAction, /ip_hash|user_agent_hash|x-forwarded-for|user-agent/);
+test("fan capture is an audited capability rather than a direct application write", () => {
+  assert.match(fanAction, /invokeCapability/);
+  assert.match(fanAction, /public_links\.capture_fan/);
+  assert.doesNotMatch(fanAction, /\.from\(|\.insert\(|\.update\(|SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(fanRegistry, /emailConsent: z\.literal\(true\)/);
+  assert.match(fanRegistry, /privacyAcknowledged: z\.literal\(true\)/);
+  assert.match(publicRuntime, /public_links\.explicit_fan_consent/);
+  assert.match(publicRuntime, /principalId: `public-link:/);
+});
+
+test("fan capture appends consent evidence without persistent fingerprints", () => {
+  assert.match(fanHandler, /consent_type: "email_marketing"/);
+  assert.match(fanHandler, /consent_type: "privacy_terms"/);
+  assert.match(fanHandler, /email_confirmation_status: "unverified"/);
+  assert.match(fanHandler, /eventType: "fan_signup"/);
+  assert.match(fanHandler, /capability_idempotency/);
+  assert.doesNotMatch(fanHandler, /ip_hash|user_agent_hash|x-forwarded-for|user-agent/);
 });
 
 test("the public page preserves attribution without exposing direct destination URLs", () => {
