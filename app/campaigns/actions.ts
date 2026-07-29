@@ -28,7 +28,28 @@ function revalidateCampaignSurfaces(targetKind?: string, targetId?: string) {
   revalidatePath("/campaigns");
   revalidatePath("/dashboard");
   revalidatePath("/approvals");
+  revalidatePath("/proof");
+  revalidatePath("/analytics");
   if (targetKind === "organization" && targetId) revalidatePath(`/targets/${targetId}`);
+}
+
+export async function createReleaseCampaign(formData: FormData) {
+  const releaseId = String(formData.get("releaseId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!releaseId || !name) return;
+
+  await invokeCampaignCapability(
+    "releases.create_campaign",
+    {
+      releaseId,
+      name,
+      startDate: String(formData.get("startDate") ?? "") || null,
+      endDate: String(formData.get("endDate") ?? "") || null,
+      goals: String(formData.get("goals") ?? "").trim() || null,
+    },
+    `campaign-create:${releaseId}:${randomUUID()}`,
+  );
+  revalidateCampaignSurfaces();
 }
 
 export async function updateCampaignTargetStatus(formData: FormData) {
@@ -57,6 +78,31 @@ export async function recordCampaignReply(formData: FormData) {
     "campaigns.record_reply",
     { campaignTargetId, subject: subject || "Reply received", body: body || null, replyStatus },
     `campaign-reply:${campaignTargetId}:${randomUUID()}`,
+  );
+  revalidateCampaignSurfaces();
+}
+
+export async function saveCampaignDeliverable(formData: FormData) {
+  const campaignTargetId = String(formData.get("campaignTargetId") ?? "");
+  const channel = String(formData.get("channel") ?? "digital").trim();
+  const deliverableType = String(formData.get("deliverableType") ?? "").trim();
+  const status = String(formData.get("status") ?? "pending");
+  const allowedStatuses = new Set(["pending", "in_progress", "completed", "verified"]);
+  if (!campaignTargetId || !channel || !deliverableType || !allowedStatuses.has(status)) return;
+
+  const dueAtInput = String(formData.get("dueAt") ?? "");
+  const dueAt = dueAtInput ? new Date(dueAtInput).toISOString() : null;
+  await invokeCampaignCapability(
+    "campaigns.save_deliverable",
+    {
+      campaignTargetId,
+      channel,
+      deliverableType,
+      description: String(formData.get("description") ?? "").trim() || null,
+      dueAt,
+      status,
+    },
+    `campaign-deliverable:${campaignTargetId}:${randomUUID()}`,
   );
   revalidateCampaignSurfaces();
 }
