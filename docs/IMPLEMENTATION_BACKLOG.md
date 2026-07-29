@@ -1,45 +1,67 @@
 # ArtistOS Implementation Backlog
 
+Updated: 2026-07-29
+
 ## P0: Safe foundation
 
 - [x] Replace unconditional authenticated write policies with workspace-scoped RLS.
 - [x] Make application storage private and remove anonymous listing/upload/update.
 - [x] Verify real owner visibility and unrelated-user isolation.
+- [x] Add automated RLS tenancy tests for owner, viewer, and outsider roles.
+- [x] Restrict workspace-policy helper execution.
 - [ ] Enable Supabase leaked-password protection.
-- [ ] Add automated RLS and storage tenancy tests.
 - [ ] Add membership invite, acceptance, role-change, and removal workflow.
-- [ ] Audit OAuth token access and encryption.
-- [ ] Add storage file-size and MIME restrictions.
+- [ ] Complete OAuth token-access and encryption audit with live provider credentials.
+
+## P0: Reproducible database history
+
+- [x] Recover the canonical migration sequence through the approved ArtistOS rollout.
+- [x] Recover the seven production migrations added after rollout, including ArtistOS Links and dormant marketplace identity tables.
+- [ ] Pass exact normalized-content reconciliation for all 40 production migrations.
+- [ ] Pass clean-database replay with the complete 40-migration sequence.
+- [ ] Refresh the checked-in remote migration ledger and schema fingerprint evidence.
 
 ## P1: Canonical runtime
 
-- [x] Select `middlechildmzk/artistos` as canonical repository.
-- [ ] Validate `artistos-next` as canonical Vercel project.
-- [ ] Compare `aristos` against `artistos-next` route by route.
-- [ ] Inventory environment-variable names and domains.
-- [ ] Connect canonical preview to `artistos-core` safely.
-- [ ] Add deployment health, auth, storage, and data smoke tests.
-- [ ] Archive probes only after feature parity is confirmed.
+- [x] Select `middlechildmzk/artistos` as the canonical repository.
+- [x] Select `artistos-next` as the canonical Vercel project.
+- [x] Connect the canonical preview to `artistos-core`.
+- [x] Run authenticated owner, viewer, and outsider browser journeys.
+- [x] Merge the approved canonical release into `main`.
+- [ ] Move the public production alias to the approved current application build after Vercel quota permits it.
+- [ ] Disconnect or archive duplicate Vercel projects after dependency review.
 
 ## P1: Shared application shell
 
 - [ ] Finalize ArtistOS navigation and visual system.
 - [ ] Add workspace switcher and role-aware navigation.
 - [ ] Add global artist and release selectors.
-- [ ] Add command/search surface across artists, releases, contacts, properties, and tasks.
+- [ ] Add command/search across artists, releases, contacts, properties, links, campaigns, and tasks.
 - [ ] Add consistent empty, loading, error, provenance, and confidence states.
 
 ## P1: Golden artist path
 
-- [ ] Sign up and create or claim artist profile.
-- [ ] Create release workspace.
-- [ ] Add metadata, credits, rights-lite, dates, links, and assets.
-- [ ] Calculate release-readiness state with explainable checks.
-- [ ] Generate and approve Creator Studio outputs.
-- [ ] Build campaign from a release.
-- [ ] Match and save relevant opportunities.
-- [ ] Track outreach, submissions, replies, placements, and results.
-- [ ] Complete release retrospective and carry learning forward.
+- [x] Authenticate and automatically provision a workspace.
+- [x] Create and update a release workspace through the capability runtime.
+- [x] Create a release campaign through the capability runtime.
+- [x] Track campaign targets, replies, outcomes, and evidence.
+- [ ] Complete artist profile onboarding and Brand Memory setup.
+- [ ] Complete deterministic release-readiness checks in the primary release UI.
+- [ ] Generate and approve Creator Studio outputs attached to the release.
+- [ ] Complete a release retrospective and carry verified learning forward.
+
+## P1: ArtistOS Links
+
+- [x] Recover the live smart-link, destination, link-event, fan-consent, and deliverable migrations.
+- [x] Preserve one canonical smart link per release.
+- [x] Remove IP and user-agent hashes from fan-consent evidence.
+- [x] Add audited `links.save` and `links.save_destination` capabilities.
+- [x] Add the authenticated `/links` management workspace.
+- [ ] Pass typecheck, tests, clean replay, and deployed preview verification.
+- [ ] Add a privacy-safe public `/l/[slug]` read boundary exposing only approved release and destination fields.
+- [ ] Add destination-click and page-view collection with abuse controls and retention rules.
+- [ ] Add consent-backed fan capture and confirmation workflow.
+- [ ] Add campaign attribution and release-to-fan conversion reporting.
 
 ## P1: Creator Studio migration
 
@@ -52,12 +74,14 @@
 
 ## P1: Campaign Intelligence migration
 
-- [ ] Map CuratorFit targets to organizations, people, properties, and submission endpoints.
-- [ ] Preserve source, verification, trust, risk, freshness, and claim state.
-- [ ] Build opportunity directory and saved-list flow.
-- [ ] Add explainable fit scoring.
-- [ ] Add campaign target stages and interaction history.
-- [ ] Add curator claim and preference workflows.
+- [x] Use canonical campaigns, campaign targets, interactions, outcomes, and evidence records.
+- [x] Preserve source, verification, trust, risk, freshness, and claim primitives in the shared database.
+- [x] Recover professional-profile, claim, submission, feedback, and message schema as dormant production history.
+- [ ] Rename and consolidate CuratorFit concepts into Campaign Intelligence and Network Intelligence UI surfaces.
+- [ ] Map properties and submission endpoints into explainable release-specific recommendations.
+- [ ] Add saved opportunity lists and fit explanations.
+- [ ] Add curator invitation and claim workflows for a closed verified cohort.
+- [ ] Keep the open marketplace UI disabled until the closed alpha proves safety, relevance, and willingness to pay.
 
 ## P1: Network Intelligence
 
@@ -68,6 +92,15 @@
 - [ ] Add contact qualification, suppression, consent, and permitted-use checks.
 - [ ] Add personalized outreach preparation with required human approval.
 - [ ] Add invite and profile-claim conversion.
+
+## P2: Music Intelligence
+
+- [x] Establish the first streaming, social, playlist, and campaign metric schema.
+- [x] Add an initial analytics surface.
+- [ ] Add provider ingestion with source, retrieval time, freshness, and rights metadata.
+- [ ] Build artist and release benchmarks, comparable-artist tracking, playlist movement, and momentum detection.
+- [ ] Connect campaign activity and smart-link conversion to performance changes without overstating causation.
+- [ ] Build explainable Artist Brain recommendations from measured changes.
 
 ## P2: StackBuilder, education, and free tools
 
@@ -92,6 +125,16 @@
 - [ ] Recruit 25-50 concentrated, verified network partners.
 - [ ] Test free, monthly Pro, and per-release offers.
 
+## Current implementation order
+
+1. Reconcile and replay the full production migration ledger.
+2. Verify the authenticated ArtistOS Links workspace in a branch preview.
+3. Add the privacy-safe public smart-link surface and consent-backed fan capture.
+4. Consolidate Campaign Intelligence and Network Intelligence around the release graph.
+5. Extend Music Intelligence with provider-backed measurements and explainable benchmarks.
+6. Complete Creator Studio persistence and the first free-tool acquisition loop.
+7. Run the closed alpha before exposing any open marketplace behavior.
+
 ## Decision rule
 
-No isolated features. Every feature must attach to identity, release, relationship, evidence, rights, asset, campaign, or outcome primitives and strengthen either the inbound or outbound flywheel.
+No isolated features. Every feature must attach to identity, release, link, relationship, evidence, rights, asset, campaign, fan, metric, or outcome primitives and strengthen either the inbound or outbound flywheel.
