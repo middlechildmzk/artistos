@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { invokeCapability } from "@/lib/capabilities/invoke";
 import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
 
@@ -125,4 +126,5 @@ export async function recordCampaignOutcome(formData: FormData) {
     `campaign-outcome:${campaignTargetId}:${outcomeType}:${outcomeDate}:${randomUUID()}`,
   );
   revalidateCampaignSurfaces();
+  redirect("/campaigns?outcome=recorded");
 }
