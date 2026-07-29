@@ -6,6 +6,7 @@ import { registerCapabilityHandler } from "./handlers";
 import {
   recordCampaignOutcomeCapability,
   recordCampaignReplyCapability,
+  saveCampaignDeliverableCapability,
   updateCampaignTargetStatusCapability,
 } from "./campaign-registry";
 
@@ -167,11 +168,16 @@ registerCapabilityHandler(recordCampaignOutcomeCapability, async ({ ctx, input, 
 
   const { supabase, target } = await loadTarget(ctx.workspaceId, input.campaignTargetId);
   const campaignRelation = Array.isArray(target.campaigns) ? target.campaigns[0] : target.campaigns;
+  const releaseId = campaignRelation?.release_id ?? null;
+  const confidenceScore = input.confidence === "verified" ? 1 : input.confidence === "supported" ? 0.75 : input.confidence === "weak" ? 0.35 : 0;
 
   const { data: evidence, error: evidenceError } = await supabase
     .from("evidence_records")
     .insert({
       workspace_id: ctx.workspaceId,
+      release_id: releaseId,
+      campaign_id: target.campaign_id,
+      campaign_target_id: target.id,
       evidence_type: "campaign_outcome",
       source_type: input.url ? "url" : "human_attestation",
       source_uri: input.url ?? null,
@@ -179,6 +185,11 @@ registerCapabilityHandler(recordCampaignOutcomeCapability, async ({ ctx, input, 
       confidence: input.confidence,
       observed_at: `${input.outcomeDate}T00:00:00.000Z`,
       captured_by: ctx.userId ?? null,
+      verification_level: input.url ? "L1" : null,
+      verification_method: input.url ? "public_url" : "human_attestation",
+      verification_status: input.confidence === "verified" ? "verified" : "pending",
+      confidence_score: confidenceScore,
+      contradiction_state: "clear",
       metadata: { campaignTargetId: target.id, outcomeType: input.outcomeType },
     })
     .select("id")
@@ -188,7 +199,7 @@ registerCapabilityHandler(recordCampaignOutcomeCapability, async ({ ctx, input, 
   const payload: Record<string, unknown> = {
     workspace_id: ctx.workspaceId,
     campaign_id: target.campaign_id,
-    release_id: campaignRelation?.release_id ?? null,
+    release_id: releaseId,
     outcome_type: input.outcomeType,
     outcome_date: input.outcomeDate,
     evidence_summary: input.evidenceSummary,
@@ -220,4 +231,33 @@ registerCapabilityHandler(recordCampaignOutcomeCapability, async ({ ctx, input, 
   const result = { outcomeId: outcome.id, evidenceId: evidence.id, campaignTargetId: target.id, status: "placed" as const };
   await storeReplay({ workspaceId: ctx.workspaceId, userId: ctx.userId, capabilityName: recordCampaignOutcomeCapability.name, capabilityVersion: 1, key, input, result });
   return { output: result, evidenceIds: [evidence.id] };
+});
+
+registerCapabilityHandler(saveCampaignDeliverableCapability, async ({ ctx, input, idempotencyKey }) => {
+  const key = idempotencyKey ?? input.idempotencyKey;
+  const replay = await readReplay(ctx.workspaceId, saveCampaignDeliverableCapability.name, key);
+  if (replay && typeof replay === "object" && "deliverableId" in replay) {
+    return { output: replay as { deliverableId: string; campaignTargetId: string; status: string; created: boolean }, evidenceIds: [] };
+  }
+
+  const { supabase, target } = await loadTarget(ctx.workspaceId, input.campaignTargetId);
+  const { data: deliverable, error } = await supabase
+    .from("campaign_deliverables")
+    .insert({
+      workspace_id: ctx.workspaceId,
+      campaign_id: target.campaign_id,
+      campaign_target_id: target.id,
+      channel: input.channel,
+      deliverable_type: input.deliverableType,
+      description: input.description ?? null,
+      due_at: input.dueAt ?? null,
+      status: input.status,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const result = { deliverableId: deliverable.id, campaignTargetId: target.id, status: input.status, created: true };
+  await storeReplay({ workspaceId: ctx.workspaceId, userId: ctx.userId, capabilityName: saveCampaignDeliverableCapability.name, capabilityVersion: 1, key, input, result });
+  return { output: result, evidenceIds: [] };
 });
