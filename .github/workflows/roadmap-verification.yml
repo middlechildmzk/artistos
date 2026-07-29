@@ -35,7 +35,11 @@ jobs:
           checked_out_sha="$(git rev-parse HEAD)"
           test "$checked_out_sha" = "$GITHUB_SHA"
           echo "RELEASE_SOURCE_SHA=$checked_out_sha" >> "$GITHUB_ENV"
-          rm -rf artifacts/authenticated-e2e artifacts/schema-drift
+          rm -rf artifacts/authenticated-e2e
+          rm -f artifacts/schema-drift/local-historical-fingerprint.json \
+            artifacts/schema-drift/local-historical-inventory.json \
+            artifacts/schema-drift/summary.json \
+            artifacts/schema-drift/summary.txt
 
       - name: Mark roadmap verification pending
         shell: bash
