@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "project_ref": "myrtdfyjoxvtubusrrmf",
+  "captured_at_utc": "2026-07-29T15:47:19.323671Z",
+  "migration_count": 40,
+  "object_count": 3211,
+  "sha256": "386b682741ab40905e16773999f3f48af9147f6e85de9fd0740062ad936c50e1",
+  "source": "read-only production fingerprint query",
+  "production_mutated": false,
+  "canonical_fingerprint_path": "artifacts/schema-drift/production-fingerprint.json"
+}
