@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: artistos-intelligence-loop-verification-${{ github.ref }}
@@ -129,6 +130,33 @@ jobs:
             artifacts/schema-drift/summary.txt
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Publish intelligence verification result
+        if: always() && !cancelled()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          state=failure
+          description="Connected ArtistOS intelligence verification failed"
+          if [[ "${{ steps.replay.outputs.status }}" == "0" && "${{ steps.intelligence.outputs.status }}" == "0" ]]; then
+            state=success
+            description="Replay, build, intelligence, viewer, and isolation journeys passed"
+          fi
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          jq -n \
+            --arg state "$state" \
+            --arg context "ArtistOS Intelligence Loop Verification" \
+            --arg description "$description" \
+            --arg target_url "$target_url" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' \
+            | curl --fail-with-body --silent --show-error \
+                -X POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+                -d @-
 
       - name: Enforce intelligence verification result
         if: always() && !cancelled()
