@@ -1,8 +1,13 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { cleanPublicText, loadPublicLink, recordPublicLinkEvent } from "@/lib/public-links";
+import { invokeCapability } from "@/lib/capabilities/invoke";
+import {
+  createPublicLinkActorContext,
+  createPublicLinkInvocationDependencies,
+} from "@/lib/capabilities/public-links-runtime";
+import { cleanPublicText, loadPublicLink } from "@/lib/public-links";
 
 function normalizeEmail(value: unknown) {
   const email = cleanPublicText(value, 320).toLowerCase();
@@ -22,132 +27,32 @@ export async function capturePublicLinkFan(formData: FormData) {
     redirect(`/l/${encodeURIComponent(link.slug)}?signup=invalid`);
   }
 
-  const utmSource = cleanPublicText(formData.get("utmSource"), 160);
-  const utmMedium = cleanPublicText(formData.get("utmMedium"), 160);
-  const utmCampaign = cleanPublicText(formData.get("utmCampaign"), 160);
-  const now = new Date().toISOString();
-  const supabase = createSupabaseAdminClient();
-
-  const { data: existingFan, error: existingFanError } = await supabase
-    .from("fans")
-    .select("id")
-    .eq("workspace_id", link.workspaceId)
-    .ilike("email", email)
-    .is("archived_at", null)
-    .maybeSingle();
-  if (existingFanError) throw existingFanError;
-
-  let fanId = existingFan?.id ?? null;
-  if (fanId) {
-    const fanUpdates: Record<string, unknown> = {
-      consent_status: "subscribed",
-      consent_source: `artistos_link:${link.slug}`,
-      source_smart_link_id: link.id,
-      last_seen_at: now,
-      consent_last_recorded_at: now,
-    };
-    if (firstName) {
-      fanUpdates.first_name = firstName;
-      fanUpdates.name = firstName;
-    }
-    const { error } = await supabase.from("fans").update(fanUpdates).eq("workspace_id", link.workspaceId).eq("id", fanId);
-    if (error) throw error;
-  } else {
-    const { data: createdFan, error: createError } = await supabase
-      .from("fans")
-      .insert({
-        workspace_id: link.workspaceId,
-        email,
-        name: firstName || null,
-        first_name: firstName || null,
-        segment: "smart_link",
-        consent_status: "subscribed",
-        consent_source: `artistos_link:${link.slug}`,
-        first_seen: now.slice(0, 10),
-        verification_status: "unverified",
-        source_smart_link_id: link.id,
-        last_seen_at: now,
-        consent_last_recorded_at: now,
-      })
-      .select("id")
-      .single();
-
-    if (createError?.code === "23505") {
-      const { data: racedFan, error: racedFanError } = await supabase
-        .from("fans")
-        .select("id")
-        .eq("workspace_id", link.workspaceId)
-        .ilike("email", email)
-        .is("archived_at", null)
-        .single();
-      if (racedFanError) throw racedFanError;
-      fanId = racedFan.id;
-      const { error: updateError } = await supabase
-        .from("fans")
-        .update({
-          consent_status: "subscribed",
-          consent_source: `artistos_link:${link.slug}`,
-          source_smart_link_id: link.id,
-          last_seen_at: now,
-          consent_last_recorded_at: now,
-        })
-        .eq("workspace_id", link.workspaceId)
-        .eq("id", fanId);
-      if (updateError) throw updateError;
-    } else if (createError) {
-      throw createError;
-    } else {
-      fanId = createdFan.id;
-    }
-  }
-
-  if (!fanId) throw new Error("fan_capture_failed");
-
-  const sourceUrl = `/l/${link.slug}`;
-  const commonEvidence = {
-    form_version: "artistos-public-link-v1",
-    release_id: link.releaseId,
-    smart_link_slug: link.slug,
-    email_confirmation_status: "unverified",
-    utm_source: utmSource || null,
-    utm_medium: utmMedium || null,
-    utm_campaign: utmCampaign || null,
-  };
-  const { error: consentError } = await supabase.from("fan_consents").insert([
-    {
-      workspace_id: link.workspaceId,
-      fan_id: fanId,
-      smart_link_id: link.id,
-      consent_type: "email_marketing",
-      granted: true,
-      policy_version: link.consentCopyVersion,
-      source_url: sourceUrl,
-      evidence: { ...commonEvidence, action: "email_updates_checked" },
-      recorded_at: now,
+  const utmSource = cleanPublicText(formData.get("utmSource"), 160) || null;
+  const utmMedium = cleanPublicText(formData.get("utmMedium"), 160) || null;
+  const utmCampaign = cleanPublicText(formData.get("utmCampaign"), 160) || null;
+  const identityHash = createHash("sha256").update(`${link.id}:${email}`).digest("hex").slice(0, 24);
+  const idempotencyKey = `public-fan:${identityHash}:${new Date().toISOString().slice(0, 10)}`;
+  const ctx = createPublicLinkActorContext(link);
+  const result = await invokeCapability({
+    name: "public_links.capture_fan",
+    ctx,
+    input: {
+      linkId: link.id,
+      email,
+      firstName: firstName || null,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      emailConsent: true,
+      privacyAcknowledged: true,
+      idempotencyKey,
     },
-    {
-      workspace_id: link.workspaceId,
-      fan_id: fanId,
-      smart_link_id: link.id,
-      consent_type: "privacy_terms",
-      granted: true,
-      policy_version: link.consentCopyVersion,
-      source_url: sourceUrl,
-      evidence: { ...commonEvidence, action: "privacy_notice_acknowledged" },
-      recorded_at: now,
-    },
-  ]);
-  if (consentError) throw consentError;
-
-  await recordPublicLinkEvent({
-    link,
-    eventType: "fan_signup",
-    fanId,
-    utmSource,
-    utmMedium,
-    utmCampaign,
-    metadata: { collection_version: "public-link-fan-v1", email_confirmation_status: "unverified" },
+    idempotencyKey,
+    dependencies: createPublicLinkInvocationDependencies(link),
   });
 
+  if (result.status !== "ok") {
+    redirect(`/l/${encodeURIComponent(link.slug)}?signup=error`);
+  }
   redirect(`/l/${encodeURIComponent(link.slug)}?signup=success`);
 }
