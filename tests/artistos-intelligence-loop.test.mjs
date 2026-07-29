@@ -22,12 +22,31 @@ test("campaign outcomes preserve release, campaign, target, and verification lin
   assert.match(handlers, /contradiction_state: "clear"/);
 });
 
-test("outreach creates submission and evidence receipts without direct public writes", () => {
+test("outreach creates canonical submission and evidence receipts without direct public writes", () => {
   const handlers = read("lib/capabilities/crm-release-handlers.ts");
   assert.match(handlers, /from\("campaign_submissions"\)/);
+  assert.match(handlers, /submission_mode: "outreach"/);
+  assert.match(handlers, /status: "in_review"/);
   assert.match(handlers, /evidence_type: "campaign_submission"/);
   assert.match(handlers, /source_type: "human_attestation"/);
   assert.doesNotMatch(handlers, /service_role/i);
+});
+
+test("campaign deliverables use the production lifecycle vocabulary", () => {
+  const registry = read("lib/capabilities/campaign-registry.ts");
+  const actions = read("app/campaigns/actions.ts");
+  for (const status of ["planned", "accepted", "scheduled", "delivered", "verified", "disputed", "cancelled"]) {
+    assert.match(registry, new RegExp(`"${status}"`));
+    assert.match(actions, new RegExp(`"${status}"`));
+  }
+  assert.doesNotMatch(registry, /"pending"|"in_progress"|"completed"/);
+});
+
+test("Proof treats clear evidence as non-contradictory and counts canonical completion states", () => {
+  const proof = read("app/proof/page.tsx");
+  assert.match(proof, /contradiction_state !== "clear"/);
+  assert.match(proof, /\["delivered", "verified"\]/);
+  assert.match(proof, /\["accepted", "promotion_committed", "completed"\]/);
 });
 
 test("Network Intelligence uses authenticated workspace scoping", () => {
