@@ -1,0 +1,149 @@
+name: ArtistOS Roadmap Verification
+
+on:
+  push:
+    branches:
+      - agent/artistos-roadmap-foundation
+    paths-ignore:
+      - artifacts/**
+      - docs/**
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artistos-roadmap-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-roadmap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout exact roadmap source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind source commit
+        shell: bash
+        run: |
+          checked_out_sha="$(git rev-parse HEAD)"
+          test "$checked_out_sha" = "$GITHUB_SHA"
+          echo "RELEASE_SOURCE_SHA=$checked_out_sha" >> "$GITHUB_ENV"
+          rm -rf artifacts/authenticated-e2e artifacts/schema-drift
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+
+      - name: Replay all migrations and verify RLS
+        id: replay
+        shell: bash
+        env:
+          KEEP_SUPABASE_RUNNING: '1'
+        run: |
+          set +e
+          bash scripts/verify-local-supabase.sh 2>&1 | tee database-replay.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Export disposable application environment
+        if: steps.replay.outputs.status == '0'
+        shell: bash
+        run: |
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_URL=${API_URL}"
+            echo "SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "SUPABASE_SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}"
+            echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+            echo "ARTISTOS_APP_URL=http://127.0.0.1:3000"
+          } >> "$GITHUB_ENV"
+
+      - name: Install application and Chromium
+        if: steps.replay.outputs.status == '0'
+        run: |
+          npm install --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Build and start exact roadmap source
+        if: steps.replay.outputs.status == '0'
+        shell: bash
+        run: |
+          npm run build
+          nohup npm run start -- -H 127.0.0.1 -p 3000 > artistos-e2e-app.log 2>&1 &
+          echo $! > /tmp/artistos-e2e-app.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/login >/dev/null; then
+              echo "ArtistOS is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat artistos-e2e-app.log
+          exit 1
+
+      - name: Run authenticated owner, viewer, and outsider journeys
+        if: steps.replay.outputs.status == '0'
+        id: e2e
+        shell: bash
+        run: |
+          set +e
+          GITHUB_SHA="$RELEASE_SOURCE_SHA" node scripts/run-authenticated-e2e.mjs 2>&1 | tee authenticated-e2e.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload roadmap verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artistos-roadmap-verification-${{ github.run_id }}
+          path: |
+            database-replay.log
+            authenticated-e2e.log
+            artistos-e2e-app.log
+            artifacts/authenticated-e2e/summary.json
+            artifacts/authenticated-e2e/*.png
+            artifacts/schema-drift/local-historical-fingerprint.json
+            artifacts/schema-drift/local-historical-inventory.json
+            artifacts/schema-drift/summary.json
+            artifacts/schema-drift/summary.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce disposable verification result
+        if: always() && !cancelled()
+        shell: bash
+        run: |
+          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
+            echo "Disposable database replay, drift, RLS, or advisor verification failed." >&2
+            exit 1
+          fi
+          if [[ "${{ steps.e2e.outputs.status }}" != "0" ]]; then
+            echo "Authenticated ArtistOS roadmap journeys failed." >&2
+            exit 1
+          fi
+
+      - name: Clean up disposable services
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/artistos-e2e-app.pid ]]; then
+            kill "$(cat /tmp/artistos-e2e-app.pid)" >/dev/null 2>&1 || true
+          fi
+          supabase stop --no-backup >/dev/null 2>&1 || true
