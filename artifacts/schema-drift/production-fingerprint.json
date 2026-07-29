@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
   "project_ref": "myrtdfyjoxvtubusrrmf",
-  "verified_at_utc": "2026-07-28T19:08:15.676253Z",
-  "object_count": 2007,
-  "sha256": "e912b4d199deccc07c37797b5595febbefd055348d9e88db0cc17f243bb0ac07",
+  "verified_at_utc": "2026-07-29T15:47:19.323671Z",
+  "object_count": 3211,
+  "sha256": "386b682741ab40905e16773999f3f48af9147f6e85de9fd0740062ad936c50e1",
   "categories": {
     "BUCKET": { "object_count": 1, "sha256": "62365f79a30bf426e12946f155f0ede9748916b6026952ef64dae9f4984e21ff" },
-    "COL": { "object_count": 690, "sha256": "efe30dc445b3960fa8fcc1e183b261848aa6e21dea3a4655680f2453f29dcf3d" },
-    "CON": { "object_count": 224, "sha256": "8e110effb3676699be0197257521fbd5e6a580f4dc664a86893afecc235406fa" },
+    "COL": { "object_count": 1067, "sha256": "12865e3bd888b19645c926e6a905208a7d2c1f5275a9d7b286cb9b4151264b81" },
+    "CON": { "object_count": 416, "sha256": "ef346645124a4919b51f3ed48e5dda7768209ecb240c871c5cebd9c22efee1d0" },
     "ENUM": { "object_count": 1, "sha256": "3729eb69e5ec7c1d8330592a6f10aaebfe0c453efdbc1e1371a80d24559887eb" },
-    "FUN": { "object_count": 7, "sha256": "c89d0460a4c3026627757139f037d3b7afd79235df0fc4dfee32c851d43ffb88" },
-    "GRANT": { "object_count": 728, "sha256": "647c3542c685644f124f5024ba72c3c773adedcb2697c9b5709711e96c730341" },
-    "IDX": { "object_count": 143, "sha256": "0271d86585e97def393ec1ccb373b992aeff668b2b4f5e363639141a241ea2ae" },
-    "POL": { "object_count": 165, "sha256": "d7d42e250a867a42ba3a8dd781352a5901c493595c5e706b49922a7ce8e40647" },
-    "REL": { "object_count": 47, "sha256": "c3c0087d5c4f7b6a481fa3532a3e10535e790f4a73ff1f52408ca5fe07332570" },
-    "TRG": { "object_count": 1, "sha256": "5cd2c0120f7e92d1b476361b1a6321bcbd5b50ac7308a6caff358e1e5e3355ba" }
+    "FUN": { "object_count": 12, "sha256": "7b75e75490f9a6d5fa5e6f103556a6e74dad50b532003db8381836e88b9824b5" },
+    "GRANT": { "object_count": 1157, "sha256": "add96288b0fd779e616894fa628e7751631f648bfe33d3ffe3aec21876079d1a" },
+    "IDX": { "object_count": 241, "sha256": "5c626128b665c67df6c0f2339688e46aeefc5e7a187ceb32bdb5a287aff4cb3a" },
+    "POL": { "object_count": 237, "sha256": "de2cba5b93b876d231bc3daf36c16fba16bc41edb935112a4cc17c34713e46b6" },
+    "REL": { "object_count": 73, "sha256": "b01ff8842242de6111860ba4ab9839312c4f9ccbdebf0c332888c136fa8d808c" },
+    "TRG": { "object_count": 6, "sha256": "5e89be3eaf5f17a81ce71047c5f09e7baea247d36c1daba94115d36eae7c2512" }
   },
   "production_mutated": false,
   "scope": "ArtistOS-owned public/private schema objects, app storage policies and bucket contract; extension-owned objects and data rows excluded."
