@@ -113,6 +113,12 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Capture intelligence failure diagnostics
+        if: steps.replay.outputs.status == '0' && steps.intelligence.outputs.status != '0'
+        shell: bash
+        run: |
+          GITHUB_SHA="$RELEASE_SOURCE_SHA" node scripts/dump-intelligence-failure.mjs 2>&1 | tee intelligence-loop-diagnostics.log
+
       - name: Upload intelligence verification evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -121,8 +127,10 @@ jobs:
           path: |
             database-replay.log
             intelligence-loop-e2e.log
+            intelligence-loop-diagnostics.log
             artistos-intelligence-app.log
             artifacts/intelligence-loop-e2e/summary.json
+            artifacts/intelligence-loop-e2e/diagnostics.json
             artifacts/intelligence-loop-e2e/*.png
             artifacts/schema-drift/local-historical-fingerprint.json
             artifacts/schema-drift/local-historical-inventory.json
