@@ -154,7 +154,7 @@ export default async function CampaignsPage() {
                           <input className="input" name="channel" placeholder="Spotify, blog, TikTok..." defaultValue="digital" required />
                           <textarea className="input textarea" name="description" placeholder="Scope, disclosure, or expected output" />
                           <input className="input" name="dueAt" type="datetime-local" />
-                          <select className="input" name="status" defaultValue="pending"><option value="pending">Pending</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="verified">Verified</option></select>
+                          <select className="input" name="status" defaultValue="planned"><option value="planned">Planned</option><option value="accepted">Accepted</option><option value="scheduled">Scheduled</option><option value="delivered">Delivered</option><option value="verified">Verified</option><option value="disputed">Disputed</option><option value="cancelled">Cancelled</option></select>
                           <button className="button" type="submit">Save deliverable</button>
                         </form>
                       </details>
