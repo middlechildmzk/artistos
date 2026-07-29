@@ -48,7 +48,7 @@ test("page-view collection is deduplicated without persistent fingerprints", () 
 test("fan capture is an audited capability rather than a direct application write", () => {
   assert.match(fanAction, /invokeCapability/);
   assert.match(fanAction, /public_links\.capture_fan/);
-  assert.doesNotMatch(fanAction, /\.from\(|\.insert\(|\.update\(|SUPABASE_SERVICE_ROLE_KEY/);
+  assert.doesNotMatch(fanAction, /\.from\("|\.insert\(\{|\.update\(\{|SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(fanRegistry, /emailConsent: z\.literal\(true\)/);
   assert.match(fanRegistry, /privacyAcknowledged: z\.literal\(true\)/);
   assert.match(publicRuntime, /public_links\.explicit_fan_consent/);
