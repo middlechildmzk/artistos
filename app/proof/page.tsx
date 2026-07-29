@@ -72,7 +72,7 @@ export default async function ProofPage() {
   const organizationById = new Map((organizationsResult.data ?? []).map((organization) => [organization.id, organization]));
 
   const verifiedEvidence = evidence.filter((item) => item.verification_status === "verified" || item.confidence === "verified");
-  const contradictedEvidence = evidence.filter((item) => item.contradiction_state && item.contradiction_state !== "none");
+  const contradictedEvidence = evidence.filter((item) => item.contradiction_state && item.contradiction_state !== "clear");
   const expiredEvidence = evidence.filter((item) => item.expires_at && new Date(item.expires_at).getTime() < Date.now());
   const completeDeliverables = deliverables.filter((item) => ["completed", "delivered", "verified"].includes(item.status ?? ""));
   const completedSubmissions = submissions.filter((item) => ["completed", "accepted", "placed"].includes(item.status ?? ""));
@@ -113,7 +113,7 @@ export default async function ProofPage() {
           {evidence.length ? evidence.map((item) => {
             const campaign = item.campaign_id ? campaignById.get(item.campaign_id) : null;
             const release = item.release_id ? releaseById.get(item.release_id) : null;
-            const isProblem = (item.contradiction_state && item.contradiction_state !== "none") || item.revoked_at;
+            const isProblem = (item.contradiction_state && item.contradiction_state !== "clear") || item.revoked_at;
             return (
               <article className="row" key={item.id}>
                 <div>
