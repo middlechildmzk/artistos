@@ -147,7 +147,7 @@ begin
   set status = 'executing', updated_at = now()
   where id = p_approval_id
     and status = 'approved'
-    and private.can_manae_workspace(workspace_id)
+    and private.can_manage_workspace(workspace_id)
     and (expires_at is null or expires_at > now())
   returning * into claimed;
 
