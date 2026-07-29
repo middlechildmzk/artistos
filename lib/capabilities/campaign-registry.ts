@@ -76,3 +76,29 @@ export const recordCampaignOutcomeCapability = registerCapability({
   mcp: "gated_write",
   failureModes: ["campaign_target_not_found", "evidence_missing", "outcome_insert_failed"],
 });
+
+export const saveCampaignDeliverableCapability = registerCapability({
+  name: "campaigns.save_deliverable",
+  version: 1,
+  kind: "command",
+  purpose: "Create a campaign deliverable tied to a qualified target and its release campaign.",
+  input: z.object({
+    campaignTargetId: uuid,
+    channel: z.string().trim().min(1).max(80),
+    deliverableType: z.string().trim().min(1).max(160),
+    description: z.string().trim().max(4000).nullable().optional(),
+    dueAt: z.string().datetime().nullable().optional(),
+    status: z.enum(["pending", "in_progress", "completed", "verified"]),
+    idempotencyKey,
+  }),
+  output: z.object({ deliverableId: uuid, campaignTargetId: uuid, status: z.string(), created: z.boolean() }),
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.campaigns.write" },
+  risk: "R1_internal_reversible",
+  approval: "by_policy",
+  idempotency: "key_required",
+  evidence: "optional",
+  auditEvents: ["campaigns.deliverable_saved"],
+  retry: defaultWriteRetry,
+  mcp: "gated_write",
+  failureModes: ["campaign_target_not_found", "deliverable_insert_failed"],
+});
