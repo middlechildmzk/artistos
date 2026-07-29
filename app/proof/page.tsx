@@ -74,8 +74,8 @@ export default async function ProofPage() {
   const verifiedEvidence = evidence.filter((item) => item.verification_status === "verified" || item.confidence === "verified");
   const contradictedEvidence = evidence.filter((item) => item.contradiction_state && item.contradiction_state !== "clear");
   const expiredEvidence = evidence.filter((item) => item.expires_at && new Date(item.expires_at).getTime() < Date.now());
-  const completeDeliverables = deliverables.filter((item) => ["completed", "delivered", "verified"].includes(item.status ?? ""));
-  const completedSubmissions = submissions.filter((item) => ["completed", "accepted", "placed"].includes(item.status ?? ""));
+  const completeDeliverables = deliverables.filter((item) => ["delivered", "verified"].includes(item.status ?? ""));
+  const completedSubmissions = submissions.filter((item) => ["accepted", "promotion_committed", "completed"].includes(item.status ?? ""));
 
   return (
     <main className="shell">
