@@ -88,7 +88,7 @@ export const saveCampaignDeliverableCapability = registerCapability({
     deliverableType: z.string().trim().min(1).max(160),
     description: z.string().trim().max(4000).nullable().optional(),
     dueAt: z.string().datetime().nullable().optional(),
-    status: z.enum(["pending", "in_progress", "completed", "verified"]),
+    status: z.enum(["planned", "accepted", "scheduled", "delivered", "verified", "disputed", "cancelled"]),
     idempotencyKey,
   }),
   output: z.object({ deliverableId: uuid, campaignTargetId: uuid, status: z.string(), created: z.boolean() }),
