@@ -97,6 +97,29 @@ try {
   await owner.page.getByText("ArtistOS E2E Release", { exact: true }).first().waitFor({ timeout: 20_000 });
   record("owner_release_creation", "Owner created a release and its starter operational spine through the authenticated UI.");
 
+  const { data: createdRelease, error: createdReleaseError } = await service
+    .from("releases")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("title", "ArtistOS E2E Release")
+    .single();
+  if (createdReleaseError) throw createdReleaseError;
+
+  await owner.page.goto(`${appUrl}/links`, { waitUntil: "networkidle" });
+  await owner.page.getByRole("heading", { name: "ArtistOS Links" }).waitFor();
+  const linkCard = owner.page.locator("article").filter({ hasText: "ArtistOS E2E Release" });
+  await linkCard.locator('input[name="slug"]').fill("artistos-e2e-release");
+  await linkCard.getByRole("button", { name: "Create release link" }).click();
+  await owner.page.getByText("/l/artistos-e2e-release", { exact: true }).waitFor({ timeout: 20_000 });
+  const refreshedLinkCard = owner.page.locator("article").filter({ hasText: "ArtistOS E2E Release" });
+  await refreshedLinkCard.getByText("Add or update destination", { exact: true }).click();
+  await refreshedLinkCard.locator('select[name="service"]').selectOption("spotify");
+  await refreshedLinkCard.locator('input[name="url"]').fill("https://open.spotify.com/track/artistos-e2e");
+  await refreshedLinkCard.getByRole("button", { name: "Save destination" }).click();
+  await owner.page.getByText("https://open.spotify.com/track/artistos-e2e", { exact: true }).waitFor({ timeout: 20_000 });
+  record("owner_artistos_links", "Owner created a release-scoped ArtistOS Link and streaming destination through audited capabilities.");
+  await owner.page.screenshot({ path: path.join(outputDir, "owner-links.png"), fullPage: true });
+
   await owner.page.goto(`${appUrl}/dashboard`, { waitUntil: "networkidle" });
   const completeButton = owner.page.getByRole("button", { name: "Complete" }).first();
   await completeButton.waitFor({ timeout: 20_000 });
@@ -139,19 +162,33 @@ try {
   assert(viewerBody.includes("ArtistOS E2E Release"), "Viewer cannot see the shared workspace release");
   await viewer.page.goto(`${appUrl}/brain`, { waitUntil: "networkidle" });
   await viewer.page.getByText("E2E Core Message", { exact: true }).waitFor();
+  await viewer.page.goto(`${appUrl}/links`, { waitUntil: "networkidle" });
+  await viewer.page.getByText("ArtistOS E2E Release", { exact: true }).first().waitFor();
+  await viewer.page.getByText("/l/artistos-e2e-release", { exact: true }).waitFor();
   const viewerClient = await signInClient(users.viewer.email);
   const { error: viewerWriteError } = await viewerClient.from("tasks").insert({
     workspace_id: workspaceId,
     title: "Viewer write must fail",
     status: "open",
   });
-  assert(viewerWriteError, "Viewer write unexpectedly succeeded");
-  record("viewer_read_only", "Viewer read shared release and Brain memory but was denied a direct authenticated write.");
+  assert(viewerWriteError, "Viewer task write unexpectedly succeeded");
+  const { error: viewerLinkWriteError } = await viewerClient.from("smart_links").insert({
+    workspace_id: workspaceId,
+    owner_id: viewerUser.id,
+    release_id: createdRelease.id,
+    slug: "viewer-write-must-fail",
+    mode: "live",
+  });
+  assert(viewerLinkWriteError, "Viewer smart-link write unexpectedly succeeded");
+  record("viewer_read_only", "Viewer read shared release, Brain memory, and ArtistOS Link but was denied direct authenticated writes.");
   await viewer.page.screenshot({ path: path.join(outputDir, "viewer-brain.png"), fullPage: true });
 
   const outsider = await signInPage(browser, users.outsider.email);
   const outsiderBody = await outsider.page.locator("body").innerText();
   assert(!outsiderBody.includes("ArtistOS E2E Release"), "Second workspace leaked the owner release in the UI");
+  await outsider.page.goto(`${appUrl}/links`, { waitUntil: "networkidle" });
+  const outsiderLinksBody = await outsider.page.locator("body").innerText();
+  assert(!outsiderLinksBody.includes("artistos-e2e-release"), "Second workspace leaked the owner smart link in the UI");
   const outsiderClient = await signInClient(users.outsider.email);
   const { data: leakedReleases, error: leakedReleaseError } = await outsiderClient
     .from("releases")
@@ -159,7 +196,13 @@ try {
     .eq("workspace_id", workspaceId);
   if (leakedReleaseError) throw leakedReleaseError;
   assert((leakedReleases ?? []).length === 0, "Second workspace could query owner releases");
-  record("second_workspace_isolation", "Independent user received a separate workspace and could not see or query owner release data.");
+  const { data: leakedLinks, error: leakedLinksError } = await outsiderClient
+    .from("smart_links")
+    .select("id")
+    .eq("workspace_id", workspaceId);
+  if (leakedLinksError) throw leakedLinksError;
+  assert((leakedLinks ?? []).length === 0, "Second workspace could query owner smart links");
+  record("second_workspace_isolation", "Independent user received a separate workspace and could not see or query owner release or smart-link data.");
   await outsider.page.screenshot({ path: path.join(outputDir, "outsider-dashboard.png"), fullPage: true });
 
   const counts = {
@@ -169,14 +212,18 @@ try {
     manager_requests: await count("manager_requests", workspaceId),
     capability_audit_log: await count("capability_audit_log", workspaceId),
     capability_idempotency: await count("capability_idempotency", workspaceId),
+    smart_links: await count("smart_links", workspaceId),
+    smart_link_destinations: await count("smart_link_destinations", workspaceId),
   };
   assert(counts.releases >= 1, "Release was not persisted");
   assert(counts.tasks >= 5, "Release starter tasks were not persisted");
   assert(counts.brain_memories >= 1, "Brain memory was not persisted");
   assert(counts.manager_requests >= 1, "Manager request was not persisted");
-  assert(counts.capability_audit_log >= 1, "Capability audit receipts were not persisted");
-  assert(counts.capability_idempotency >= 1, "Capability idempotency receipts were not persisted");
-  record("durable_control_plane", "Runtime actions persisted audit and idempotency receipts alongside business records.");
+  assert(counts.capability_audit_log >= 3, "Capability audit receipts were not persisted");
+  assert(counts.capability_idempotency >= 3, "Capability idempotency receipts were not persisted");
+  assert(counts.smart_links >= 1, "ArtistOS Link was not persisted");
+  assert(counts.smart_link_destinations >= 1, "ArtistOS Link destination was not persisted");
+  record("durable_control_plane", "Runtime actions persisted audit, idempotency, release-link, and destination records alongside business data.");
 
   await Promise.all([owner.context.close(), viewer.context.close(), outsider.context.close()]);
   await browser.close();
@@ -192,7 +239,7 @@ try {
     base_url: appUrl,
     journeys,
     counts,
-    screenshots: ["owner-approvals.png", "viewer-brain.png", "outsider-dashboard.png"],
+    screenshots: ["owner-links.png", "owner-approvals.png", "viewer-brain.png", "outsider-dashboard.png"],
     production_mutated: false,
   };
   fs.writeFileSync(path.join(outputDir, "summary.json"), `${JSON.stringify(report, null, 2)}\n`);
