@@ -89,8 +89,9 @@ try {
   browser = await chromium.launch({ headless: true });
 
   const owner = await signInPage(browser, users.owner.email);
-  await owner.page.getByText("ArtistOS", { exact: true }).first().waitFor({ timeout: 20_000 });
   const ownerMembership = await waitForMembership(ownerUser.id);
+  await owner.page.goto(`${appUrl}/dashboard`, { waitUntil: "networkidle" });
+  await owner.page.getByText("ArtistOS", { exact: true }).first().waitFor({ timeout: 20_000 });
   assert(ownerMembership.role === "owner", "Provisioned user is not workspace owner");
   const workspaceId = ownerMembership.workspace_id;
   record("owner_login_and_workspace_provisioning", "Owner authenticated through the browser and ArtistOS provisioned the first workspace.");
