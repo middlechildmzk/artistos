@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: artistos-roadmap-verification-${{ github.ref }}
@@ -35,6 +36,26 @@ jobs:
           test "$checked_out_sha" = "$GITHUB_SHA"
           echo "RELEASE_SOURCE_SHA=$checked_out_sha" >> "$GITHUB_ENV"
           rm -rf artifacts/authenticated-e2e artifacts/schema-drift
+
+      - name: Mark roadmap verification pending
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          jq -n \
+            --arg state pending \
+            --arg context "ArtistOS Roadmap Verification" \
+            --arg description "Disposable replay and authenticated journeys are running" \
+            --arg target_url "$target_url" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' \
+            | curl --fail-with-body --silent --show-error \
+                -X POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+                -d @-
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -125,6 +146,33 @@ jobs:
             artifacts/schema-drift/summary.txt
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Publish roadmap verification result
+        if: always() && !cancelled()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          state=failure
+          description="Disposable roadmap verification failed"
+          if [[ "${{ steps.replay.outputs.status }}" == "0" && "${{ steps.e2e.outputs.status }}" == "0" ]]; then
+            state=success
+            description="Replay, RLS, build, and authenticated journeys passed"
+          fi
+          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          jq -n \
+            --arg state "$state" \
+            --arg context "ArtistOS Roadmap Verification" \
+            --arg description "$description" \
+            --arg target_url "$target_url" \
+            '{state:$state,context:$context,description:$description,target_url:$target_url}' \
+            | curl --fail-with-body --silent --show-error \
+                -X POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+                -d @-
 
       - name: Enforce disposable verification result
         if: always() && !cancelled()
