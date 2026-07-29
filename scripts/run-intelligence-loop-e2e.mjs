@@ -74,6 +74,17 @@ async function waitForMembership(userId, timeoutMs = 30_000) {
   throw new Error("workspace_membership_not_provisioned");
 }
 
+async function waitForSingle(load, description, timeoutMs = 20_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const { data, error } = await load();
+    if (error) throw error;
+    if (data) return data;
+    await sleep(400);
+  }
+  throw new Error(`${description}_not_persisted`);
+}
+
 async function count(table, workspaceId) {
   const { count: value, error } = await service.from(table).select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId);
   if (error) throw error;
@@ -217,15 +228,21 @@ try {
   await targetCard.locator('input[name="url"]').fill("https://example.com/artistos-verified-placement");
   await targetCard.locator('textarea[name="evidenceSummary"]').fill(names.evidence);
   await targetCard.getByRole("button", { name: "Save outcome and proof" }).click();
+  await owner.page.waitForURL(/\/campaigns\?outcome=recorded$/, { timeout: 20_000 });
 
-  const [{ data: deliverable, error: deliverableError }, { data: outcome, error: outcomeError }, { data: evidence, error: evidenceError }] = await Promise.all([
-    service.from("campaign_deliverables").select("id,status").eq("workspace_id", workspaceId).eq("campaign_target_id", campaignTarget.id).single(),
-    service.from("outcomes").select("id,release_id,confidence").eq("workspace_id", workspaceId).eq("campaign_id", campaign.id).eq("outcome_type", names.outcome).single(),
-    service.from("evidence_records").select("id,release_id,campaign_id,campaign_target_id,verification_status,contradiction_state").eq("workspace_id", workspaceId).eq("campaign_id", campaign.id).eq("evidence_type", "campaign_outcome").single(),
-  ]);
-  if (deliverableError) throw deliverableError;
-  if (outcomeError) throw outcomeError;
-  if (evidenceError) throw evidenceError;
+  const deliverable = await waitForSingle(
+    () => service.from("campaign_deliverables").select("id,status").eq("workspace_id", workspaceId).eq("campaign_target_id", campaignTarget.id).maybeSingle(),
+    "campaign_deliverable",
+  );
+  const outcome = await waitForSingle(
+    () => service.from("outcomes").select("id,release_id,confidence").eq("workspace_id", workspaceId).eq("campaign_id", campaign.id).eq("outcome_type", names.outcome).maybeSingle(),
+    "campaign_outcome",
+  );
+  const evidence = await waitForSingle(
+    () => service.from("evidence_records").select("id,release_id,campaign_id,campaign_target_id,verification_status,contradiction_state").eq("workspace_id", workspaceId).eq("campaign_id", campaign.id).eq("evidence_type", "campaign_outcome").maybeSingle(),
+    "campaign_outcome_evidence",
+  );
+
   assert(deliverable.status === "delivered", "Deliverable did not preserve canonical delivered state");
   assert(outcome.release_id === release.id && outcome.confidence === "verified", "Outcome lost release lineage or verification confidence");
   assert(evidence.release_id === release.id && evidence.campaign_target_id === campaignTarget.id, "Evidence lost release or target lineage");
