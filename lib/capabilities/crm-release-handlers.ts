@@ -79,7 +79,7 @@ registerCapabilityHandler(logOutboundOutreachCapability, async ({ ctx, input, id
   if (replay && typeof replay === "object" && "interactionId" in replay) return { output: replay as any, evidenceIds: [] };
 
   const supabase = await createSupabaseServerClient();
-  const { data: organization, error: organizationError } = await supabase.from("organizations").select("id").eq("workspace_id", ctx.workspaceId).eq("id", input.organizationId).maybeSingle();
+  const { data: organization, error: organizationError } = await supabase.from("organizations").select("id,canonical_name,display_name").eq("workspace_id", ctx.workspaceId).eq("id", input.organizationId).maybeSingle();
   if (organizationError) throw organizationError;
   if (!organization) throw new Error("organization_not_found");
 
@@ -132,24 +132,87 @@ registerCapabilityHandler(logOutboundOutreachCapability, async ({ ctx, input, id
     if (targetError) throw targetError;
     campaignTargetUpdated = true;
 
+    let propertyId = endpoint?.property_id ?? null;
+    if (!propertyId) {
+      const { data: existingProperty, error: propertyLookupError } = await supabase
+        .from("properties")
+        .select("id")
+        .eq("workspace_id", ctx.workspaceId)
+        .eq("organization_id", input.organizationId)
+        .is("archived_at", null)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (propertyLookupError) throw propertyLookupError;
+      propertyId = existingProperty?.id ?? null;
+    }
+    if (!propertyId) {
+      const organizationName = organization.display_name || organization.canonical_name;
+      const { data: createdProperty, error: propertyInsertError } = await supabase
+        .from("properties")
+        .insert({
+          workspace_id: ctx.workspaceId,
+          organization_id: input.organizationId,
+          name: `${organizationName} general outreach`,
+          property_type: "general_outreach",
+          platform: input.channel,
+          url: input.assetLink ?? null,
+          activity_status: "active",
+          verification_status: "supported",
+          evidence_strength: 2,
+          relationship_stage: "pitched",
+          next_action: input.followUpDue ? "Follow up on campaign pitch" : "Monitor for reply",
+          next_action_due: input.followUpDue ?? null,
+          created_by: ctx.userId ?? null,
+        })
+        .select("id")
+        .single();
+      if (propertyInsertError) throw propertyInsertError;
+      propertyId = createdProperty.id;
+    }
+
     const now = new Date().toISOString();
-    const { data: submission, error: submissionError } = await supabase
+    const submissionPayload = {
+      workspace_id: ctx.workspaceId,
+      campaign_id: campaign.id,
+      release_id: campaign.release_id,
+      campaign_target_id: campaignTargetId,
+      property_id: propertyId,
+      submission_mode: "outreach",
+      status: "in_review",
+      artist_message: input.body ?? null,
+      terms: endpoint ? { endpointId: endpoint.id, channel: input.channel } : { channel: input.channel },
+      submitted_at: now,
+      completed_at: null,
+    };
+    const { data: existingSubmission, error: submissionLookupError } = await supabase
       .from("campaign_submissions")
-      .insert({
-        workspace_id: ctx.workspaceId,
-        campaign_id: campaign.id,
-        release_id: campaign.release_id,
-        campaign_target_id: campaignTargetId,
-        property_id: endpoint?.property_id ?? null,
-        submission_mode: "outreach",
-        status: "in_review",
-        artist_message: input.body ?? null,
-        terms: endpoint ? { endpointId: endpoint.id, channel: input.channel } : { channel: input.channel },
-        submitted_at: now,
-      })
       .select("id")
-      .single();
-    if (submissionError) throw submissionError;
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("campaign_target_id", campaignTargetId)
+      .maybeSingle();
+    if (submissionLookupError) throw submissionLookupError;
+
+    let submission: { id: string };
+    if (existingSubmission) {
+      const { data: updatedSubmission, error: submissionUpdateError } = await supabase
+        .from("campaign_submissions")
+        .update(submissionPayload)
+        .eq("workspace_id", ctx.workspaceId)
+        .eq("id", existingSubmission.id)
+        .select("id")
+        .single();
+      if (submissionUpdateError) throw submissionUpdateError;
+      submission = updatedSubmission;
+    } else {
+      const { data: createdSubmission, error: submissionInsertError } = await supabase
+        .from("campaign_submissions")
+        .insert(submissionPayload)
+        .select("id")
+        .single();
+      if (submissionInsertError) throw submissionInsertError;
+      submission = createdSubmission;
+    }
 
     const { data: evidence, error: evidenceError } = await supabase
       .from("evidence_records")
@@ -169,7 +232,7 @@ registerCapabilityHandler(logOutboundOutreachCapability, async ({ ctx, input, id
         verification_status: "pending",
         confidence_score: 0.7,
         contradiction_state: "clear",
-        metadata: { interactionId: interaction.id, submissionId: submission.id, endpointId: endpoint?.id ?? null, channel: input.channel },
+        metadata: { interactionId: interaction.id, submissionId: submission.id, propertyId, endpointId: endpoint?.id ?? null, channel: input.channel },
       })
       .select("id")
       .single();
