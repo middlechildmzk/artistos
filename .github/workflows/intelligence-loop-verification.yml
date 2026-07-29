@@ -1,3 +1,4 @@
+# Registered on the default branch; this push binds verification to the exact intelligence-loop commit.
 name: ArtistOS Intelligence Loop Verification
 
 on:
