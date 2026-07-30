@@ -16,11 +16,17 @@ test("Sources is a primary ArtistOS surface", () => {
   assert.match(analytics, /Campaign and placement impact/);
 });
 
-test("Google OAuth uses state, offline access, read-only scopes, and server-only credentials", () => {
+test("Google OAuth uses a stable origin, state, offline access, read-only scopes, and server-only credentials", () => {
   const google = read("lib/integrations/google.ts");
+  const sources = read("app/connections/page.tsx");
   const connect = read("app/api/integrations/google/connect/route.ts");
   const callback = read("app/api/integrations/google/callback/route.ts");
   const persistence = read("lib/capabilities/google-connection-handler.ts");
+  assert.match(google, /ARTISTOS_PUBLIC_ORIGIN/);
+  assert.match(google, /googleOAuthRedirectUri/);
+  assert.match(google, /invalid_artistos_public_origin/);
+  assert.match(sources, /googleConnectHref/);
+  assert.match(sources, /Stable OAuth origin/);
   assert.match(google, /access_type: "offline"/);
   assert.match(google, /youtube\.readonly/);
   assert.match(google, /yt-analytics\.readonly/);
