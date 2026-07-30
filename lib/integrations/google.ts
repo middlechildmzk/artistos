@@ -65,6 +65,22 @@ function googleConfig() {
   return { clientId, clientSecret };
 }
 
+export function artistOsPublicOrigin(requestOrigin?: string) {
+  const configured = process.env.ARTISTOS_PUBLIC_ORIGIN?.trim();
+  const candidate = configured || requestOrigin;
+  if (!candidate) throw new Error("missing_artistos_public_origin");
+  const url = new URL(candidate);
+  const localDevelopment = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (url.protocol !== "https:" && !(localDevelopment && url.protocol === "http:")) {
+    throw new Error("invalid_artistos_public_origin");
+  }
+  return url.origin;
+}
+
+export function googleOAuthRedirectUri(requestOrigin?: string) {
+  return new URL("/api/integrations/google/callback", artistOsPublicOrigin(requestOrigin)).toString();
+}
+
 async function readJson(response: Response) {
   const text = await response.text();
   if (!text) return {};
@@ -100,7 +116,7 @@ async function fetchGoogleJson<T>(url: string, init: RequestInit, code: string):
 
 export function buildGoogleAuthorizationUrl(origin: string, state: string) {
   const { clientId } = googleConfig();
-  const redirectUri = new URL("/api/integrations/google/callback", origin).toString();
+  const redirectUri = googleOAuthRedirectUri(origin);
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -116,7 +132,7 @@ export function buildGoogleAuthorizationUrl(origin: string, state: string) {
 
 export async function exchangeGoogleAuthorizationCode(origin: string, code: string) {
   const { clientId, clientSecret } = googleConfig();
-  const redirectUri = new URL("/api/integrations/google/callback", origin).toString();
+  const redirectUri = googleOAuthRedirectUri(origin);
   const body = new URLSearchParams({
     client_id: clientId,
     client_secret: clientSecret,
