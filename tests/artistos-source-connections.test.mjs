@@ -109,8 +109,9 @@ test("Kit sync stores aggregate email metrics without raw subscriber records", (
   const clients = read("lib/integrations/provider-clients.ts");
   const handlers = read("lib/capabilities/provider-integrations-handlers.ts");
   const page = read("app/connections/page.tsx");
-  assert.match(clients, /api\.kit\.com\/v4\/subscribers/);
-  assert.match(clients, /api\.kit\.com\/v4\/broadcasts\/stats/);
+  assert.match(clients, /https:\/\/api\.kit\.com/);
+  assert.match(clients, /\/v4\/subscribers/);
+  assert.match(clients, /\/v4\/broadcasts\/stats/);
   assert.match(handlers, /raw_subscriber_records_stored: false/);
   for (const metric of ["subscribers_active", "broadcast_recipients", "emails_opened", "email_clicks", "email_open_rate"]) {
     assert.match(handlers, new RegExp(`"${metric}"`));
