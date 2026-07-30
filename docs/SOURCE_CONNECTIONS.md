@@ -30,18 +30,23 @@ Tokens are stored in the existing `oauth_connections` table using a versioned AE
 
 Required server environment variables:
 
+- `ARTISTOS_PUBLIC_ORIGIN`
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `ARTISTOS_TOKEN_ENCRYPTION_KEY`
+
+`ARTISTOS_PUBLIC_ORIGIN` must be a persistent HTTPS hostname. Do not use a one-off Vercel deployment URL because Google requires an exact redirect URI and the ArtistOS login session plus OAuth state cookie must remain on the same hostname throughout the flow.
 
 The Google Cloud project must enable:
 
 - YouTube Data API v3
 - YouTube Analytics API
 
-The authorized redirect URI must be:
+The authorized redirect URI must be exactly:
 
-`https://YOUR_ARTISTOS_DOMAIN/api/integrations/google/callback`
+`${ARTISTOS_PUBLIC_ORIGIN}/api/integrations/google/callback`
+
+The connection must be launched from that same configured origin. ArtistOS therefore sends preview users to the stable origin before starting Google authorization.
 
 ### Universal metric export import
 
@@ -77,6 +82,7 @@ These are paid licensed sources. ArtistOS can add adapters after the workspace h
 
 - No provider secret uses a `NEXT_PUBLIC_` environment variable.
 - OAuth state is stored in an HTTP-only, same-site cookie and validated on callback.
+- OAuth authorization and callback remain on the configured stable hostname.
 - Tokens are encrypted before database storage.
 - Business writes use the common capability runtime, workspace authorization, audit logging, and durable idempotency.
 - Imported metrics create Proof receipts.
