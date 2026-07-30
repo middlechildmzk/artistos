@@ -53,6 +53,7 @@ export async function savePlatformProfile(formData: FormData) {
 }
 
 export async function importMetricCsv(formData: FormData) {
+  let imported = 0;
   try {
     const file = formData.get("file");
     if (!(file instanceof File) || !file.size) throw new Error("metric_csv_required");
@@ -90,26 +91,29 @@ export async function importMetricCsv(formData: FormData) {
       { rows, sourceName: file.name || "metric export" },
       `metric-import:${digest}`,
     ) as { imported?: number };
+    imported = output.imported ?? rows.length;
     revalidatePath("/connections");
     revalidatePath("/analytics");
     revalidatePath("/proof");
-    redirect(`/connections?imported=${output.imported ?? rows.length}`);
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
+  redirect(`/connections?imported=${imported}`);
 }
 
 export async function syncGoogleYouTube() {
+  let metricCount = 0;
   try {
     const output = await invokeSourceCapability(
       "integrations.sync_google_youtube",
       {},
       `google-youtube-sync:${new Date().toISOString()}:${randomUUID()}`,
     ) as { metricCount?: number };
+    metricCount = output.metricCount ?? 0;
     revalidatePath("/connections");
     revalidatePath("/analytics");
-    redirect(`/connections?synced=youtube&metrics=${output.metricCount ?? 0}`);
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
+  redirect(`/connections?synced=youtube&metrics=${metricCount}`);
 }
