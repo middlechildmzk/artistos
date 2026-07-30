@@ -11,6 +11,7 @@ import {
   syncKit,
   syncSoundcharts,
 } from "./actions";
+import FreeSourcePanels from "./free-source-panels";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Never";
@@ -79,8 +80,9 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
   const googleTokenCurrent = isCurrentTokenEnvelope(google?.encrypted_access_token);
   const soundchartsTokenCurrent = isCurrentTokenEnvelope(soundcharts?.encrypted_access_token) && isCurrentTokenEnvelope(soundcharts?.encrypted_refresh_token);
   const kitTokenCurrent = isCurrentTokenEnvelope(kit?.encrypted_access_token);
+  const encryptionConfigured = Boolean(process.env.ARTISTOS_TOKEN_ENCRYPTION_KEY);
   const googleExpired = google?.expires_at ? new Date(google.expires_at).getTime() < Date.now() : true;
-  const googleConfigured = Boolean(publicOrigin && process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET && process.env.ARTISTOS_TOKEN_ENCRYPTION_KEY);
+  const googleConfigured = Boolean(publicOrigin && process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET && encryptionConfigured);
   const youtubeError = typeof google?.metadata?.youtube_error === "string" ? google.metadata.youtube_error : null;
   const corePlatforms = platforms.filter((platform) => platform.priority === "core");
   const otherPlatforms = platforms.filter((platform) => platform.priority !== "core");
@@ -156,13 +158,14 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
           <div className="row"><span>Last successful sync</span><strong>{formatDate(soundcharts?.last_success_at)}</strong></div>
           <div className="row"><span>Free starting allowance</span><strong>1,000 production requests</strong></div>
           {soundcharts?.last_error ? <div className="notice"><strong>Last error</strong><p className="muted">{soundcharts.last_error}</p></div> : null}
+          {!encryptionConfigured ? <div className="notice"><strong>Encryption key required first.</strong><p className="muted">Set ARTISTOS_TOKEN_ENCRYPTION_KEY before saving Soundcharts credentials.</p></div> : null}
           {!soundchartsTokenCurrent ? (
             <form action={connectApiProvider} className="stack">
               <input type="hidden" name="provider" value="soundcharts" />
-              <label className="field"><span>Soundcharts client ID</span><input className="input" type="password" name="primarySecret" autoComplete="off" required /></label>
-              <label className="field"><span>Soundcharts client secret</span><input className="input" type="password" name="secondarySecret" autoComplete="off" required /></label>
-              <label className="field"><span>Team ID or name</span><input className="input" name="teamId" placeholder="Optional when one team exists" /></label>
-              <button className="button primary" type="submit">Validate and save Soundcharts</button>
+              <label className="field"><span>Soundcharts client ID</span><input className="input" type="password" name="primarySecret" autoComplete="off" required disabled={!encryptionConfigured} /></label>
+              <label className="field"><span>Soundcharts client secret</span><input className="input" type="password" name="secondarySecret" autoComplete="off" required disabled={!encryptionConfigured} /></label>
+              <label className="field"><span>Team ID or name</span><input className="input" name="teamId" placeholder="Optional when one team exists" disabled={!encryptionConfigured} /></label>
+              <button className="button primary" type="submit" disabled={!encryptionConfigured}>Validate and save Soundcharts</button>
             </form>
           ) : (
             <form action={syncSoundcharts} className="stack">
@@ -178,17 +181,20 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
           <div className="row"><span>Last successful sync</span><strong>{formatDate(kit?.last_success_at)}</strong></div>
           <div className="row"><span>Stored source data</span><strong>Aggregate metrics only</strong></div>
           {kit?.last_error ? <div className="notice"><strong>Last error</strong><p className="muted">{kit.last_error}</p></div> : null}
+          {!encryptionConfigured ? <div className="notice"><strong>Encryption key required first.</strong><p className="muted">Set ARTISTOS_TOKEN_ENCRYPTION_KEY before saving the Kit API key.</p></div> : null}
           {!kitTokenCurrent ? (
             <form action={connectApiProvider} className="stack">
               <input type="hidden" name="provider" value="kit" />
-              <label className="field"><span>Kit v4 API key</span><input className="input" type="password" name="primarySecret" autoComplete="off" required /></label>
-              <label className="field"><span>Account label</span><input className="input" name="accountLabel" placeholder="Middle Child email list" /></label>
-              <button className="button primary" type="submit">Validate and save Kit</button>
+              <label className="field"><span>Kit v4 API key</span><input className="input" type="password" name="primarySecret" autoComplete="off" required disabled={!encryptionConfigured} /></label>
+              <label className="field"><span>Account label</span><input className="input" name="accountLabel" placeholder="Middle Child email list" disabled={!encryptionConfigured} /></label>
+              <button className="button primary" type="submit" disabled={!encryptionConfigured}>Validate and save Kit</button>
             </form>
           ) : <form action={syncKit}><button className="button primary" type="submit">Sync Kit now</button></form>}
           <p className="muted">The first sync does not copy raw emails into ArtistOS. Fan-CRM reconciliation will be a separate consent and deduplication workflow.</p>
         </section>
       </section>
+
+      <FreeSourcePanels />
 
       <section style={{ marginBottom: 16 }}>
         <div className="section-heading"><div><h2>Core platform identities</h2><p className="muted">Map the correct artist profile first. This prevents metrics and releases from attaching to the wrong artist with a similar name.</p></div><span className="pill">{corePlatforms.length} core sources</span></div>
@@ -228,7 +234,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
 
       <section className="card">
         <div className="section-heading"><div><h2>Free and paid connector roadmap</h2><p className="muted">Coverage is classified by what the provider actually permits, not by what a dashboard mockup implies.</p></div></div>
-        {SOURCE_COVERAGE.filter((source) => !platforms.some((platform) => platform.slug === source.slug) && !["soundcharts", "kit"].includes(source.slug)).map((source) => <div className="row" key={source.slug}><div><strong>{source.label}</strong><p className="muted">{source.summary}{source.limitation ? ` ${source.limitation}` : ""}</p></div><div className="tag-row"><span className="pill">{statusLabel(source.connection)}</span><span className={`pill ${source.status !== "available" ? "blocked" : ""}`}>{statusLabel(source.status)}</span></div></div>)}
+        {SOURCE_COVERAGE.filter((source) => !platforms.some((platform) => platform.slug === source.slug) && !["soundcharts", "kit", "lastfm", "listenbrainz", "musicbrainz", "ticketmaster"].includes(source.slug)).map((source) => <div className="row" key={source.slug}><div><strong>{source.label}</strong><p className="muted">{source.summary}{source.limitation ? ` ${source.limitation}` : ""}</p></div><div className="tag-row"><span className="pill">{statusLabel(source.connection)}</span><span className={`pill ${source.status !== "available" ? "blocked" : ""}`}>{statusLabel(source.status)}</span></div></div>)}
       </section>
     </main>
   );
