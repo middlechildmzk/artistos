@@ -233,7 +233,7 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
     if (profileError) throw profileError;
 
     const capturedOn = new Date().toISOString().slice(0, 10);
-    const metricCandidates = [
+    const metricCandidates: ReadonlyArray<readonly [string, number | null]> = [
       ["subscribers", channel.statistics?.hiddenSubscriberCount ? null : numberValue(channel.statistics?.subscriberCount)],
       ["channel_views", numberValue(channel.statistics?.viewCount)],
       ["videos", numberValue(channel.statistics?.videoCount)],
@@ -242,7 +242,7 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
       ["average_view_duration_seconds_28d", analytics.values.averageViewDuration ?? null],
       ["subscribers_gained_28d", analytics.values.subscribersGained ?? null],
       ["subscribers_lost_28d", analytics.values.subscribersLost ?? null],
-    ] as const;
+    ];
     const metrics = metricCandidates
       .filter((entry): entry is readonly [string, number] => entry[1] !== null && Number.isFinite(entry[1]))
       .map(([metric, value]) => ({
