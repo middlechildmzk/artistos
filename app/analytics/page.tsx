@@ -75,7 +75,7 @@ export default async function AnalyticsPage() {
     supabase.from("oauth_connections").select("provider,account_email,last_success_at,last_error,expires_at,metadata").eq("workspace_id", workspaceId).eq("user_id", userData.user.id),
     supabase.from("artist_platform_profiles").select("id,platform_id,artist_name,connection_state,source_type,last_synced_at,freshness_status,profile_url").eq("workspace_id", workspaceId).order("last_synced_at", { ascending: false }),
     supabase.from("music_platforms").select("id,slug,name,category,priority").eq("active", true),
-    supabase.from("link_events").select("id,smart_link_id,fan_id,event_type,destination_service,utm_source,utm_medium,utm_campaign,country_code,occurred_at").eq("workspace_id", workspaceId).order("occurred_at", { ascending: false }).limit(5000),
+    supabase.from("link_events").select("id,smart_link_id,fan_id,event_type,destination_service,utm_source,utm_medium,utm_campaign,referrer,country_code,occurred_at").eq("workspace_id", workspaceId).order("occurred_at", { ascending: false }).limit(5000),
     supabase.from("smart_links").select("id,release_id,slug,headline,is_active,capture_email").eq("workspace_id", workspaceId),
     supabase.from("playlist_placements").select("id,release_id,platform_id,playlist_name,followers,track_position,added_at,removed_at,verification_state,risk_state,playlist_url").eq("workspace_id", workspaceId).order("added_at", { ascending: false }).limit(500),
     supabase.from("fans").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).is("archived_at", null),
@@ -103,7 +103,6 @@ export default async function AnalyticsPage() {
   const campaignById = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
   const releaseById = new Map(releases.map((release) => [release.id, release]));
   const platformById = new Map(platforms.map((platform) => [platform.id, platform]));
-  const smartLinkById = new Map(smartLinks.map((link) => [link.id, link]));
 
   const metricSeries = new Map<string, typeof metrics>();
   const latestMetricByPlatform = new Map<string, string>();
@@ -138,11 +137,9 @@ export default async function AnalyticsPage() {
   const fanSignups = linkEvents.filter((event) => event.event_type === "fan_signup").length;
   const destinations = new Map<string, number>();
   const acquisitionSources = new Map<string, number>();
-  const countries = new Map<string, number>();
   for (const event of linkEvents) {
     if (event.event_type === "destination_click") increment(destinations, event.destination_service);
     increment(acquisitionSources, event.utm_source || event.utm_campaign || event.referrer);
-    if (event.country_code) increment(countries, event.country_code);
   }
 
   const sourceHealth = platforms.map((platform) => {
