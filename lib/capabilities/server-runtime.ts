@@ -16,6 +16,7 @@ import "./planner-registry";
 import "./execution-registry";
 import "./operating-registry";
 import "./links-registry";
+import "./integrations-registry";
 import "./core-handlers";
 import "./campaign-handlers";
 import "./crm-release-handlers";
@@ -24,6 +25,8 @@ import "./planner-handlers";
 import "./execution-handlers";
 import "./operating-handlers";
 import "./links-handlers";
+import "./integrations-handlers";
+import "./google-connection-handler";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 0, contributor: 1, editor: 2, admin: 3, owner: 4 };
 
