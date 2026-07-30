@@ -5,6 +5,34 @@ import { defaultWriteRetry } from "./types";
 const uuid = z.string().uuid();
 const idempotencyKey = z.string().min(16);
 
+export const connectGoogleAccountCapability = registerCapability({
+  name: "integrations.connect_google_account",
+  version: 1,
+  kind: "command",
+  purpose: "Persist an explicitly authorized Google account using encrypted server-side OAuth credentials.",
+  input: z.object({
+    providerAccountId: z.string().trim().max(300).nullable().optional(),
+    accountEmail: z.string().email().nullable().optional(),
+    accessToken: z.string().min(20).max(20_000),
+    refreshToken: z.string().min(20).max(20_000),
+    tokenType: z.string().trim().min(1).max(80).default("Bearer"),
+    expiresAt: z.string().datetime(),
+    scopes: z.array(z.string().trim().min(1).max(500)).max(100),
+    emailVerified: z.boolean().nullable().optional(),
+    idempotencyKey,
+  }),
+  output: z.object({ connectionId: uuid, connected: z.literal(true) }),
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.integrations.write" },
+  risk: "R1_internal_reversible",
+  approval: "by_policy",
+  idempotency: "key_required",
+  evidence: "optional",
+  auditEvents: ["integrations.google_account_connected"],
+  retry: defaultWriteRetry,
+  mcp: "gated_write",
+  failureModes: ["user_context_required", "google_refresh_token_missing"],
+});
+
 export const savePlatformProfileCapability = registerCapability({
   name: "integrations.save_platform_profile",
   version: 1,
