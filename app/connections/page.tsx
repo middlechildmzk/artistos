@@ -15,6 +15,16 @@ function statusLabel(status: string | null | undefined) {
   return status.replace(/_/g, " ");
 }
 
+function configuredPublicOrigin() {
+  const value = process.env.ARTISTOS_PUBLIC_ORIGIN?.trim();
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -54,10 +64,12 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
     if (!latestMetricDate.has(metric.platform)) latestMetricDate.set(metric.platform, metric.captured_on);
   }
 
+  const publicOrigin = configuredPublicOrigin();
+  const googleConnectHref = publicOrigin ? `${publicOrigin}/api/integrations/google/connect` : "/api/integrations/google/connect";
   const google = oauthConnections.find((connection) => connection.provider === "google") ?? null;
   const googleTokenCurrent = isCurrentTokenEnvelope(google?.encrypted_access_token);
   const googleExpired = google?.expires_at ? new Date(google.expires_at).getTime() < Date.now() : true;
-  const googleConfigured = Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET && process.env.ARTISTOS_TOKEN_ENCRYPTION_KEY);
+  const googleConfigured = Boolean(publicOrigin && process.env.GOOGLE_OAUTH_CLIENT_ID && process.env.GOOGLE_OAUTH_CLIENT_SECRET && process.env.ARTISTOS_TOKEN_ENCRYPTION_KEY);
   const youtubeError = typeof google?.metadata?.youtube_error === "string" ? google.metadata.youtube_error : null;
   const corePlatforms = platforms.filter((platform) => platform.priority === "core");
   const otherPlatforms = platforms.filter((platform) => platform.priority !== "core");
@@ -104,13 +116,15 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
           <div className="row"><span>Account</span><strong>{google?.account_email ?? "No account"}</strong></div>
           <div className="row"><span>Last successful sync</span><strong>{formatDate(google?.last_success_at)}</strong></div>
           <div className="row"><span>Access token</span><span className="pill">{googleTokenCurrent ? (googleExpired ? "Refreshable" : "Current") : "Legacy / unavailable"}</span></div>
+          <div className="row"><span>Stable OAuth origin</span><strong>{publicOrigin ?? "Not configured"}</strong></div>
           <div className="row"><span>Server configuration</span><span className={`pill ${googleConfigured ? "" : "blocked"}`}>{googleConfigured ? "Ready" : "Missing environment keys"}</span></div>
           {youtubeError ? <div className="notice"><strong>YouTube API blocker</strong><p className="muted">{youtubeError}</p></div> : null}
           {google?.last_error ? <div className="notice"><strong>Last sync error</strong><p className="muted">{google.last_error}</p></div> : null}
           <div className="tag-row">
-            <Link className="button primary" href="/api/integrations/google/connect">{google ? "Reconnect Google + YouTube" : "Connect Google + YouTube"}</Link>
+            <Link className="button primary" href={googleConnectHref}>{google ? "Reconnect Google + YouTube" : "Connect Google + YouTube"}</Link>
             {google && googleTokenCurrent ? <form action={syncGoogleYouTube}><button className="button" type="submit">Sync YouTube now</button></form> : null}
           </div>
+          <p className="muted">OAuth always opens on the stable ArtistOS origin so the login session, CSRF state cookie, and Google callback stay on the same hostname across deployments.</p>
           <p className="muted">Google must have both the YouTube Data API v3 and YouTube Analytics API enabled. ArtistOS requests read-only YouTube scopes and stores tokens encrypted server-side.</p>
         </section>
 
