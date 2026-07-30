@@ -20,14 +20,18 @@ test("Google OAuth uses state, offline access, read-only scopes, and server-only
   const google = read("lib/integrations/google.ts");
   const connect = read("app/api/integrations/google/connect/route.ts");
   const callback = read("app/api/integrations/google/callback/route.ts");
+  const persistence = read("lib/capabilities/google-connection-handler.ts");
   assert.match(google, /access_type: "offline"/);
   assert.match(google, /youtube\.readonly/);
   assert.match(google, /yt-analytics\.readonly/);
   assert.match(connect, /artistos_google_oauth_state/);
   assert.match(connect, /httpOnly: true/);
   assert.match(callback, /state !== expectedState/);
-  assert.match(callback, /encryptIntegrationToken/);
-  for (const file of [google, connect, callback]) {
+  assert.match(callback, /invokeCapability/);
+  assert.match(callback, /integrations\.connect_google_account/);
+  assert.doesNotMatch(callback, /\.upsert\(|\.insert\(|\.update\(|\.delete\(/);
+  assert.match(persistence, /encryptIntegrationToken/);
+  for (const file of [google, connect, callback, persistence]) {
     assert.doesNotMatch(file, /NEXT_PUBLIC_GOOGLE|NEXT_PUBLIC_.*SECRET|NEXT_PUBLIC_.*ENCRYPTION/i);
   }
 });
@@ -44,8 +48,10 @@ test("integration tokens use an authenticated encryption envelope", () => {
 test("source writes run through audited idempotent capabilities", () => {
   const registry = read("lib/capabilities/integrations-registry.ts");
   const handlers = read("lib/capabilities/integrations-handlers.ts");
+  const connectionHandler = read("lib/capabilities/google-connection-handler.ts");
   const actions = read("app/connections/actions.ts");
   for (const capability of [
+    "integrations.connect_google_account",
     "integrations.save_platform_profile",
     "integrations.import_metric_snapshots",
     "integrations.sync_google_youtube",
@@ -55,9 +61,12 @@ test("source writes run through audited idempotent capabilities", () => {
   assert.match(registry, /idempotency: "key_required"/);
   assert.match(actions, /invokeCapability/);
   assert.match(handlers, /capability_idempotency/);
+  assert.match(connectionHandler, /capability_idempotency/);
   assert.match(handlers, /eq\("workspace_id", ctx\.workspaceId\)/);
+  assert.match(connectionHandler, /workspace_id: ctx\.workspaceId/);
   assert.doesNotMatch(actions, /service_role/i);
   assert.doesNotMatch(handlers, /service_role/i);
+  assert.doesNotMatch(connectionHandler, /service_role/i);
 });
 
 test("metric exports are bounded, idempotent, and create Proof receipts", () => {
