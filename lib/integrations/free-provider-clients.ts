@@ -73,8 +73,10 @@ export async function validateLastFmApiKey(apiKey: string) {
 }
 
 export async function fetchLastFmArtist(args: { apiKey: string; artistName?: string | null; musicBrainzId?: string | null }) {
-  const identityParams = args.musicBrainzId ? { mbid: args.musicBrainzId } : { artist: args.artistName ?? "" };
-  if (!identityParams.mbid && !identityParams.artist) throw new Error("lastfm_identity_required");
+  const identityParams: Record<string, string> = {};
+  if (args.musicBrainzId) identityParams.mbid = args.musicBrainzId;
+  else if (args.artistName) identityParams.artist = args.artistName;
+  else throw new Error("lastfm_identity_required");
   const [infoPayload, tracksPayload, similarPayload] = await Promise.all([
     getJson(lastFmUrl("artist.getInfo", args.apiKey, { ...identityParams, autocorrect: "0" }), "lastfm"),
     getJson(lastFmUrl("artist.getTopTracks", args.apiKey, { ...identityParams, autocorrect: "0", limit: "10", page: "1" }), "lastfm"),
