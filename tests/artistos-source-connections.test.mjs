@@ -11,6 +11,8 @@ test("Sources is a primary ArtistOS surface", () => {
   assert.match(dashboard, /href="\/connections"/);
   assert.match(sources, /Google \+ YouTube/);
   assert.match(sources, /Import artist-dashboard exports/);
+  assert.match(sources, /Soundcharts/);
+  assert.match(sources, /Kit/);
   assert.match(analytics, /Source health/);
   assert.match(analytics, /Owned audience and link conversion/);
   assert.match(analytics, /Campaign and placement impact/);
@@ -53,7 +55,9 @@ test("integration tokens use an authenticated encryption envelope", () => {
 
 test("source writes run through audited idempotent capabilities", () => {
   const registry = read("lib/capabilities/integrations-registry.ts");
+  const providerRegistry = read("lib/capabilities/provider-integrations-registry.ts");
   const handlers = read("lib/capabilities/integrations-handlers.ts");
+  const providerHandlers = read("lib/capabilities/provider-integrations-handlers.ts");
   const connectionHandler = read("lib/capabilities/google-connection-handler.ts");
   const actions = read("app/connections/actions.ts");
   for (const capability of [
@@ -64,15 +68,55 @@ test("source writes run through audited idempotent capabilities", () => {
   ]) {
     assert.match(registry, new RegExp(capability.replaceAll(".", "\\.")));
   }
+  for (const capability of [
+    "integrations.connect_api_provider",
+    "integrations.sync_kit",
+    "integrations.sync_soundcharts",
+  ]) {
+    assert.match(providerRegistry, new RegExp(capability.replaceAll(".", "\\.")));
+  }
   assert.match(registry, /idempotency: "key_required"/);
+  assert.match(providerRegistry, /idempotency: "key_required"/);
   assert.match(actions, /invokeCapability/);
   assert.match(handlers, /capability_idempotency/);
+  assert.match(providerHandlers, /capability_idempotency/);
   assert.match(connectionHandler, /capability_idempotency/);
   assert.match(handlers, /eq\("workspace_id", ctx\.workspaceId\)/);
+  assert.match(providerHandlers, /workspace_id: ctx\.workspaceId/);
   assert.match(connectionHandler, /workspace_id: ctx\.workspaceId/);
   assert.doesNotMatch(actions, /service_role/i);
   assert.doesNotMatch(handlers, /service_role/i);
+  assert.doesNotMatch(providerHandlers, /service_role/i);
   assert.doesNotMatch(connectionHandler, /service_role/i);
+});
+
+test("Soundcharts credentials are exchanged server-side and sync uses canonical Spotify identity", () => {
+  const clients = read("lib/integrations/provider-clients.ts");
+  const handlers = read("lib/capabilities/provider-integrations-handlers.ts");
+  const page = read("app/connections/page.tsx");
+  assert.match(clients, /account\.soundcharts\.com\/oauth\/token/);
+  assert.match(clients, /customer\.api\.soundcharts\.com/);
+  assert.match(clients, /by-platform\/spotify/);
+  assert.match(handlers, /spotify_profile_not_found/);
+  assert.match(handlers, /soundcharts_artist_sync/);
+  assert.match(handlers, /spotify_playlist_entries/);
+  assert.match(page, /Validate and save Soundcharts/);
+  assert.match(page, /Sync Soundcharts now/);
+  assert.doesNotMatch(page, /clientSecret\s*[:=]/);
+});
+
+test("Kit sync stores aggregate email metrics without raw subscriber records", () => {
+  const clients = read("lib/integrations/provider-clients.ts");
+  const handlers = read("lib/capabilities/provider-integrations-handlers.ts");
+  const page = read("app/connections/page.tsx");
+  assert.match(clients, /api\.kit\.com\/v4\/subscribers/);
+  assert.match(clients, /api\.kit\.com\/v4\/broadcasts\/stats/);
+  assert.match(handlers, /raw_subscriber_records_stored: false/);
+  for (const metric of ["subscribers_active", "broadcast_recipients", "emails_opened", "email_clicks", "email_open_rate"]) {
+    assert.match(handlers, new RegExp(`"${metric}"`));
+  }
+  assert.match(page, /Validate and save Kit/);
+  assert.match(page, /Sync Kit now/);
 });
 
 test("metric exports are bounded, idempotent, and create Proof receipts", () => {
@@ -109,10 +153,15 @@ test("YouTube sync writes source-visible channel and analytics metrics", () => {
   assert.match(handlers, /source_url: channelUrl/);
 });
 
-test("source catalog does not pretend Spotify public API provides private artist analytics", () => {
+test("source catalog is explicit about free, export, licensed, and constrained coverage", () => {
   const catalog = read("lib/integrations/source-catalog.ts");
   assert.match(catalog, /Spotify removed artist follower and popularity fields/);
   assert.match(catalog, /Streams and monthly listeners are not available from the public API/);
   assert.match(catalog, /DistroKid does not provide a general public analytics API/);
+  assert.match(catalog, /1,000 initial production requests/);
+  assert.match(catalog, /ListenBrainz/);
+  assert.match(catalog, /MusicBrainz/);
+  assert.match(catalog, /Ticketmaster Discovery/);
+  assert.match(catalog, /EUR 300 per month/);
   assert.match(catalog, /paid_key_required/);
 });
