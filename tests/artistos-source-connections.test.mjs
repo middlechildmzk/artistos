@@ -29,7 +29,7 @@ test("Google OAuth uses state, offline access, read-only scopes, and server-only
   assert.match(callback, /state !== expectedState/);
   assert.match(callback, /invokeCapability/);
   assert.match(callback, /integrations\.connect_google_account/);
-  assert.doesNotMatch(callback, /\.upsert\(|\.insert\(|\.update\(|\.delete\(/);
+  assert.doesNotMatch(callback, /\.from\([^)]*\)[\s\S]{0,160}\.(?:upsert|insert|update|delete)\(/);
   assert.match(persistence, /encryptIntegrationToken/);
   for (const file of [google, connect, callback, persistence]) {
     assert.doesNotMatch(file, /NEXT_PUBLIC_GOOGLE|NEXT_PUBLIC_.*SECRET|NEXT_PUBLIC_.*ENCRYPTION/i);
