@@ -29,7 +29,7 @@ async function writeReplay(args: {
   capabilityVersion: number;
   key: string;
   result: unknown;
-  userId?: string | null;
+  userId: string;
 }) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.from("capability_idempotency").insert({
@@ -39,9 +39,14 @@ async function writeReplay(args: {
     idempotency_key: args.key,
     input_hash: args.key,
     result: args.result,
-    created_by: args.userId ?? null,
+    created_by: args.userId,
   });
   if (error) throw error;
+}
+
+function requireUserId(value: string | null) {
+  if (!value) throw new Error("user_context_required");
+  return value;
 }
 
 function numberValue(value: string | number | undefined) {
@@ -49,7 +54,12 @@ function numberValue(value: string | number | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function metadataObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 registerCapabilityHandler(savePlatformProfileCapability, async ({ ctx, input, idempotencyKey }) => {
+  const userId = requireUserId(ctx.userId);
   const key = idempotencyKey ?? input.idempotencyKey;
   const replay = await readReplay(ctx.workspaceId, savePlatformProfileCapability.name, key);
   if (replay && typeof replay === "object" && "profileId" in replay) return { output: replay as any, evidenceIds: [] };
@@ -68,7 +78,7 @@ registerCapabilityHandler(savePlatformProfileCapability, async ({ ctx, input, id
     .from("artist_platform_profiles")
     .upsert({
       workspace_id: ctx.workspaceId,
-      owner_id: ctx.userId,
+      owner_id: userId,
       platform_id: platform.id,
       artist_name: artist.name,
       external_artist_id: input.externalArtistId ?? null,
@@ -85,11 +95,12 @@ registerCapabilityHandler(savePlatformProfileCapability, async ({ ctx, input, id
   if (error) throw error;
 
   const result = { profileId: data.id, saved: true };
-  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: savePlatformProfileCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
+  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: savePlatformProfileCapability.name, capabilityVersion: 1, key, result, userId });
   return { output: result, evidenceIds: [] };
 });
 
 registerCapabilityHandler(importMetricSnapshotsCapability, async ({ ctx, input, idempotencyKey }) => {
+  const userId = requireUserId(ctx.userId);
   const key = idempotencyKey ?? input.idempotencyKey;
   const replay = await readReplay(ctx.workspaceId, importMetricSnapshotsCapability.name, key);
   if (replay && typeof replay === "object" && "imported" in replay) return { output: replay as any, evidenceIds: [] };
@@ -139,7 +150,7 @@ registerCapabilityHandler(importMetricSnapshotsCapability, async ({ ctx, input, 
       summary: `Imported ${imported} metric rows from ${input.sourceName}.`,
       confidence: "supported",
       observed_at: new Date().toISOString(),
-      captured_by: ctx.userId,
+      captured_by: userId,
       metadata: { source_name: input.sourceName, imported_rows: imported },
       verification_status: "pending",
       verification_method: "source_export",
@@ -149,12 +160,13 @@ registerCapabilityHandler(importMetricSnapshotsCapability, async ({ ctx, input, 
     .single();
   if (evidenceError) throw evidenceError;
 
-  const result = { imported, skipped: input.rows.length - imported };
-  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: importMetricSnapshotsCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
+  const result = { imported, skipped: Math.max(input.rows.length - imported, 0) };
+  await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: importMetricSnapshotsCapability.name, capabilityVersion: 1, key, result, userId });
   return { output: result, evidenceIds: [evidence.id] };
 });
 
 registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idempotencyKey }) => {
+  const userId = requireUserId(ctx.userId);
   const key = idempotencyKey ?? input.idempotencyKey;
   const replay = await readReplay(ctx.workspaceId, syncGoogleYouTubeCapability.name, key);
   if (replay && typeof replay === "object" && "channelId" in replay) return { output: replay as any, evidenceIds: [] };
@@ -164,12 +176,13 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
     .from("oauth_connections")
     .select("id,encrypted_access_token,encrypted_refresh_token,expires_at,scopes,metadata")
     .eq("workspace_id", ctx.workspaceId)
-    .eq("user_id", ctx.userId)
+    .eq("user_id", userId)
     .eq("provider", "google")
     .maybeSingle();
   if (connectionError) throw connectionError;
   if (!connection) throw new Error("google_connection_not_found");
 
+  const connectionMetadata = metadataObject(connection.metadata);
   try {
     if (!connection.encrypted_refresh_token) throw new Error("google_refresh_token_missing");
     const refreshToken = decryptIntegrationToken(connection.encrypted_refresh_token);
@@ -191,20 +204,21 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
     const normalizedChannel = channelTitle.toLowerCase().replace(/[^a-z0-9]+/g, "");
     const canonicalArtist = (artistsResult.data ?? []).find((artist) => artist.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === normalizedChannel) ?? null;
     const channelUrl = `https://www.youtube.com/channel/${channel.id}`;
+    const syncedAt = new Date().toISOString();
 
     const { data: profile, error: profileError } = await supabase
       .from("artist_platform_profiles")
       .upsert({
         workspace_id: ctx.workspaceId,
-        owner_id: ctx.userId,
+        owner_id: userId,
         platform_id: youtubePlatformResult.data.id,
         artist_name: canonicalArtist?.name ?? channelTitle,
         external_artist_id: channel.id,
         profile_url: channelUrl,
         connection_state: "connected",
         source_type: "oauth",
-        last_synced_at: new Date().toISOString(),
-        last_verified_at: new Date().toISOString(),
+        last_synced_at: syncedAt,
+        last_verified_at: syncedAt,
         freshness_status: "current",
         metadata: {
           canonical_artist_id: canonicalArtist?.id ?? null,
@@ -212,7 +226,7 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
           custom_url: channel.snippet?.customUrl ?? null,
           hidden_subscriber_count: channel.statistics?.hiddenSubscriberCount ?? false,
         },
-        updated_at: new Date().toISOString(),
+        updated_at: syncedAt,
       }, { onConflict: "owner_id,platform_id,artist_name" })
       .select("id")
       .single();
@@ -249,9 +263,21 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
       if (error) throw error;
     }
 
+    const { error: clearSnapshotError } = await supabase
+      .from("music_metric_snapshots")
+      .delete()
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("owner_id", userId)
+      .eq("platform_id", youtubePlatformResult.data.id)
+      .eq("profile_id", profile.id)
+      .eq("metric_date", capturedOn)
+      .eq("source_type", "youtube_api")
+      .is("release_id", null);
+    if (clearSnapshotError) throw clearSnapshotError;
+
     const { error: musicSnapshotError } = await supabase.from("music_metric_snapshots").insert({
       workspace_id: ctx.workspaceId,
-      owner_id: ctx.userId,
+      owner_id: userId,
       platform_id: youtubePlatformResult.data.id,
       release_id: null,
       profile_id: profile.id,
@@ -260,13 +286,12 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
       source_reference: channelUrl,
       metrics: Object.fromEntries(metricCandidates.filter((entry) => entry[1] !== null)),
       confidence: 1,
-      retrieved_at: new Date().toISOString(),
+      retrieved_at: syncedAt,
     });
-    if (musicSnapshotError && musicSnapshotError.code !== "23505") throw musicSnapshotError;
+    if (musicSnapshotError) throw musicSnapshotError;
 
-    const syncedAt = new Date().toISOString();
     const metadata = {
-      ...(connection.metadata ?? {}),
+      ...connectionMetadata,
       youtube_channel_id: channel.id,
       youtube_channel_title: channelTitle,
       youtube_subscribers: channel.statistics?.hiddenSubscriberCount ? null : numberValue(channel.statistics?.subscriberCount),
@@ -292,19 +317,23 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
         updated_at: syncedAt,
       })
       .eq("id", connection.id)
-      .eq("user_id", ctx.userId);
+      .eq("user_id", userId);
     if (connectionUpdateError) throw connectionUpdateError;
 
     const result = { channelId: channel.id, channelTitle, metricCount: metrics.length, syncedAt };
-    await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: syncGoogleYouTubeCapability.name, capabilityVersion: 1, key, result, userId: ctx.userId });
+    await writeReplay({ workspaceId: ctx.workspaceId, capabilityName: syncGoogleYouTubeCapability.name, capabilityVersion: 1, key, result, userId });
     return { output: result, evidenceIds: [] };
   } catch (error) {
     const message = error instanceof Error ? error.message : "youtube_sync_failed";
     await supabase
       .from("oauth_connections")
-      .update({ last_error: message.slice(0, 2000), updated_at: new Date().toISOString(), metadata: { ...(connection.metadata ?? {}), last_sync_attempt_at: new Date().toISOString() } })
+      .update({
+        last_error: message.slice(0, 2000),
+        updated_at: new Date().toISOString(),
+        metadata: { ...connectionMetadata, last_sync_attempt_at: new Date().toISOString() },
+      })
       .eq("id", connection.id)
-      .eq("user_id", ctx.userId);
+      .eq("user_id", userId);
     throw error;
   }
 });
