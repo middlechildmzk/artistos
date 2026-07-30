@@ -117,3 +117,63 @@ export async function syncGoogleYouTube() {
   }
   redirect(`/connections?synced=youtube&metrics=${metricCount}`);
 }
+
+export async function connectApiProvider(formData: FormData) {
+  const provider = String(formData.get("provider") ?? "");
+  try {
+    if (!new Set(["soundcharts", "kit"]).has(provider)) throw new Error("unsupported_api_provider");
+    const primarySecret = String(formData.get("primarySecret") ?? "").trim();
+    const secondarySecret = String(formData.get("secondarySecret") ?? "").trim() || null;
+    const teamId = String(formData.get("teamId") ?? "").trim() || null;
+    const accountLabel = String(formData.get("accountLabel") ?? "").trim() || null;
+    if (!primarySecret) throw new Error("provider_primary_secret_required");
+    await invokeSourceCapability(
+      "integrations.connect_api_provider",
+      { provider, primarySecret, secondarySecret, teamId, accountLabel },
+      `provider-connect:${provider}:${randomUUID()}`,
+    );
+    revalidatePath("/connections");
+    revalidatePath("/analytics");
+  } catch (error) {
+    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+  }
+  redirect(`/connections?connected=${encodeURIComponent(provider)}`);
+}
+
+export async function syncKit() {
+  let metricCount = 0;
+  try {
+    const output = await invokeSourceCapability(
+      "integrations.sync_kit",
+      {},
+      `kit-sync:${new Date().toISOString()}:${randomUUID()}`,
+    ) as { metricCount?: number };
+    metricCount = output.metricCount ?? 0;
+    revalidatePath("/connections");
+    revalidatePath("/analytics");
+    revalidatePath("/proof");
+  } catch (error) {
+    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+  }
+  redirect(`/connections?synced=kit&metrics=${metricCount}`);
+}
+
+export async function syncSoundcharts(formData: FormData) {
+  let metricCount = 0;
+  try {
+    const artistId = String(formData.get("artistId") ?? "");
+    if (!artistId) throw new Error("artist_required");
+    const output = await invokeSourceCapability(
+      "integrations.sync_soundcharts",
+      { artistId },
+      `soundcharts-sync:${artistId}:${new Date().toISOString()}:${randomUUID()}`,
+    ) as { metricCount?: number };
+    metricCount = output.metricCount ?? 0;
+    revalidatePath("/connections");
+    revalidatePath("/analytics");
+    revalidatePath("/proof");
+  } catch (error) {
+    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+  }
+  redirect(`/connections?synced=soundcharts&metrics=${metricCount}`);
+}
