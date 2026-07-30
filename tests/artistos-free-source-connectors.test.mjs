@@ -47,7 +47,9 @@ test("provider keys are encrypted and never rendered back", () => {
   const page = read("app/connections/free-source-panels.tsx");
   assert.match(handlers, /encryptIntegrationToken\(input\.apiKey\)/);
   assert.match(handlers, /decryptIntegrationToken\(connection\.encrypted_access_token\)/);
-  assert.doesNotMatch(page, /encrypted_access_token/);
+  assert.match(page, /isCurrentTokenEnvelope\(lastFm\?\.encrypted_access_token\)/);
+  assert.doesNotMatch(page, /value=\{[^}]*encrypted_access_token/);
+  assert.doesNotMatch(page, />\{[^}]*encrypted_access_token/);
   assert.match(page, /type="password"/);
   assert.match(page, /ARTISTOS_TOKEN_ENCRYPTION_KEY/);
 });
