@@ -32,6 +32,12 @@ async function invokeSourceCapability(name: string, input: Record<string, unknow
   throw new Error(`${result.error.code}:${result.error.message}`);
 }
 
+function refreshSourceViews() {
+  revalidatePath("/connections");
+  revalidatePath("/analytics");
+  revalidatePath("/proof");
+}
+
 export async function savePlatformProfile(formData: FormData) {
   try {
     const artistId = String(formData.get("artistId") ?? "");
@@ -92,9 +98,7 @@ export async function importMetricCsv(formData: FormData) {
       `metric-import:${digest}`,
     ) as { imported?: number };
     imported = output.imported ?? rows.length;
-    revalidatePath("/connections");
-    revalidatePath("/analytics");
-    revalidatePath("/proof");
+    refreshSourceViews();
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
@@ -149,9 +153,7 @@ export async function syncKit() {
       `kit-sync:${new Date().toISOString()}:${randomUUID()}`,
     ) as { metricCount?: number };
     metricCount = output.metricCount ?? 0;
-    revalidatePath("/connections");
-    revalidatePath("/analytics");
-    revalidatePath("/proof");
+    refreshSourceViews();
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
@@ -169,11 +171,80 @@ export async function syncSoundcharts(formData: FormData) {
       `soundcharts-sync:${artistId}:${new Date().toISOString()}:${randomUUID()}`,
     ) as { metricCount?: number };
     metricCount = output.metricCount ?? 0;
-    revalidatePath("/connections");
-    revalidatePath("/analytics");
-    revalidatePath("/proof");
+    refreshSourceViews();
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
   redirect(`/connections?synced=soundcharts&metrics=${metricCount}`);
+}
+
+export async function saveExternalArtistIdentity(formData: FormData) {
+  const provider = String(formData.get("provider") ?? "");
+  try {
+    if (!new Set(["musicbrainz", "listenbrainz", "lastfm", "ticketmaster"]).has(provider)) throw new Error("unsupported_identity_provider");
+    const artistId = String(formData.get("artistId") ?? "");
+    const externalId = String(formData.get("externalId") ?? "").trim();
+    const displayName = String(formData.get("displayName") ?? "").trim() || null;
+    const profileUrl = String(formData.get("profileUrl") ?? "").trim() || null;
+    if (!artistId || !externalId) throw new Error("external_identity_required");
+    await invokeSourceCapability(
+      "integrations.save_external_artist_identity",
+      { artistId, provider, externalId, displayName, profileUrl },
+      `external-identity:${artistId}:${provider}:${randomUUID()}`,
+    );
+    refreshSourceViews();
+  } catch (error) {
+    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+  }
+  redirect(`/connections?saved=${encodeURIComponent(provider)}`);
+}
+
+export async function connectFreeApiProvider(formData: FormData) {
+  const provider = String(formData.get("provider") ?? "");
+  try {
+    if (!new Set(["lastfm", "ticketmaster"]).has(provider)) throw new Error("unsupported_free_api_provider");
+    const apiKey = String(formData.get("apiKey") ?? "").trim();
+    const accountLabel = String(formData.get("accountLabel") ?? "").trim() || null;
+    if (!apiKey) throw new Error("provider_api_key_required");
+    await invokeSourceCapability(
+      "integrations.connect_free_api_provider",
+      { provider, apiKey, accountLabel },
+      `free-provider-connect:${provider}:${randomUUID()}`,
+    );
+    revalidatePath("/connections");
+    revalidatePath("/analytics");
+  } catch (error) {
+    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+  }
+  redirect(`/connections?connected=${encodeURIComponent(provider)}`);
+}
+
+async function syncArtistSource(formData: FormData, capability: string, source: string) {
+  let metricCount = 0;
+  try {
+    const artistId = String(formData.get("artistId") ?? "");
+    if (!artistId) throw new Error("artist_required");
+    const output = await invokeSourceCapability(
+      capability,
+      { artistId },
+      `${source}-sync:${artistId}:${new Date().toISOString()}:${randomUUID()}`,
+    ) as { metricCount?: number };
+    metricCount = output.metricCount ?? 0;
+    refreshSourceViews();
+  } catch (error) {
+    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+  }
+  redirect(`/connections?synced=${encodeURIComponent(source)}&metrics=${metricCount}`);
+}
+
+export async function syncLastFm(formData: FormData) {
+  return syncArtistSource(formData, "integrations.sync_lastfm", "lastfm");
+}
+
+export async function syncListenBrainz(formData: FormData) {
+  return syncArtistSource(formData, "integrations.sync_listenbrainz", "listenbrainz");
+}
+
+export async function syncTicketmaster(formData: FormData) {
+  return syncArtistSource(formData, "integrations.sync_ticketmaster", "ticketmaster");
 }
