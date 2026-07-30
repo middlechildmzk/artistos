@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { invokeCapability } from "@/lib/capabilities/invoke";
+import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { encryptIntegrationToken } from "@/lib/integrations/token-crypto";
 import { exchangeGoogleAuthorizationCode, getGoogleUserInfo } from "@/lib/integrations/google";
 
 function redirectWithError(request: NextRequest, error: unknown) {
@@ -25,52 +27,35 @@ export async function GET(request: NextRequest) {
   if (authError || !auth.user) return NextResponse.redirect(new URL("/login", request.url));
 
   try {
-    const { data: membership, error: membershipError } = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", auth.user.id)
-      .limit(1)
-      .maybeSingle();
-    if (membershipError) throw membershipError;
-    if (!membership) throw new Error("workspace_not_found");
-
     const token = await exchangeGoogleAuthorizationCode(request.nextUrl.origin, code);
-    const userInfo = await getGoogleUserInfo(token.access_token as string);
-    const { data: existing, error: existingError } = await supabase
-      .from("oauth_connections")
-      .select("metadata,encrypted_refresh_token")
-      .eq("user_id", auth.user.id)
-      .eq("provider", "google")
-      .maybeSingle();
-    if (existingError) throw existingError;
-
+    const accessToken = token.access_token;
     const refreshToken = token.refresh_token;
+    if (!accessToken) throw new Error("google_access_token_missing");
     if (!refreshToken) throw new Error("google_refresh_token_missing_reconnect_with_consent");
+    const userInfo = await getGoogleUserInfo(accessToken);
     const expiresAt = new Date(Date.now() + (token.expires_in ?? 3600) * 1000).toISOString();
-    const metadata = {
-      ...(existing?.metadata ?? {}),
-      email_verified: userInfo.email_verified ?? null,
-      connection_status: "connected_pending_sync",
-      reconnected_at: new Date().toISOString(),
-      youtube_error: null,
-    };
-
-    const { error: upsertError } = await supabase.from("oauth_connections").upsert({
-      workspace_id: membership.workspace_id,
-      user_id: auth.user.id,
-      provider: "google",
-      provider_account_id: userInfo.sub ?? null,
-      account_email: userInfo.email ?? auth.user.email ?? null,
-      encrypted_access_token: encryptIntegrationToken(token.access_token as string),
-      encrypted_refresh_token: encryptIntegrationToken(refreshToken),
-      token_type: token.token_type ?? "Bearer",
-      expires_at: expiresAt,
-      scopes: token.scope?.split(" ").filter(Boolean) ?? [],
-      metadata,
-      last_error: null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,provider" });
-    if (upsertError) throw upsertError;
+    const idempotencyKey = `google-connect:${createHash("sha256").update(code).digest("hex")}`;
+    const ctx = await createActorContext();
+    const result = await invokeCapability({
+      name: "integrations.connect_google_account",
+      ctx,
+      input: {
+        providerAccountId: userInfo.sub ?? null,
+        accountEmail: userInfo.email ?? auth.user.email ?? null,
+        accessToken,
+        refreshToken,
+        tokenType: token.token_type ?? "Bearer",
+        expiresAt,
+        scopes: token.scope?.split(" ").filter(Boolean) ?? [],
+        emailVerified: userInfo.email_verified ?? null,
+        idempotencyKey,
+      },
+      idempotencyKey,
+      dependencies: createServerInvocationDependencies(),
+    });
+    if (result.status === "requires_approval") throw new Error(`approval_required:${result.approvalId}`);
+    if (result.status === "denied") throw new Error(`capability_denied:${result.policy}:${result.reason}`);
+    if (result.status === "failed") throw new Error(`${result.error.code}:${result.error.message}`);
 
     const response = NextResponse.redirect(new URL("/connections?connected=google", request.url));
     response.cookies.delete("artistos_google_oauth_state");
