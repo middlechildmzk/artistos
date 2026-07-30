@@ -5,7 +5,6 @@ import { decryptIntegrationToken, encryptIntegrationToken } from "@/lib/integrat
 import {
   collectionSize,
   fetchKitAggregateMetrics,
-  kitGet,
   latestNumericObservation,
   requestSoundchartsAccessToken,
   resolveSoundchartsArtistBySpotifyId,
@@ -101,6 +100,51 @@ async function insertEvidence(args: {
   return data.id as string;
 }
 
+async function replaceWorkspaceProviderMetrics(args: {
+  workspaceId: string;
+  platform: string;
+  capturedOn: string;
+  rows: Array<Record<string, unknown>>;
+}) {
+  const supabase = await createSupabaseServerClient();
+  const { error: deleteError } = await supabase.from("metric_snapshots")
+    .delete()
+    .eq("workspace_id", args.workspaceId)
+    .eq("platform", args.platform)
+    .eq("captured_on", args.capturedOn)
+    .is("artist_id", null)
+    .is("release_id", null);
+  if (deleteError) throw deleteError;
+  if (!args.rows.length) return;
+  const { error: insertError } = await supabase.from("metric_snapshots").insert(args.rows);
+  if (insertError) throw insertError;
+}
+
+async function replaceArtistProviderMetrics(args: {
+  workspaceId: string;
+  artistId: string;
+  platform: string;
+  rows: Array<Record<string, unknown>>;
+}) {
+  const supabase = await createSupabaseServerClient();
+  for (const row of args.rows) {
+    const metric = String(row.metric ?? "");
+    const capturedOn = String(row.captured_on ?? "");
+    const { error: deleteError } = await supabase.from("metric_snapshots")
+      .delete()
+      .eq("workspace_id", args.workspaceId)
+      .eq("artist_id", args.artistId)
+      .is("release_id", null)
+      .eq("platform", args.platform)
+      .eq("metric", metric)
+      .eq("captured_on", capturedOn);
+    if (deleteError) throw deleteError;
+  }
+  if (!args.rows.length) return;
+  const { error: insertError } = await supabase.from("metric_snapshots").insert(args.rows);
+  if (insertError) throw insertError;
+}
+
 registerCapabilityHandler(connectApiProviderCapability, async ({ ctx, input, idempotencyKey }) => {
   const userId = requireUserId(ctx.userId);
   const key = idempotencyKey ?? input.idempotencyKey;
@@ -185,8 +229,7 @@ registerCapabilityHandler(syncKitCapability, async ({ ctx, input, idempotencyKey
     ["email_open_rate", aggregate.openRate],
     ["email_click_rate", aggregate.clickRate],
   ] as const;
-
-  const { error: metricsError } = await supabase.from("metric_snapshots").upsert(metrics.map(([metric, value]) => ({
+  const metricRows = metrics.map(([metric, value]) => ({
     workspace_id: ctx.workspaceId,
     artist_id: null,
     release_id: null,
@@ -195,8 +238,8 @@ registerCapabilityHandler(syncKitCapability, async ({ ctx, input, idempotencyKey
     value,
     captured_on: capturedOn,
     source_url: "https://api.kit.com/v4",
-  })), { onConflict: "workspace_id,artist_id,release_id,platform,metric,captured_on" });
-  if (metricsError) throw metricsError;
+  }));
+  await replaceWorkspaceProviderMetrics({ workspaceId: ctx.workspaceId, platform: "kit", capturedOn, rows: metricRows });
 
   const evidenceId = await insertEvidence({
     workspaceId: ctx.workspaceId,
@@ -298,11 +341,7 @@ registerCapabilityHandler(syncSoundchartsCapability, async ({ ctx, input, idempo
       source_url: `https://customer.api.soundcharts.com${result.value.path}`,
     });
   }
-
-  if (metricRows.length) {
-    const { error: metricsError } = await supabase.from("metric_snapshots").upsert(metricRows, { onConflict: "workspace_id,artist_id,release_id,platform,metric,captured_on" });
-    if (metricsError) throw metricsError;
-  }
+  await replaceArtistProviderMetrics({ workspaceId: ctx.workspaceId, artistId: input.artistId, platform: "soundcharts", rows: metricRows });
 
   const syncedAt = new Date().toISOString();
   const connectionMetadata = asObject(connection.metadata);
