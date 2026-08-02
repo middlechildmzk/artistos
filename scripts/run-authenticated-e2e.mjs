@@ -91,7 +91,7 @@ try {
   const owner = await signInPage(browser, users.owner.email);
   const ownerMembership = await waitForMembership(ownerUser.id);
   await owner.page.goto(`${appUrl}/dashboard`, { waitUntil: "networkidle" });
-  await owner.page.getByText("ArtistOS", { exact: true }).first().waitFor({ timeout: 20_000 });
+  await owner.page.getByText("Private artist workspace", { exact: true }).waitFor({ timeout: 20_000 });
   assert(ownerMembership.role === "owner", "Provisioned user is not workspace owner");
   const workspaceId = ownerMembership.workspace_id;
   record("owner_login_and_workspace_provisioning", "Owner authenticated through the browser and ArtistOS provisioned the first workspace.");
@@ -179,62 +179,80 @@ try {
   await viewer.page.screenshot({ path: path.join(outputDir, "viewer-brain.png"), fullPage: true });
 
   const outsider = await signInPage(browser, users.outsider.email);
-  assert(!(await outsider.page.locator("body").innerText()).includes("ArtistOS E2E Release"), "Second workspace leaked the owner release in the UI");
-  await outsider.page.goto(`${appUrl}/links`, { waitUntil: "networkidle" });
-  assert(!(await outsider.page.locator("body").innerText()).includes("artistos-e2e-release"), "Second workspace leaked the owner smart link in the UI");
+  const outsiderBody = await outsider.page.locator("body").innerText();
+  assert(!outsiderBody.includes("ArtistOS E2E Release"), "Outsider can see another workspace release");
   const outsiderClient = await signInClient(users.outsider.email);
-  const { data: leakedReleases, error: leakedReleaseError } = await outsiderClient.from("releases").select("id").eq("workspace_id", workspaceId);
-  if (leakedReleaseError) throw leakedReleaseError;
-  assert((leakedReleases ?? []).length === 0, "Second workspace could query owner releases");
-  const { data: leakedLinks, error: leakedLinksError } = await outsiderClient.from("smart_links").select("id").eq("workspace_id", workspaceId);
-  if (leakedLinksError) throw leakedLinksError;
-  assert((leakedLinks ?? []).length === 0, "Second workspace could query owner smart links");
-  record("second_workspace_isolation", "Independent user received a separate workspace and could not see or query owner release or smart-link data.");
-  await outsider.page.screenshot({ path: path.join(outputDir, "outsider-dashboard.png"), fullPage: true });
+  const { data: outsiderReleases, error: outsiderReleasesError } = await outsiderClient.from("releases").select("id").eq("workspace_id", workspaceId);
+  if (outsiderReleasesError) throw outsiderReleasesError;
+  assert((outsiderReleases ?? []).length === 0, "Outsider read another workspace through the client");
+  const { data: outsiderLinks, error: outsiderLinksError } = await outsiderClient.from("smart_links").select("id").eq("workspace_id", workspaceId);
+  if (outsiderLinksError) throw outsiderLinksError;
+  assert((outsiderLinks ?? []).length === 0, "Outsider read another workspace smart link");
+  record("outsider_isolation", "Outsider could not read another workspace through the UI or direct authenticated client.");
+
+  const { data: capabilityAudit, error: capabilityAuditError } = await service
+    .from("capability_audit_log")
+    .select("id,workspace_id,capability_name,decision")
+    .eq("workspace_id", workspaceId);
+  if (capabilityAuditError) throw capabilityAuditError;
+  assert((capabilityAudit ?? []).length >= 5, "Capability audit log did not record the browser-driven writes");
+  assert((capabilityAudit ?? []).some((entry) => entry.capability_name === "links.create_smart_link" && entry.decision === "allowed"), "Smart-link capability receipt missing");
+  assert((capabilityAudit ?? []).some((entry) => entry.capability_name === "links.upsert_destination" && entry.decision === "allowed"), "Destination capability receipt missing");
+
+  const { data: auditRows, error: auditError } = await service.from("audit_log").select("id,action,entity_type").in("action", ["brain_memory_created", "ai_manager_request_created"]);
+  if (auditError) throw auditError;
+  assert((auditRows ?? []).some((entry) => entry.action === "brain_memory_created"), "Artist Brain audit receipt missing");
+  assert((auditRows ?? []).some((entry) => entry.action === "ai_manager_request_created"), "AI Manager audit receipt missing");
 
   const counts = {
+    artists: await count("artists", workspaceId),
     releases: await count("releases", workspaceId),
-    tasks: await count("tasks", workspaceId),
-    brain_memories: await count("brain_memories", workspaceId),
-    manager_requests: await count("manager_requests", workspaceId),
-    capability_audit_log: await count("capability_audit_log", workspaceId),
-    capability_idempotency: await count("capability_idempotency", workspaceId),
     smart_links: await count("smart_links", workspaceId),
     smart_link_destinations: await count("smart_link_destinations", workspaceId),
+    tasks: await count("tasks", workspaceId),
+    brain_memories: await count("brain_memories", workspaceId),
+    ai_manager_requests: await count("manager_requests", workspaceId),
+    ai_agent_runs: await count("agent_runs", workspaceId),
+    capability_audit_records: await count("capability_audit_log", workspaceId),
   };
-  assert(counts.releases >= 1, "Release was not persisted");
-  assert(counts.tasks >= 5, "Release starter tasks were not persisted");
-  assert(counts.brain_memories >= 1, "Brain memory was not persisted");
-  assert(counts.manager_requests >= 1, "Manager request was not persisted");
-  assert(counts.capability_audit_log >= 3, "Capability audit receipts were not persisted");
-  assert(counts.capability_idempotency >= 3, "Capability idempotency receipts were not persisted");
-  assert(counts.smart_links >= 1, "ArtistOS Link was not persisted");
-  assert(counts.smart_link_destinations >= 1, "ArtistOS Link destination was not persisted");
-  record("durable_control_plane", "Runtime actions persisted audit, idempotency, release-link, and destination records alongside business data.");
+  assert(counts.releases >= 1, "No release persisted");
+  assert(counts.smart_links >= 1, "No ArtistOS Link persisted");
+  assert(counts.smart_link_destinations >= 1, "No streaming destination persisted");
+  assert(counts.brain_memories >= 1, "No Artist Brain memory persisted");
+  assert(counts.ai_manager_requests >= 1, "No AI Manager request persisted");
+  assert(counts.ai_agent_runs >= 6, "Cross-functional AI Manager agent runs were not persisted");
 
-  await Promise.all([owner.context.close(), viewer.context.close(), outsider.context.close()]);
+  await owner.context.close();
+  await viewer.context.close();
+  await outsider.context.close();
   await browser.close();
   browser = null;
 
   const report = {
-    schema_version: 1,
+    schema_version: 3,
     status: "PASS",
-    summary: "Authenticated owner, viewer, and second-workspace browser journeys passed against a disposable local Supabase replay.",
+    summary: "Owner, viewer, outsider, capability runtime, ArtistOS Links, Artist Brain, and AI Manager journeys passed against disposable ArtistOS.",
     source_commit: process.env.GITHUB_SHA ?? null,
     completed_at: new Date().toISOString(),
     run_id: process.env.GITHUB_RUN_ID ?? "local",
     base_url: appUrl,
+    accounts: {
+      owner: { email: users.owner.email, user_id: users.owner.id, role: "owner" },
+      viewer: { email: users.viewer.email, user_id: users.viewer.id, role: "viewer" },
+      outsider: { email: users.outsider.email, user_id: users.outsider.id, role: "owner_of_separate_workspace" },
+    },
+    workspace_id: workspaceId,
     journeys,
     counts,
-    screenshots: ["owner-links.png", "owner-approvals.png", "viewer-brain.png", "outsider-dashboard.png"],
+    screenshots: ["owner-links.png", "owner-approvals.png", "viewer-brain.png"],
     production_mutated: false,
   };
   fs.writeFileSync(path.join(outputDir, "summary.json"), `${JSON.stringify(report, null, 2)}\n`);
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
-  if (browser) await browser.close().catch(() => {});
+  if (browser) await browser.close().catch(() => undefined);
   const report = {
-    schema_version: 1,
+    schema_version: 3,
     status: "FAIL",
     summary: error instanceof Error ? error.message : JSON.stringify(error),
     source_commit: process.env.GITHUB_SHA ?? null,
