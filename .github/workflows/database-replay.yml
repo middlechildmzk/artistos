@@ -191,22 +191,25 @@ jobs:
             artifacts/schema-drift/summary.json
             artifacts/schema-drift/summary.txt
 
-      - name: Enforce atomic verification result
+      - name: Enforce durable verification evidence
         if: always() && !cancelled()
         shell: bash
         run: |
-          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
-            echo "Isolated database verification failed. Review the uploaded diagnostics." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.e2e.outputs.status }}" != "0" ]]; then
-            echo "Authenticated ArtistOS E2E failed. Review the uploaded diagnostics." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.contracts.outputs.status }}" != "0" ]]; then
-            echo "Source-bound release evidence validation failed." >&2
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const replay = read('artifacts/release-readiness/local-db-replay.json');
+          const e2e = read('artifacts/authenticated-e2e/summary.json');
+          const readiness = read('artifacts/release-readiness/report.json');
+          if (replay.result !== 'PASS') throw new Error(`Database replay evidence is ${replay.result}`);
+          if (replay.source_commit !== process.env.RELEASE_SOURCE_SHA) throw new Error('Database replay evidence is bound to a different commit');
+          if (e2e.status !== 'PASS') throw new Error(`Authenticated E2E evidence is ${e2e.status}: ${e2e.summary}`);
+          if (e2e.source_commit !== process.env.RELEASE_SOURCE_SHA) throw new Error('Authenticated E2E evidence is bound to a different commit');
+          if (readiness.overall !== 'GO') throw new Error(`Release readiness is ${readiness.overall}`);
+          if (readiness.git_sha !== process.env.RELEASE_SOURCE_SHA) throw new Error('Readiness evidence is bound to a different commit');
+          console.log('Durable replay, authenticated E2E, and readiness evidence are PASS and source-bound.');
+          NODE
+          test "${{ steps.contracts.outputs.status }}" = "0"
 
       - name: Clean up local services
         if: always()
