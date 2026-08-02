@@ -65,3 +65,43 @@ export const syncSoundchartsCapability = registerCapability({
   mcp: "gated_write",
   failureModes: ["soundcharts_connection_not_found", "spotify_profile_not_found", "soundcharts_artist_not_found", "soundcharts_request_failed"],
 });
+
+export const connectSpotOnTrackCapability = registerCapability({
+  name: "integrations.connect_spotontrack",
+  version: 1,
+  kind: "command",
+  purpose: "Validate and store an encrypted Spotontrack read-only API key.",
+  input: z.object({
+    apiKey: z.string().trim().min(8).max(20_000),
+    accountLabel: z.string().trim().max(300).nullable().optional(),
+    idempotencyKey,
+  }),
+  output: z.object({ provider: z.literal("spotontrack"), connectionId: uuid, connected: z.literal(true) }),
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.integrations.write" },
+  risk: "R1_internal_reversible",
+  approval: "by_policy",
+  idempotency: "key_required",
+  evidence: "optional",
+  auditEvents: ["integrations.spotontrack_connected"],
+  retry: defaultWriteRetry,
+  mcp: "gated_write",
+  failureModes: ["user_context_required", "spotontrack_credentials_invalid", "spotontrack_request_failed"],
+});
+
+export const syncSpotOnTrackCapability = registerCapability({
+  name: "integrations.sync_spotontrack",
+  version: 1,
+  kind: "command",
+  purpose: "Ingest ISRC-matched track streams, Shazams, playlist reach, and chart observations from Spotontrack.",
+  input: z.object({ releaseId: uuid, idempotencyKey }),
+  output: z.object({ releaseId: uuid, isrc: z.string().min(8), metricCount: z.number().int().nonnegative(), playlistEntries: z.number().int().nonnegative(), syncedAt: z.string().datetime() }),
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.analytics.write" },
+  risk: "R1_internal_reversible",
+  approval: "by_policy",
+  idempotency: "key_required",
+  evidence: "optional",
+  auditEvents: ["integrations.spotontrack_synced"],
+  retry: defaultWriteRetry,
+  mcp: "gated_write",
+  failureModes: ["spotontrack_connection_not_found", "release_not_found", "release_isrc_required", "spotontrack_request_failed"],
+});

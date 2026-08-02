@@ -30,6 +30,7 @@ import "./links-handlers";
 import "./integrations-handlers";
 import "./google-connection-handler";
 import "./provider-integrations-handlers";
+import "./spotontrack-handlers";
 import "./free-source-handlers";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 0, contributor: 1, editor: 2, admin: 3, owner: 4 };

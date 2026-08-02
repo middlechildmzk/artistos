@@ -86,6 +86,18 @@ export async function soundchartsGet(path: string, accessToken: string) {
   }, "soundcharts_request_failed");
 }
 
+export async function spotOnTrackGet(path: string, apiKey: string) {
+  return fetchJson(`https://www.spotontrack.com/api/v1${path}`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+  }, "spotontrack_request_failed");
+}
+
+export async function validateSpotOnTrackApiKey(apiKey: string) {
+  const payload = await spotOnTrackGet(`/tracks?${new URLSearchParams({ query: "artistos-credential-check" }).toString()}`, apiKey);
+  if (!Array.isArray(payload)) throw new ProviderApiError("Spotontrack credential validation returned an unexpected response", { code: "spotontrack_validation_failed" });
+  return { requestAccepted: true, resultCount: payload.length };
+}
+
 function findStringByKey(value: unknown, keys: Set<string>): string | null {
   if (Array.isArray(value)) {
     for (const item of value) {
