@@ -196,8 +196,8 @@ try {
     .eq("workspace_id", workspaceId);
   if (capabilityAuditError) throw capabilityAuditError;
   assert((capabilityAudit ?? []).length >= 5, "Capability audit log did not record the browser-driven writes");
-  assert((capabilityAudit ?? []).some((entry) => entry.capability_name === "links.create_smart_link" && entry.decision === "allowed"), "Smart-link capability receipt missing");
-  assert((capabilityAudit ?? []).some((entry) => entry.capability_name === "links.upsert_destination" && entry.decision === "allowed"), "Destination capability receipt missing");
+  assert((capabilityAudit ?? []).some((entry) => entry.capability_name === "links.save" && entry.decision === "allowed"), "Smart-link capability receipt missing");
+  assert((capabilityAudit ?? []).some((entry) => entry.capability_name === "links.save_destination" && entry.decision === "allowed"), "Destination capability receipt missing");
 
   const { data: auditRows, error: auditError } = await service.from("audit_log").select("id,action,entity_type").in("action", ["brain_memory_created", "ai_manager_request_created"]);
   if (auditError) throw auditError;
