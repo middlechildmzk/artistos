@@ -32,12 +32,14 @@ export async function connectSpotOnTrack(formData: FormData) {
 }
 
 export async function syncSpotOnTrack(formData: FormData) {
+  let metricCount = 0;
   try {
     const releaseId = String(formData.get("releaseId") ?? "");
     if (!releaseId) throw new Error("release_required");
     const output = await invoke("integrations.sync_spotontrack", { releaseId }, `spotontrack-sync:${releaseId}:${new Date().toISOString()}:${randomUUID()}`) as { metricCount?: number };
-    redirect(`/connections/spotontrack?synced=1&metrics=${output.metricCount ?? 0}`);
+    metricCount = output.metricCount ?? 0;
   } catch (error) {
     redirect(`/connections/spotontrack?error=${encodeURIComponent(safeError(error))}`);
   }
+  redirect(`/connections/spotontrack?synced=1&metrics=${metricCount}`);
 }
