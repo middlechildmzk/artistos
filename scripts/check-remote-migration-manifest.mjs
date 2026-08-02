@@ -22,6 +22,7 @@ if (manifest.project_ref !== "myrtdfyjoxvtubusrrmf") {
 
 const manifestVersions = manifest.migrations.map((item) => String(item.version));
 const duplicateManifestVersions = manifestVersions.filter((version, index) => manifestVersions.indexOf(version) !== index);
+const latestReviewedVersion = [...manifestVersions].sort().at(-1) ?? "";
 const entries = (await readdir(migrationsDir)).filter((name) => name.endsWith(".sql"));
 const localByVersion = new Map();
 const malformed = [];
@@ -61,15 +62,18 @@ for (const expected of manifest.migrations) {
 }
 
 const expectedVersions = new Set(manifestVersions);
-const pending = [...localByVersion.values()].filter((item) => !expectedVersions.has(item.version));
+const unreviewed = [...localByVersion.values()].filter((item) => !expectedVersions.has(item.version));
+const pending = unreviewed.filter((item) => item.version > latestReviewedVersion);
+const interleaved = unreviewed.filter((item) => item.version <= latestReviewedVersion);
 const line = "─".repeat(72);
 
 console.log(line);
 console.log("ArtistOS authoritative migration-manifest gate");
 console.log(line);
-console.log(`manifest history : ${manifest.migrations.length}`);
-console.log(`local migrations : ${localByVersion.size}`);
-console.log(`unreconciled local migrations: ${pending.length}`);
+console.log(`reviewed live history : ${manifest.migrations.length}`);
+console.log(`local migrations      : ${localByVersion.size}`);
+console.log(`new pending migrations: ${pending.length}`);
+console.log(`interleaved migrations: ${interleaved.length}`);
 
 const sections = [
   ["MALFORMED FILENAMES", malformed, (item) => item],
@@ -79,7 +83,8 @@ const sections = [
   ["NAME MISMATCH", nameMismatch, ({ expected, local }) => `${expected.version}: expected ${expected.name}, found ${local.name}`],
   ["BYTE HASH MISMATCH", hashMismatch, ({ expected, local }) => `${expected.version}_${local.name}.sql`],
   ["BYTE LENGTH MISMATCH", sizeMismatch, ({ expected, local }) => `${expected.version}: expected ${expected.sql_chars}, found ${local.sqlChars}`],
-  ["UNRECONCILED LOCAL MIGRATIONS", pending, (item) => item.filename],
+  ["UNREVIEWED INTERLEAVED MIGRATIONS", interleaved, (item) => item.filename],
+  ["SOURCE-CONTROLLED PENDING MIGRATIONS", pending, (item) => item.filename],
 ];
 
 for (const [title, items, render] of sections) {
@@ -95,7 +100,7 @@ const blocking = malformed.length
   + nameMismatch.length
   + hashMismatch.length
   + sizeMismatch.length
-  + pending.length;
+  + interleaved.length;
 
 console.log(`\n${line}`);
 if (blocking) {
@@ -103,4 +108,8 @@ if (blocking) {
   process.exit(1);
 }
 
-console.log("EXACT PARITY: every source-controlled migration matches the live-ledger manifest.");
+if (pending.length) {
+  console.log("HISTORICAL PARITY: reviewed live history matches exactly; newer pending migrations must pass isolated replay before application.");
+} else {
+  console.log("EXACT PARITY: every source-controlled migration matches the reviewed live-ledger manifest.");
+}
