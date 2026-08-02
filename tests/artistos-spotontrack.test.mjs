@@ -41,7 +41,7 @@ test("Spotontrack sync stores source-visible metrics and Proof", () => {
 });
 
 test("Spotontrack provider is admitted through a tracked migration", () => {
-  const migration = read("supabase/migrations/20260802110000_allow_spotontrack_provider.sql");
+  const migration = read("supabase/migrations/20260802111802_allow_spotontrack_provider.sql");
   assert.match(migration, /oauth_connections_provider_check/);
   assert.match(migration, /'spotontrack'::text/);
   assert.match(migration, /^begin;/m);
