@@ -17,7 +17,7 @@ test("repository hygiene blocks future credential files and high-confidence secr
   assert.match(hygiene, /only browser-safe NEXT_PUBLIC_/);
 });
 
-test("migration filenames and manifest exactly follow the live Supabase ledger", () => {
+test("migration filenames and reviewed manifest exactly follow the live Supabase ledger", () => {
   const expected = [
     "20260729172057_restore_authenticated_workspace_onboarding.sql",
     "20260730180631_share_artist_platform_profiles_with_workspace.sql",
@@ -34,7 +34,10 @@ test("migration filenames and manifest exactly follow the live Supabase ledger",
   obsolete.forEach((name) => assert.equal(fs.existsSync(`supabase/migrations/${name}`), false));
   const manifest = read("supabase/REMOTE_MIGRATION_MANIFEST.json");
   expected.forEach((name) => assert.match(manifest, new RegExp(name.slice(0, 14))));
-  assert.match(read("scripts/check-remote-migration-manifest.mjs"), /\+ pending\.length/);
+  const gate = read("scripts/check-remote-migration-manifest.mjs");
+  assert.match(gate, /item\.version > latestReviewedVersion/);
+  assert.match(gate, /UNREVIEWED INTERLEAVED MIGRATIONS/);
+  assert.doesNotMatch(gate, /\+ pending\.length/);
 });
 
 test("canonical verification workflows run against main and no stale deploy workflow remains", () => {
