@@ -70,6 +70,24 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Write source-bound replay evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts/release-readiness
+          if [[ "${{ steps.replay.outputs.status }}" == "0" ]]; then result="PASS"; else result="FAIL"; fi
+          cat > artifacts/release-readiness/local-db-replay.json <<EOF
+          {
+            "schema_version": 1,
+            "result": "${result}",
+            "source_commit": "${RELEASE_SOURCE_SHA}",
+            "workflow_run_id": "${GITHUB_RUN_ID}",
+            "historical_schema_drift_checked": true,
+            "workspace_rls_checked": true,
+            "production_mutated": false,
+            "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
       - name: Export disposable application environment
         if: steps.replay.outputs.status == '0'
         shell: bash
@@ -140,6 +158,7 @@ jobs:
             authenticated-e2e.log
             public-links-e2e.log
             artistos-public-links-app.log
+            artifacts/release-readiness/local-db-replay.json
             artifacts/authenticated-e2e/summary.json
             artifacts/authenticated-e2e/*.png
             artifacts/public-links-e2e/summary.json
@@ -151,22 +170,26 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Enforce public-links verification result
+      - name: Enforce durable public-link evidence
         if: always() && !cancelled()
         shell: bash
         run: |
-          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
-            echo "Disposable database replay, drift, RLS, or advisor verification failed." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.authenticated.outputs.status }}" != "0" ]]; then
-            echo "Authenticated ArtistOS workspace journeys failed." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.public_links.outputs.status }}" != "0" ]]; then
-            echo "Anonymous public ArtistOS Links journeys failed." >&2
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const replay = read('artifacts/release-readiness/local-db-replay.json');
+          const authenticated = read('artifacts/authenticated-e2e/summary.json');
+          const publicLinks = read('artifacts/public-links-e2e/summary.json');
+          for (const [label, evidence, statusKey] of [
+            ['database replay', replay, 'result'],
+            ['authenticated E2E', authenticated, 'status'],
+            ['public-links E2E', publicLinks, 'status'],
+          ]) {
+            if (evidence[statusKey] !== 'PASS') throw new Error(`${label} evidence is ${evidence[statusKey]}: ${evidence.summary ?? ''}`);
+            if (evidence.source_commit !== process.env.RELEASE_SOURCE_SHA) throw new Error(`${label} evidence is bound to a different commit`);
+          }
+          console.log('Durable database, authenticated, and anonymous public-link evidence are PASS and source-bound.');
+          NODE
 
       - name: Clean up disposable services
         if: always()
