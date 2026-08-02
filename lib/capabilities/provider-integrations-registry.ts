@@ -11,14 +11,14 @@ export const connectApiProviderCapability = registerCapability({
   kind: "command",
   purpose: "Validate and store encrypted credentials for an approved read-only music data provider.",
   input: z.object({
-    provider: z.enum(["soundcharts", "kit", "spotontrack"]),
+    provider: z.enum(["soundcharts", "kit"]),
     primarySecret: z.string().trim().min(8).max(20_000),
     secondarySecret: z.string().trim().min(8).max(20_000).nullable().optional(),
     teamId: z.string().trim().max(300).nullable().optional(),
     accountLabel: z.string().trim().max(300).nullable().optional(),
     idempotencyKey,
   }),
-  output: z.object({ provider: z.enum(["soundcharts", "kit", "spotontrack"]), connectionId: uuid, connected: z.literal(true) }),
+  output: z.object({ provider: z.enum(["soundcharts", "kit"]), connectionId: uuid, connected: z.literal(true) }),
   scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.integrations.write" },
   risk: "R1_internal_reversible",
   approval: "by_policy",
@@ -64,6 +64,28 @@ export const syncSoundchartsCapability = registerCapability({
   retry: defaultWriteRetry,
   mcp: "gated_write",
   failureModes: ["soundcharts_connection_not_found", "spotify_profile_not_found", "soundcharts_artist_not_found", "soundcharts_request_failed"],
+});
+
+export const connectSpotOnTrackCapability = registerCapability({
+  name: "integrations.connect_spotontrack",
+  version: 1,
+  kind: "command",
+  purpose: "Validate and store an encrypted Spotontrack read-only API key.",
+  input: z.object({
+    apiKey: z.string().trim().min(8).max(20_000),
+    accountLabel: z.string().trim().max(300).nullable().optional(),
+    idempotencyKey,
+  }),
+  output: z.object({ provider: z.literal("spotontrack"), connectionId: uuid, connected: z.literal(true) }),
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.integrations.write" },
+  risk: "R1_internal_reversible",
+  approval: "by_policy",
+  idempotency: "key_required",
+  evidence: "optional",
+  auditEvents: ["integrations.spotontrack_connected"],
+  retry: defaultWriteRetry,
+  mcp: "gated_write",
+  failureModes: ["user_context_required", "spotontrack_credentials_invalid", "spotontrack_request_failed"],
 });
 
 export const syncSpotOnTrackCapability = registerCapability({
