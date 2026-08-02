@@ -39,3 +39,18 @@ test("Spotontrack sync stores source-visible metrics and Proof", () => {
   assert.match(page, /Sync release now/);
   assert.match(page, /exact ISRC/i);
 });
+
+test("Spotontrack provider is admitted through a tracked migration", () => {
+  const migration = read("supabase/migrations/20260802110000_allow_spotontrack_provider.sql");
+  assert.match(migration, /oauth_connections_provider_check/);
+  assert.match(migration, /'spotontrack'::text/);
+  assert.match(migration, /^begin;/m);
+  assert.match(migration, /^commit;/m);
+});
+
+test("Spotontrack successful sync redirects outside the error boundary", () => {
+  const actions = read("app/connections/spotontrack/actions.ts");
+  assert.match(actions, /let metricCount = 0;/);
+  assert.match(actions, /redirect\(`\/connections\/spotontrack\?synced=1&metrics=\$\{metricCount\}`\);/);
+  assert.doesNotMatch(actions, /const output[\s\S]+redirect\(`\/connections\/spotontrack\?synced=1[\s\S]+catch/);
+});
