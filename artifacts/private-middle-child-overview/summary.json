@@ -1,0 +1,18 @@
+{
+  "source_base_sha": "61e3c0ba3962d83003d5c1cf86434d310bbd4fba",
+  "branch": "agent/private-middle-child-overview",
+  "scope": "authenticated private Middle Child overview",
+  "local_tests": {
+    "passed": 125,
+    "failed": 0
+  },
+  "production_data_mutated": false,
+  "production_rollout_authorized": false,
+  "remaining_gates": [
+    "GitHub CI",
+    "protected Vercel preview",
+    "authenticated owner verification",
+    "390px mobile verification",
+    "explicit production approval"
+  ]
+}
