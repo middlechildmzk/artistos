@@ -1,9 +1,5 @@
 begin;
 
--- Platform profile identity is workspace data. Keep the creating owner for
--- provenance, but allow all workspace members to read it and workspace
--- managers to maintain it. OAuth tokens remain user-specific.
-
 drop policy if exists "artist_platform_profiles_owner_select" on public.artist_platform_profiles;
 drop policy if exists "artist_platform_profiles_owner_update" on public.artist_platform_profiles;
 drop policy if exists "artist_platform_profiles_owner_delete" on public.artist_platform_profiles;

@@ -1,0 +1,40 @@
+name: ArtistOS Production Parity
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact approved commit that production must run
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verification script
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Require Vercel verification credential
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: test -n "$VERCEL_TOKEN"
+
+      - name: Compare production to the approved commit
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_7fmrmgPO4z3hWiC2qX4vxZVoXYBe
+          VERCEL_TEAM_ID: team_tURNGn8d3ljgUAExWDM2Jjed
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: node scripts/check-production-deployment-parity.mjs
