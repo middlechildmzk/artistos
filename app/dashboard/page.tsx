@@ -118,20 +118,20 @@ export default async function DashboardPage() {
   const google = oauthByProvider.get("google") ?? null;
   const youtubeError = typeof google?.metadata?.youtube_error === "string" ? google.metadata.youtube_error : null;
   const spotifyProfile = profileBySlug.get("spotify") ?? null;
-  const youtubeProfile = profileBySlug.get("youtube") ?? profileBySlug.get("youtube-music") ?? null;
+  const youtubeVerified = Boolean(google?.last_success_at && !youtubeError && typeof google?.metadata?.youtube_channel_id === "string");
   const kit = oauthByProvider.get("kit") ?? null;
   const soundcharts = oauthByProvider.get("soundcharts") ?? null;
 
   const sourceCards = [
     {
       name: "Google + YouTube",
-      status: google ? (youtubeError ? "needs attention" : google.last_success_at ? "verified" : "configured") : "not connected",
-      detail: google ? (youtubeError ? "Google is authorized, but YouTube APIs still need to be enabled and synced." : `Last successful provider request ${formatDate(google.last_success_at)}.`) : "Connect the owned Google account and run a verified YouTube sync.",
+      status: google ? (youtubeError ? "needs attention" : youtubeVerified ? "verified" : "authorized") : "not connected",
+      detail: google ? (youtubeError ? "Google is authorized, but YouTube APIs still need to be enabled and synced." : youtubeVerified ? `YouTube provider request verified ${formatDate(google.last_success_at)}.` : "Google is authorized. A successful YouTube request is still required.") : "Connect the owned Google account and run a verified YouTube sync.",
     },
     {
       name: "Spotify",
-      status: spotifyProfile ? "current" : "not connected",
-      detail: spotifyProfile ? `Identity confirmed${monthlyListeners ? ` · ${formatNumber(Number(monthlyListeners.value))} monthly listeners as of ${formatDate(monthlyListeners.captured_on)}` : ""}.` : "Confirm the canonical Middle Child Spotify artist identity.",
+      status: spotifyProfile ? "identified" : "not connected",
+      detail: spotifyProfile ? `Public artist identity confirmed${monthlyListeners ? ` · ${formatNumber(Number(monthlyListeners.value))} monthly listeners as of ${formatDate(monthlyListeners.captured_on)}` : ""}. Private Spotify for Artists analytics still require exports.` : "Confirm the canonical Middle Child Spotify artist identity.",
     },
     {
       name: "Kit",
@@ -148,12 +148,12 @@ export default async function DashboardPage() {
   return <main className="shell">
     <header className="topbar">
       <div className="brand"><div className="logo">A</div><div><div className="eyebrow">Private artist workspace</div><strong>{workspace?.name ?? "ArtistOS"}</strong></div></div>
-      <div className="nav-links"><Link className="button primary" href="/command-center">Command Center</Link><Link className="button ghost" href="/releases">Releases</Link><Link className="button ghost" href="/connections">Sources</Link><Link className="button ghost" href="/analytics">Intelligence</Link><Link className="button ghost" href="/targets">Network</Link><Link className="button ghost" href="/opportunities">Opportunities</Link><form action={signOut}><button className="button ghost" type="submit">Sign out</button></form></div>
+      <div className="nav-links"><Link className="button primary" href="/command-center">Command Center</Link><Link className="button ghost" href="/releases">Releases</Link><Link className="button ghost" href="/connections">Sources</Link><form action={signOut}><button className="button ghost" type="submit">Sign out</button></form></div>
     </header>
 
     <section className="card release-card" style={{ marginBottom: 16 }}>
       <div className="section-heading tight"><div><div className="eyebrow">{activeArtist?.name ?? "Current artist"}</div><h1>{release?.title ?? "Create your first release"}</h1><p className="muted">{release ? `${formatDate(release.release_date)}${releaseCountdown === null ? "" : releaseCountdown > 0 ? ` · ${releaseCountdown} days remaining` : releaseCountdown === 0 ? " · Release day" : ` · Released ${Math.abs(releaseCountdown)} days ago`}` : "ArtistOS will organize releases, sources, campaigns, relationships, evidence, and learning here."}</p></div>{release?.status ? <span className="pill">{release.status}</span> : null}</div>
-      <div className="tag-row"><Link className="button primary" href="/releases">Open release workspace</Link><Link className="button ghost" href="/campaigns">Campaign Intelligence</Link><Link className="button ghost" href="/links">ArtistOS Links</Link><Link className="button ghost" href="/proof">Proof</Link><Link className="button ghost" href="/brain">Artist Brain</Link>{release?.spotify_url ? <a className="button ghost" href={release.spotify_url} target="_blank" rel="noreferrer">Open on Spotify</a> : null}</div>
+      <div className="tag-row"><Link className="button primary" href="/releases">Open release workspace</Link><Link className="button ghost" href="/analytics">Music Intelligence</Link><Link className="button ghost" href="/campaigns">Campaign Intelligence</Link><Link className="button ghost" href="/targets">Network</Link><Link className="button ghost" href="/opportunities">Opportunities</Link><Link className="button ghost" href="/links">ArtistOS Links</Link><Link className="button ghost" href="/proof">Proof</Link><Link className="button ghost" href="/brain">Artist Brain</Link>{release?.spotify_url ? <a className="button ghost" href={release.spotify_url} target="_blank" rel="noreferrer">Open on Spotify</a> : null}</div>
     </section>
 
     <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -168,7 +168,7 @@ export default async function DashboardPage() {
         <div className="card">
           <div className="section-heading"><div><h2>Source health</h2><p className="muted">What is identified, configured, authorized, and provider-verified.</p></div><Link className="next-action" href="/connections">Manage sources →</Link></div>
           <div className="grid two-col" style={{ marginTop: 12 }}>{sourceCards.map((source) => <div className="card" key={source.name}><div className="section-heading tight"><strong>{source.name}</strong><span className={`pill ${sourceTone(source.status)}`}>{source.status}</span></div><p className="muted">{source.detail}</p></div>)}</div>
-          {youtubeProfile && youtubeError ? <div className="notice" style={{ marginTop: 12 }}><strong>YouTube needs one owner action.</strong><p className="muted">Enable YouTube Data API v3 and YouTube Analytics API in the connected Google Cloud project, then reconnect and sync.</p></div> : null}
+          {google && youtubeError ? <div className="notice" style={{ marginTop: 12 }}><strong>YouTube needs one owner action.</strong><p className="muted">Enable YouTube Data API v3 and YouTube Analytics API in the connected Google Cloud project, then reconnect and sync.</p></div> : null}
         </div>
 
         {recommendations.length ? <div className="card"><div className="section-heading"><h2>ArtistOS recommends</h2><Link className="next-action" href="/command-center">View all →</Link></div>{recommendations.map((item) => <div className="row" key={item.id}><div><span className="pill">{item.priority}</span><strong style={{ display: "block", marginTop: 8 }}>{item.title}</strong>{item.rationale ? <p className="muted">{item.rationale}</p> : null}</div>{item.action_path ? <Link className="button" href={item.action_path}>Open</Link> : null}</div>)}</div> : null}
