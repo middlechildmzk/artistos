@@ -3,6 +3,11 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { decryptIntegrationToken, encryptIntegrationToken } from "@/lib/integrations/token-crypto";
 import { getYouTubeAnalyticsSummary, getYouTubeChannel, refreshGoogleAccessToken } from "@/lib/integrations/google";
+import {
+  canonicalArtistIdFromProfile,
+  expectedYouTubeIdentityLabel,
+  profileMatchesYouTubeChannel,
+} from "@/lib/integrations/youtube-identity";
 import { registerCapabilityHandler } from "./handlers";
 import {
   importMetricSnapshotsCapability,
@@ -183,6 +188,7 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
   if (!connection) throw new Error("google_connection_not_found");
 
   const connectionMetadata = metadataObject(connection.metadata);
+  let detectedChannelMetadata: Record<string, unknown> = {};
   try {
     if (!connection.encrypted_refresh_token) throw new Error("google_refresh_token_missing");
     const refreshToken = decryptIntegrationToken(connection.encrypted_refresh_token);
@@ -191,9 +197,8 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
     const expiresAt = new Date(Date.now() + (refreshed.expires_in ?? 3600) * 1000).toISOString();
     const nextRefreshToken = refreshed.refresh_token ?? refreshToken;
 
-    const [channel, analytics, youtubePlatformResult, artistsResult] = await Promise.all([
+    const [channel, youtubePlatformResult, artistsResult] = await Promise.all([
       getYouTubeChannel(accessToken),
-      getYouTubeAnalyticsSummary(accessToken),
       supabase.from("music_platforms").select("id").eq("slug", "youtube").single(),
       supabase.from("artists").select("id,name").eq("workspace_id", ctx.workspaceId),
     ]);
@@ -201,8 +206,44 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
     if (artistsResult.error) throw artistsResult.error;
 
     const channelTitle = channel.snippet?.title?.trim() || "YouTube channel";
+    const channelIdentity = {
+      id: channel.id,
+      title: channelTitle,
+      customUrl: channel.snippet?.customUrl ?? null,
+    };
+    detectedChannelMetadata = {
+      youtube_detected_channel_id: channel.id,
+      youtube_detected_channel_title: channelTitle,
+      youtube_detected_custom_url: channel.snippet?.customUrl ?? null,
+    };
+
+    const { data: mappedProfiles, error: mappedProfilesError } = await supabase
+      .from("artist_platform_profiles")
+      .select("artist_name,external_artist_id,profile_url,source_type,metadata")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("platform_id", youtubePlatformResult.data.id);
+    if (mappedProfilesError) throw mappedProfilesError;
+
+    const expectedProfiles = (mappedProfiles ?? []).filter((profile) =>
+      profile.source_type !== "oauth" && Boolean(profile.external_artist_id || profile.profile_url),
+    );
+    const matchedProfile = expectedProfiles.find((profile) => profileMatchesYouTubeChannel(profile, channelIdentity)) ?? null;
+    if (expectedProfiles.length && !matchedProfile) {
+      const expected = expectedProfiles.map(expectedYouTubeIdentityLabel).join(" or ");
+      throw new Error(
+        `youtube_channel_mismatch: Google authorized "${channelTitle}" (${channel.id}), but ArtistOS expects ${expected}. Switch YouTube to the Middle Child Brand Account and reconnect Google + YouTube.`,
+      );
+    }
+
+    const mappedCanonicalArtistId = canonicalArtistIdFromProfile(matchedProfile);
     const normalizedChannel = channelTitle.toLowerCase().replace(/[^a-z0-9]+/g, "");
-    const canonicalArtist = (artistsResult.data ?? []).find((artist) => artist.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === normalizedChannel) ?? null;
+    const canonicalArtist = (artistsResult.data ?? []).find((artist) => artist.id === mappedCanonicalArtistId)
+      ?? (!expectedProfiles.length
+        ? (artistsResult.data ?? []).find((artist) => artist.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === normalizedChannel) ?? null
+        : null);
+    if (matchedProfile && !canonicalArtist) throw new Error("youtube_mapped_artist_not_found");
+
+    const analytics = await getYouTubeAnalyticsSummary(accessToken);
     const channelUrl = `https://www.youtube.com/channel/${channel.id}`;
     const syncedAt = new Date().toISOString();
 
@@ -221,10 +262,12 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
         last_verified_at: syncedAt,
         freshness_status: "current",
         metadata: {
+          ...metadataObject(matchedProfile?.metadata),
           canonical_artist_id: canonicalArtist?.id ?? null,
           channel_title: channelTitle,
           custom_url: channel.snippet?.customUrl ?? null,
           hidden_subscriber_count: channel.statistics?.hiddenSubscriberCount ?? false,
+          identity_match: matchedProfile ? "mapped_profile" : "channel_title_fallback",
         },
         updated_at: syncedAt,
       }, { onConflict: "owner_id,platform_id,artist_name" })
@@ -292,6 +335,7 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
 
     const metadata = {
       ...connectionMetadata,
+      ...detectedChannelMetadata,
       youtube_channel_id: channel.id,
       youtube_channel_title: channelTitle,
       youtube_subscribers: channel.statistics?.hiddenSubscriberCount ? null : numberValue(channel.statistics?.subscriberCount),
@@ -300,6 +344,8 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
       youtube_analytics_start: analytics.startDate,
       youtube_analytics_end: analytics.endDate,
       youtube_analytics: analytics.values,
+      youtube_identity_verified: Boolean(matchedProfile),
+      youtube_expected_identity: matchedProfile ? expectedYouTubeIdentityLabel(matchedProfile) : null,
       youtube_error: null,
       last_sync_attempt_at: syncedAt,
     };
@@ -330,7 +376,12 @@ registerCapabilityHandler(syncGoogleYouTubeCapability, async ({ ctx, input, idem
       .update({
         last_error: message.slice(0, 2000),
         updated_at: new Date().toISOString(),
-        metadata: { ...connectionMetadata, last_sync_attempt_at: new Date().toISOString() },
+        metadata: {
+          ...connectionMetadata,
+          ...detectedChannelMetadata,
+          youtube_error: message.slice(0, 2000),
+          last_sync_attempt_at: new Date().toISOString(),
+        },
       })
       .eq("id", connection.id)
       .eq("user_id", userId);
