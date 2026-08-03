@@ -5,6 +5,9 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 const TOKEN_VERSION = "v1";
 const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 12;
+const SERVER_MANAGED_TOKEN_REFERENCES = new Map<string, string>([
+  ["env.KIT_API_KEY", "KIT_API_KEY"],
+]);
 
 function decodeKey(raw: string) {
   if (/^[a-f0-9]{64}$/i.test(raw)) return Buffer.from(raw, "hex");
@@ -24,7 +27,7 @@ function encryptionKey() {
 }
 
 export function isCurrentTokenEnvelope(value: string | null | undefined) {
-  return Boolean(value?.startsWith(`${TOKEN_VERSION}.`));
+  return Boolean(value?.startsWith(`${TOKEN_VERSION}.`) || (value && SERVER_MANAGED_TOKEN_REFERENCES.has(value)));
 }
 
 export function encryptIntegrationToken(value: string) {
@@ -36,6 +39,13 @@ export function encryptIntegrationToken(value: string) {
 }
 
 export function decryptIntegrationToken(envelope: string) {
+  const environmentVariable = SERVER_MANAGED_TOKEN_REFERENCES.get(envelope);
+  if (environmentVariable) {
+    const value = process.env[environmentVariable]?.trim();
+    if (!value) throw new Error(`missing_server_managed_credential:${environmentVariable}`);
+    return value;
+  }
+
   const [version, ivValue, tagValue, ciphertextValue, extra] = envelope.split(".");
   if (version !== TOKEN_VERSION || !ivValue || !tagValue || !ciphertextValue || extra) {
     throw new Error("legacy_token_reconnect_required");
