@@ -18,6 +18,8 @@ import {
   syncSoundchartsCapability,
 } from "./provider-integrations-registry";
 
+const KIT_SERVER_TOKEN_REFERENCE = "env.KIT_API_KEY";
+
 function requireUserId(value: string | null) {
   if (!value) throw new Error("user_context_required");
   return value;
@@ -201,14 +203,53 @@ registerCapabilityHandler(syncKitCapability, async ({ ctx, input, idempotencyKey
   if (replay && typeof replay === "object" && "syncedAt" in replay) return { output: replay as any, evidenceIds: [] };
 
   const supabase = await createSupabaseServerClient();
-  const { data: connection, error: connectionError } = await supabase.from("oauth_connections")
+  const { data: storedConnection, error: connectionError } = await supabase.from("oauth_connections")
     .select("id,encrypted_access_token,metadata")
     .eq("workspace_id", ctx.workspaceId)
     .eq("user_id", userId)
     .eq("provider", "kit")
     .maybeSingle();
   if (connectionError) throw connectionError;
-  if (!connection?.encrypted_access_token) throw new Error("kit_connection_not_found");
+
+  let connection = storedConnection;
+  if (!connection?.encrypted_access_token) {
+    const serverApiKey = process.env.KIT_API_KEY?.trim();
+    if (!serverApiKey) throw new Error("kit_connection_not_found");
+    if (ctx.role !== "owner") throw new Error("kit_server_key_owner_required");
+
+    const { count: workspaceCount, error: workspaceCountError } = await supabase
+      .from("workspaces")
+      .select("id", { count: "exact", head: true });
+    if (workspaceCountError) throw workspaceCountError;
+    if (workspaceCount !== 1) throw new Error("kit_server_key_requires_single_workspace");
+
+    const validation = await validateKitApiKey(serverApiKey);
+    const configuredAt = new Date().toISOString();
+    const { data: bootstrappedConnection, error: bootstrapError } = await supabase.from("oauth_connections").upsert({
+      workspace_id: ctx.workspaceId,
+      user_id: userId,
+      provider: "kit",
+      provider_account_id: null,
+      account_email: null,
+      encrypted_access_token: KIT_SERVER_TOKEN_REFERENCE,
+      encrypted_refresh_token: null,
+      token_type: "ServerManagedApiKey",
+      expires_at: null,
+      scopes: ["read"],
+      metadata: {
+        connection_kind: "server_managed_api_key",
+        credential_reference: "KIT_API_KEY",
+        account_label: "Middle Child email list",
+        validated_at: configuredAt,
+        validation,
+      },
+      last_success_at: configuredAt,
+      last_error: null,
+      updated_at: configuredAt,
+    }, { onConflict: "user_id,provider" }).select("id,encrypted_access_token,metadata").single();
+    if (bootstrapError) throw bootstrapError;
+    connection = bootstrappedConnection;
+  }
 
   const apiKey = decryptIntegrationToken(connection.encrypted_access_token);
   const aggregate = await fetchKitAggregateMetrics(apiKey);
@@ -241,20 +282,21 @@ registerCapabilityHandler(syncKitCapability, async ({ ctx, input, idempotencyKey
   }));
   await replaceWorkspaceProviderMetrics({ workspaceId: ctx.workspaceId, platform: "kit", capturedOn, rows: metricRows });
 
+  const credentialSource = connection.encrypted_access_token === KIT_SERVER_TOKEN_REFERENCE ? "vercel_environment" : "workspace_encrypted";
   const evidenceId = await insertEvidence({
     workspaceId: ctx.workspaceId,
     userId,
     evidenceType: "kit_aggregate_sync",
     summary: `Synced ${aggregate.activeSubscribers} active Kit subscribers and aggregate broadcast performance.`,
     verificationMethod: "kit_v4_api",
-    metadata: { ...aggregate, raw_subscriber_records_stored: false },
+    metadata: { ...aggregate, raw_subscriber_records_stored: false, credential_source: credentialSource },
   });
   const syncedAt = new Date().toISOString();
   const { error: updateError } = await supabase.from("oauth_connections").update({
     last_success_at: syncedAt,
     last_error: null,
     updated_at: syncedAt,
-    metadata: { ...asObject(connection.metadata), last_sync_at: syncedAt, aggregate },
+    metadata: { ...asObject(connection.metadata), last_sync_at: syncedAt, aggregate, credential_source: credentialSource },
   }).eq("id", connection.id).eq("user_id", userId);
   if (updateError) throw updateError;
 
