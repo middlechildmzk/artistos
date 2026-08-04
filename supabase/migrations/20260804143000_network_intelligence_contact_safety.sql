@@ -1,5 +1,56 @@
 begin;
 
+-- Reconcile legacy import columns that exist in the live database but were
+-- originally created by import tooling rather than a tracked migration. This
+-- records schema shape only. It does not recreate or infer imported data.
+alter table public.people
+  add column if not exists normalized_email text,
+  add column if not exists contact_type text,
+  add column if not exists recommended_segment text,
+  add column if not exists consent_status text,
+  add column if not exists first_seen text,
+  add column if not exists source_category text,
+  add column if not exists source_count integer,
+  add column if not exists source_files text,
+  add column if not exists source_sheets text,
+  add column if not exists titles_tracks_playlists text,
+  add column if not exists genres text,
+  add column if not exists links text,
+  add column if not exists engagement_source_notes text,
+  add column if not exists relationship_signal text,
+  add column if not exists relationship_strength text,
+  add column if not exists last_known_interaction text,
+  add column if not exists gmail_evidence text,
+  add column if not exists source_file text,
+  add column if not exists source_sheet text,
+  add column if not exists source_row integer,
+  add column if not exists source_record_hash text,
+  add column if not exists raw_record jsonb,
+  add column if not exists imported_at timestamptz;
+
+alter table public.properties
+  add column if not exists platform_url text,
+  add column if not exists spotify_playlist_id text,
+  add column if not exists owner_or_operator text,
+  add column if not exists genres text,
+  add column if not exists followers_legacy text,
+  add column if not exists contact_emails text,
+  add column if not exists source text,
+  add column if not exists source_file text,
+  add column if not exists source_sheet text,
+  add column if not exists source_row integer,
+  add column if not exists original_source_sheet text,
+  add column if not exists original_source_row text,
+  add column if not exists canonical_property_key text,
+  add column if not exists source_record_hash text,
+  add column if not exists raw_record jsonb,
+  add column if not exists imported_at timestamptz;
+
+alter table public.import_batches
+  add column if not exists imported_count integer default 0,
+  add column if not exists completed_at timestamptz,
+  add column if not exists error_message text;
+
 -- Preserve the inherited import label before correcting it. The original value
 -- remains available for audit and rollback review.
 alter table public.people
