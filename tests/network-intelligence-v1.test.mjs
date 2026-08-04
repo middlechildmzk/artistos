@@ -15,9 +15,14 @@ test("Network Intelligence supports recruiter-style music industry sourcing", ()
     "Qualified target results",
   ]) assert.match(page, new RegExp(phrase));
 
-  for (const target of ["Playlist or curator", "Creator or influencer", "Radio", "Sync or licensing", "Label"]) {
-    assert.match(page, new RegExp(target));
-  }
+  for (const target of [
+    "Playlist or curator",
+    "Creator or influencer",
+    "Radio",
+    "Sync or licensing",
+    "Label or publishing",
+    "Venue or festival",
+  ]) assert.match(page, new RegExp(target));
 
   for (const platform of ["Spotify", "YouTube", "Instagram", "TikTok", "SoundCloud", "Apple Music"]) {
     assert.match(page, new RegExp(platform));
@@ -34,6 +39,18 @@ test("results combine organizations, properties, people, and submission routes",
   assert.match(page, /endpointsByOrganization/);
   assert.match(page, /followers_estimate/);
   assert.match(page, /genre_tags/);
+  assert.match(page, /targetTypeMatches/);
+  assert.match(page, /searchHaystack/);
+});
+
+test("filters align with the authoritative live schema", () => {
+  assert.match(page, /followers_estimate: string \| null/);
+  assert.match(page, /numericSignal/);
+  assert.match(page, /verified candidate/);
+  assert.match(page, /premium candidate/);
+  assert.match(page, /partially verified/);
+  assert.match(page, /unable to verify/);
+  assert.doesNotMatch(page, /from\("organizations"\)[\s\S]{0,500}\.is\("archived_at"/);
 });
 
 test("contact discovery remains evidence-first and workspace private", () => {
@@ -41,5 +58,6 @@ test("contact discovery remains evidence-first and workspace private", () => {
   assert.match(page, /public or manually confirmed/);
   assert.match(page, /remain private to the workspace/);
   assert.match(page, /No contact route/);
+  assert.match(page, /needs verification/);
   assert.doesNotMatch(page, /scrape|autonomous outreach|send automatically/i);
 });
