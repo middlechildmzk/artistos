@@ -58,6 +58,6 @@ test("contact discovery remains evidence-first and workspace private", () => {
   assert.match(page, /public or manually confirmed/);
   assert.match(page, /remain private to the workspace/);
   assert.match(page, /No contact route/);
-  assert.match(page, /needs verification/);
+  assert.match(page, /need verification/);
   assert.doesNotMatch(page, /scrape|autonomous outreach|send automatically/i);
 });
