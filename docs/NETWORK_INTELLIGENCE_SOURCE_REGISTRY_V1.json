@@ -1,0 +1,133 @@
+{
+  "generated_at": "2026-08-04",
+  "scope": "High-impact source-family decisions verified during team-report reconciliation.",
+  "privacy_note": "No raw contact records, public business emails, protected profiles, or licensed dataset rows are included.",
+  "sources": [
+    {
+      "source_name": "YouTube Data API v3",
+      "disposition": "accept_verified_source",
+      "official_url": "https://developers.google.com/youtube/v3/getting-started",
+      "allowed_use": "Public YouTube identity, channel, playlist, and video metadata within current API terms and quotas.",
+      "owner_action": "Implement current quota buckets, attribution, retention, refresh, and compliance controls."
+    },
+    {
+      "source_name": "YouTube Analytics API",
+      "disposition": "accept_verified_source",
+      "official_url": "https://developers.google.com/youtube/analytics",
+      "allowed_use": "Authorized artist-owned channel analytics only.",
+      "owner_action": "Require OAuth authorization and keep third-party private analytics out of Network Intelligence."
+    },
+    {
+      "source_name": "TikTok Research API",
+      "disposition": "reject_ineligible",
+      "official_url": "https://developers.tiktok.com/doc/research-api-faq",
+      "allowed_use": "None for ArtistOS commercial discovery.",
+      "owner_action": "Remove from the commercial API roadmap because creators, advertisers, and commercial users are ineligible."
+    },
+    {
+      "source_name": "TikTok Creator Marketplace",
+      "disposition": "external_handoff",
+      "official_url": "https://creator-marketplace.tiktok.com/",
+      "allowed_use": "Human-approved marketplace campaign handoff.",
+      "owner_action": "Do not ingest protected creator profiles or automate spending."
+    },
+    {
+      "source_name": "Meta Creator Marketplace",
+      "disposition": "external_handoff",
+      "official_url": "https://www.facebook.com/business/tools/creator-marketplace",
+      "allowed_use": "Human-approved marketplace campaign handoff.",
+      "owner_action": "Do not export or repurpose protected marketplace data."
+    },
+    {
+      "source_name": "Instagram Graph API",
+      "disposition": "accept_verified_source",
+      "official_url": "https://developers.facebook.com/docs/instagram-platform/",
+      "allowed_use": "Authorized professional-account data and specifically permitted endpoints.",
+      "owner_action": "Define scopes, retention, deletion, OAuth, and exact supported discovery use before configuration."
+    },
+    {
+      "source_name": "SoundCloud Public API",
+      "disposition": "license_review",
+      "official_url": "https://developers.soundcloud.com/docs/api/register-app",
+      "allowed_use": "Official API only after application registration.",
+      "owner_action": "Evaluate Artist Pro requirement and API terms; quarantine undocumented api-v2 access."
+    },
+    {
+      "source_name": "SubmitHub",
+      "disposition": "external_handoff",
+      "official_url": "https://www.submithub.com/about/terms",
+      "allowed_use": "Account-based user handoff and user-owned submission/outcome records.",
+      "owner_action": "No public developer API was verified; do not scrape curator profiles."
+    },
+    {
+      "source_name": "Groover",
+      "disposition": "external_handoff",
+      "official_url": "https://help.groover.co/en/articles/2966453-how-to-use-groover-for-the-first-time",
+      "allowed_use": "Account-based paid campaign handoff and user-owned results.",
+      "owner_action": "No public developer API was verified; do not scrape curator profiles."
+    },
+    {
+      "source_name": "Songkick API",
+      "disposition": "partnership_required",
+      "official_url": "https://www.songkick.com/developer/",
+      "allowed_use": "Only under an approved commercial partnership agreement.",
+      "owner_action": "Review license fee, attribution, cache, exclusivity, and data-combination restrictions before inquiry."
+    },
+    {
+      "source_name": "Bandsintown API",
+      "disposition": "partnership_required",
+      "official_url": "https://help.artists.bandsintown.com/en/articles/7053475-what-is-the-bandsintown-api",
+      "allowed_use": "Artist-scoped key for owned artist data; broader platform use requires partnership approval.",
+      "owner_action": "Use Middle Child scope only unless a platform partnership is approved."
+    },
+    {
+      "source_name": "Eventbrite API",
+      "disposition": "license_review",
+      "official_url": "https://www.eventbrite.com/platform/docs/api-basics",
+      "allowed_use": "Only documented authenticated endpoints and purposes.",
+      "owner_action": "Verify broad event-discovery and commercial storage rights before treating it as a source backbone."
+    },
+    {
+      "source_name": "Audio Network submission",
+      "disposition": "accept_verified_route",
+      "official_url": "https://careers.audionetwork.com/music-submission",
+      "allowed_use": "First-party human submission route with rights and eligibility review.",
+      "owner_action": "Create a governed endpoint; sending remains human-approved."
+    },
+    {
+      "source_name": "Bodega Sync application",
+      "disposition": "accept_verified_route",
+      "official_url": "https://bodegasync.com/apply/",
+      "allowed_use": "First-party sync-representation application after catalog and rights readiness review.",
+      "owner_action": "Review minimum catalog, exclusivity, commission, samples, AI, and one-stop rights before applying."
+    },
+    {
+      "source_name": "Marmoset submissions",
+      "disposition": "verify_official_route",
+      "official_url": "https://www.marmosetmusic.com/submissions",
+      "allowed_use": "Discovery-only until the current intake window and agreement terms are manually confirmed.",
+      "owner_action": "Verify intake state and exclusivity before enabling an actionable route."
+    },
+    {
+      "source_name": "Musicbed artist intake",
+      "disposition": "verify_official_route",
+      "official_url": "https://www.musicbed.com/join",
+      "allowed_use": "Discovery-only until the exact current artist application flow and exclusivity are confirmed.",
+      "owner_action": "Manually verify the application route."
+    },
+    {
+      "source_name": "Artlist music submissions",
+      "disposition": "reject_ineligible",
+      "official_url": "https://help.artlist.io/hc/en-us/articles/29496366354589-Submit-your-content-to-Artlist",
+      "allowed_use": "Monitor closed status only.",
+      "owner_action": "Do not surface an actionable music-submission route while closed."
+    },
+    {
+      "source_name": "Epidemic Sound artist applications",
+      "disposition": "reject_ineligible",
+      "official_url": "https://www.epidemicsound.com/for-artists/",
+      "allowed_use": "Monitor closed status only.",
+      "owner_action": "Do not surface an actionable route; preserve collecting-society restrictions if the program reopens."
+    }
+  ]
+}
