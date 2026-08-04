@@ -1,9 +1,14 @@
 name: ArtistOS Database Replay
 
 on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - artifacts/**
+      - docs/**
+      - '**/*.md'
   push:
-    branches:
-      - agent/artistos-canonical-integration
+    branches: [main]
     paths-ignore:
       - artifacts/**
       - docs/**
@@ -11,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: artistos-release-verification-${{ github.ref }}
@@ -25,16 +30,18 @@ jobs:
       - name: Checkout exact triggering release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Bind release source and clear stale runtime evidence
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           checked_out_sha="$(git rev-parse HEAD)"
-          if [[ "$checked_out_sha" != "$GITHUB_SHA" ]]; then
-            echo "Checked out ${checked_out_sha}, expected triggering source ${GITHUB_SHA}." >&2
+          if [[ "$checked_out_sha" != "$EXPECTED_SHA" ]]; then
+            echo "Checked out ${checked_out_sha}, expected triggering source ${EXPECTED_SHA}." >&2
             exit 1
           fi
           echo "RELEASE_SOURCE_SHA=${checked_out_sha}" >> "$GITHUB_ENV"
@@ -184,76 +191,25 @@ jobs:
             artifacts/schema-drift/summary.json
             artifacts/schema-drift/summary.txt
 
-      - name: Commit atomic verification evidence
+      - name: Enforce durable verification evidence
         if: always() && !cancelled()
         shell: bash
         run: |
-          rm -rf /tmp/artistos-release-evidence
-          mkdir -p /tmp/artistos-release-evidence/artifacts/release-readiness
-          mkdir -p /tmp/artistos-release-evidence/artifacts/schema-drift
-          mkdir -p /tmp/artistos-release-evidence/artifacts/authenticated-e2e
-
-          for evidence in local-db-replay.json report.json report.md events.ndjson; do
-            if [[ -f "artifacts/release-readiness/${evidence}" ]]; then
-              cp "artifacts/release-readiness/${evidence}" "/tmp/artistos-release-evidence/artifacts/release-readiness/${evidence}"
-            fi
-          done
-          for evidence in local-historical-fingerprint.json local-historical-inventory.json summary.json summary.txt; do
-            if [[ -f "artifacts/schema-drift/${evidence}" ]]; then
-              cp "artifacts/schema-drift/${evidence}" "/tmp/artistos-release-evidence/artifacts/schema-drift/${evidence}"
-            fi
-          done
-          if [[ -f artifacts/authenticated-e2e/summary.json ]]; then
-            cp artifacts/authenticated-e2e/summary.json /tmp/artistos-release-evidence/artifacts/authenticated-e2e/
-          fi
-          for screenshot in artifacts/authenticated-e2e/*.png; do
-            if [[ -f "$screenshot" ]]; then
-              cp "$screenshot" /tmp/artistos-release-evidence/artifacts/authenticated-e2e/
-            fi
-          done
-
-          git config user.name "artistos-release-verification[bot]"
-          git config user.email "artistos-release-verification[bot]@users.noreply.github.com"
-
-          for attempt in 1 2 3; do
-            git fetch origin agent/artistos-canonical-integration
-            git reset --hard origin/agent/artistos-canonical-integration
-            rm -f artifacts/authenticated-e2e/summary.json artifacts/authenticated-e2e/*.png
-            rm -f artifacts/release-readiness/local-db-replay.json artifacts/release-readiness/report.json artifacts/release-readiness/report.md artifacts/release-readiness/events.ndjson
-            cp -a /tmp/artistos-release-evidence/. .
-            git add -A artifacts/authenticated-e2e artifacts/release-readiness artifacts/schema-drift
-
-            if git diff --cached --quiet; then
-              echo "Release verification evidence is unchanged."
-              exit 0
-            fi
-
-            git commit -m "Record atomic ArtistOS release verification"
-            if git push origin HEAD:agent/artistos-canonical-integration; then
-              exit 0
-            fi
-            echo "Branch advanced during evidence publication; retrying (${attempt}/3)."
-          done
-
-          echo "Could not publish release verification evidence after three fast-forward attempts." >&2
-          exit 1
-
-      - name: Enforce atomic verification result
-        if: always() && !cancelled()
-        shell: bash
-        run: |
-          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
-            echo "Isolated database verification failed. Review the uploaded diagnostics." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.e2e.outputs.status }}" != "0" ]]; then
-            echo "Authenticated ArtistOS E2E failed. Review the uploaded diagnostics." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.contracts.outputs.status }}" != "0" ]]; then
-            echo "Source-bound release evidence validation failed." >&2
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const replay = read('artifacts/release-readiness/local-db-replay.json');
+          const e2e = read('artifacts/authenticated-e2e/summary.json');
+          const readiness = read('artifacts/release-readiness/report.json');
+          if (replay.result !== 'PASS') throw new Error(`Database replay evidence is ${replay.result}`);
+          if (replay.source_commit !== process.env.RELEASE_SOURCE_SHA) throw new Error('Database replay evidence is bound to a different commit');
+          if (e2e.status !== 'PASS') throw new Error(`Authenticated E2E evidence is ${e2e.status}: ${e2e.summary}`);
+          if (e2e.source_commit !== process.env.RELEASE_SOURCE_SHA) throw new Error('Authenticated E2E evidence is bound to a different commit');
+          if (readiness.overall !== 'GO') throw new Error(`Release readiness is ${readiness.overall}`);
+          if (readiness.git_sha !== process.env.RELEASE_SOURCE_SHA) throw new Error('Readiness evidence is bound to a different commit');
+          console.log('Durable replay, authenticated E2E, and readiness evidence are PASS and source-bound.');
+          NODE
+          test "${{ steps.contracts.outputs.status }}" = "0"
 
       - name: Clean up local services
         if: always()

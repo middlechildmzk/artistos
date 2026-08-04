@@ -1,21 +1,22 @@
 {
   "schema_version": 1,
   "project_ref": "myrtdfyjoxvtubusrrmf",
-  "verified_at_utc": "2026-07-29T15:47:19.323671Z",
-  "object_count": 3211,
-  "sha256": "386b682741ab40905e16773999f3f48af9147f6e85de9fd0740062ad936c50e1",
+  "verified_at_utc": "2026-08-02T16:08:57.345Z",
+  "object_count": 3269,
+  "sha256": "590a44936685df9f862c544051056e3616e15630eb5640fe210484c7749e233d",
   "categories": {
     "BUCKET": { "object_count": 1, "sha256": "62365f79a30bf426e12946f155f0ede9748916b6026952ef64dae9f4984e21ff" },
-    "COL": { "object_count": 1067, "sha256": "12865e3bd888b19645c926e6a905208a7d2c1f5275a9d7b286cb9b4151264b81" },
-    "CON": { "object_count": 416, "sha256": "ef346645124a4919b51f3ed48e5dda7768209ecb240c871c5cebd9c22efee1d0" },
+    "COL": { "object_count": 1083, "sha256": "b4bc3f6aab6321e700cf0fc9fbdad0fa73bb92b26e3dea66b68570176c5d5e17" },
+    "CON": { "object_count": 427, "sha256": "92cc26e99e09186cc957d8a0b7855ffa8ead3b6622a493cc7301f956615dee0f" },
     "ENUM": { "object_count": 1, "sha256": "3729eb69e5ec7c1d8330592a6f10aaebfe0c453efdbc1e1371a80d24559887eb" },
     "FUN": { "object_count": 12, "sha256": "7b75e75490f9a6d5fa5e6f103556a6e74dad50b532003db8381836e88b9824b5" },
-    "GRANT": { "object_count": 1157, "sha256": "add96288b0fd779e616894fa628e7751631f648bfe33d3ffe3aec21876079d1a" },
-    "IDX": { "object_count": 241, "sha256": "5c626128b665c67df6c0f2339688e46aeefc5e7a187ceb32bdb5a287aff4cb3a" },
-    "POL": { "object_count": 237, "sha256": "de2cba5b93b876d231bc3daf36c16fba16bc41edb935112a4cc17c34713e46b6" },
-    "REL": { "object_count": 73, "sha256": "b01ff8842242de6111860ba4ab9839312c4f9ccbdebf0c332888c136fa8d808c" },
+    "GRANT": { "object_count": 1178, "sha256": "ffc0d9bcf872a9cbb7a00c5ce1150b2a336426abe91be46cebdc194fb238aa03" },
+    "IDX": { "object_count": 246, "sha256": "ba6f827f4b832a27a4ba8cdc62f1f90e140d369be639027db2f67f71684de09d" },
+    "POL": { "object_count": 241, "sha256": "b8213c9c696dc2cd978cff85188557cccd5728dcd08b9111f5e2b60024e857b3" },
+    "REL": { "object_count": 74, "sha256": "af2cd9996541a3a32e0464bb42c94feb01fb6a5df39d6e834976805f71f2e1d8" },
     "TRG": { "object_count": 6, "sha256": "5e89be3eaf5f17a81ce71047c5f09e7baea247d36c1daba94115d36eae7c2512" }
   },
   "production_mutated": false,
+  "capture_method": "Read-only execution of scripts/application-schema-fingerprint.sql against the live canonical Supabase project.",
   "scope": "ArtistOS-owned public/private schema objects, app storage policies and bucket contract; extension-owned objects and data rows excluded."
 }

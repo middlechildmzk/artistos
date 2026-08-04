@@ -1,10 +1,3 @@
--- Restore the canonical ArtistOS onboarding boundary after the dormant
--- marketplace grant hardening revoked authenticated execution.
---
--- This function is intentionally callable by signed-in users only. Its body
--- derives the subject from auth.uid(), takes a per-user advisory lock, and
--- creates only that user's first workspace, membership, and artist record.
-
 begin;
 
 revoke all on function public.ensure_artistos_workspace() from public;

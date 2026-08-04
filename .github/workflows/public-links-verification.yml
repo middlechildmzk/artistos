@@ -1,9 +1,14 @@
 name: ArtistOS Public Links Verification
 
 on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - artifacts/**
+      - docs/**
+      - '**/*.md'
   push:
-    branches:
-      - agent/artistos-public-links
+    branches: [main]
     paths-ignore:
       - artifacts/**
       - docs/**
@@ -12,7 +17,6 @@ on:
 
 permissions:
   contents: read
-  statuses: write
 
 concurrency:
   group: artistos-public-links-verification-${{ github.ref }}
@@ -26,14 +30,16 @@ jobs:
       - name: Checkout exact public-links source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Bind source commit
         shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           checked_out_sha="$(git rev-parse HEAD)"
-          test "$checked_out_sha" = "$GITHUB_SHA"
+          test "$checked_out_sha" = "$EXPECTED_SHA"
           echo "RELEASE_SOURCE_SHA=$checked_out_sha" >> "$GITHUB_ENV"
           rm -rf artifacts/authenticated-e2e artifacts/public-links-e2e
           rm -f artifacts/schema-drift/local-historical-fingerprint.json \
@@ -63,6 +69,24 @@ jobs:
           status=${PIPESTATUS[0]}
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
+
+      - name: Write source-bound replay evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts/release-readiness
+          if [[ "${{ steps.replay.outputs.status }}" == "0" ]]; then result="PASS"; else result="FAIL"; fi
+          cat > artifacts/release-readiness/local-db-replay.json <<EOF
+          {
+            "schema_version": 1,
+            "result": "${result}",
+            "source_commit": "${RELEASE_SOURCE_SHA}",
+            "workflow_run_id": "${GITHUB_RUN_ID}",
+            "historical_schema_drift_checked": true,
+            "workspace_rls_checked": true,
+            "production_mutated": false,
+            "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
 
       - name: Export disposable application environment
         if: steps.replay.outputs.status == '0'
@@ -134,6 +158,7 @@ jobs:
             authenticated-e2e.log
             public-links-e2e.log
             artistos-public-links-app.log
+            artifacts/release-readiness/local-db-replay.json
             artifacts/authenticated-e2e/summary.json
             artifacts/authenticated-e2e/*.png
             artifacts/public-links-e2e/summary.json
@@ -145,49 +170,26 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Publish public-links verification result
-        if: always() && !cancelled()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          state=failure
-          description="Public ArtistOS Links verification failed"
-          if [[ "${{ steps.replay.outputs.status }}" == "0" && "${{ steps.authenticated.outputs.status }}" == "0" && "${{ steps.public_links.outputs.status }}" == "0" ]]; then
-            state=success
-            description="Replay, build, authenticated, and anonymous Links journeys passed"
-          fi
-          target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          jq -n \
-            --arg state "$state" \
-            --arg context "ArtistOS Public Links Verification" \
-            --arg description "$description" \
-            --arg target_url "$target_url" \
-            '{state:$state,context:$context,description:$description,target_url:$target_url}' \
-            | curl --fail-with-body --silent --show-error \
-                -X POST \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: Bearer ${GH_TOKEN}" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-                -d @-
-
-      - name: Enforce public-links verification result
+      - name: Enforce durable public-link evidence
         if: always() && !cancelled()
         shell: bash
         run: |
-          if [[ "${{ steps.replay.outputs.status }}" != "0" ]]; then
-            echo "Disposable database replay, drift, RLS, or advisor verification failed." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.authenticated.outputs.status }}" != "0" ]]; then
-            echo "Authenticated ArtistOS workspace journeys failed." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.public_links.outputs.status }}" != "0" ]]; then
-            echo "Anonymous public ArtistOS Links journeys failed." >&2
-            exit 1
-          fi
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const replay = read('artifacts/release-readiness/local-db-replay.json');
+          const authenticated = read('artifacts/authenticated-e2e/summary.json');
+          const publicLinks = read('artifacts/public-links-e2e/summary.json');
+          for (const [label, evidence, statusKey] of [
+            ['database replay', replay, 'result'],
+            ['authenticated E2E', authenticated, 'status'],
+            ['public-links E2E', publicLinks, 'status'],
+          ]) {
+            if (evidence[statusKey] !== 'PASS') throw new Error(`${label} evidence is ${evidence[statusKey]}: ${evidence.summary ?? ''}`);
+            if (evidence.source_commit !== process.env.RELEASE_SOURCE_SHA) throw new Error(`${label} evidence is bound to a different commit`);
+          }
+          console.log('Durable database, authenticated, and anonymous public-link evidence are PASS and source-bound.');
+          NODE
 
       - name: Clean up disposable services
         if: always()

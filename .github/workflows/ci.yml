@@ -23,6 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enforce repository secret hygiene
+        run: node scripts/check-secret-hygiene.mjs
+
       - name: Snapshot tracked source
         run: git ls-files -z | tar --null -T - -czf source-snapshot.tgz
 

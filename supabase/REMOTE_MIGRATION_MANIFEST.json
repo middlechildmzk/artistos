@@ -1,6 +1,6 @@
 {
   "project_ref": "myrtdfyjoxvtubusrrmf",
-  "captured_at": "2026-07-29",
+  "captured_at": "2026-08-02",
   "hash_algorithm": "sha256",
   "hash_input": "array_to_string(statements, newline)",
   "migrations": [
@@ -43,6 +43,11 @@
     {"version":"20260728223443","name":"minimize_fan_consent_evidence","sha256":"6bb796f50f03a05735de159b6070eefc3d3aeca8fe30c6e4cf7396f6655d2ce6","sql_chars":359},
     {"version":"20260729003724","name":"artistos_marketplace_identity","sha256":"56331d87ab267a9a30de21842daee63a007163feb00a3ad64020dad2304431e0","sql_chars":18207},
     {"version":"20260729005648","name":"marketplace_function_grants","sha256":"5f694b1f0e88f48145e5f59369be92794ea586ead5e57d74c5b59ea50a4f7b71","sql_chars":681},
-    {"version":"20260729005831","name":"marketplace_rls_performance","sha256":"15652ec1235e40a27532430b67ebf164c230c4c85136b89d637423e1faf95ab4","sql_chars":8894}
-  ]
+    {"version":"20260729005831","name":"marketplace_rls_performance","sha256":"15652ec1235e40a27532430b67ebf164c230c4c85136b89d637423e1faf95ab4","sql_chars":8894},
+    {"version":"20260729172057","name":"restore_authenticated_workspace_onboarding","sha256":"e781b931f21a72519a28e3fb93141171dd8adee3261b9b9bcd5ff0de9fec4125","sql_chars":1019},
+    {"version":"20260730180631","name":"share_artist_platform_profiles_with_workspace","sha256":"756bf95f390d9576bfc916db25d7bffb51f363b17ead1481cbebcfcdb7ed629e","sql_chars":887},
+    {"version":"20260730204030","name":"external_artist_identities_and_provider_credentials","sha256":"cfce95111e843a44a06232fc0b5aab3196b8af336ed3655332259d05f3f21373","sql_chars":2883},
+    {"version":"20260802111802","name":"allow_spotontrack_provider","sha256":"db285d91b667bb6d31e37f5b03b805b75dab7ea5f0667eac7e4a03e509d8d648","sql_chars":395}
+  ],
+  "capture_source": "live Supabase migration ledger"
 }

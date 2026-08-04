@@ -46,6 +46,12 @@ try {
     .single();
   if (destinationError) throw destinationError;
 
+  const privateResponse = await fetch(`${appUrl}/dashboard`, { redirect: "manual" });
+  assert([302, 303, 307, 308].includes(privateResponse.status), `Expected private dashboard redirect, received ${privateResponse.status}`);
+  const privateLocation = privateResponse.headers.get("location") ?? "";
+  assert(privateLocation.includes("/login"), `Private dashboard did not redirect to login: ${privateLocation}`);
+  record("private_route_guard", "Anonymous visitors are redirected away from the private dashboard while public release links remain reachable.");
+
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
