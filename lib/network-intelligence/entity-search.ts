@@ -1,4 +1,4 @@
-export const targetCategoryTerms = {
+export const targetCategoryTerms: Record<string, readonly string[]> = {
   playlist: ["playlist", "curator", "spotify", "apple music"],
   creator: ["creator", "influencer", "youtube", "tiktok", "instagram", "channel"],
   media: ["blog", "publication", "magazine", "press", "media", "newsletter", "podcast", "editor"],
@@ -8,7 +8,7 @@ export const targetCategoryTerms = {
   agency: ["agency", "management", "manager", "booking", "promoter", "publicity", "pr"],
   live: ["venue", "festival", "talent buyer", "live music", "campus"],
   platform: ["platform", "marketplace", "directory", "service"],
-} as const;
+};
 
 export type TargetCategory = keyof typeof targetCategoryTerms;
 export type PermissionState =
@@ -44,7 +44,7 @@ export function parseContactEmails(value: string | null | undefined) {
 
 export function categoryMatches(category: string | null | undefined, values: Array<string | null | undefined>) {
   if (!category) return true;
-  const terms = targetCategoryTerms[category as TargetCategory] ?? [normalize(category)];
+  const terms = targetCategoryTerms[category] ?? [normalize(category)];
   const haystack = values.map(normalize).join(" ");
   return terms.some((term) => haystack.includes(term));
 }
