@@ -33,6 +33,7 @@ test("public and inherited contact labels never become automatically open routes
   const legacyPermission = rules.derivePermissionState("Active - imported from opt-in/download/old list", false);
   assert.equal(legacyPermission, "marketing_opt_in");
   assert.equal(rules.deriveContactRouteState({ emails: ["public@example.com"], permissionState: legacyPermission }), "human_review_required");
+  assert.equal(rules.routeStateLabel("human_review_required"), "Human review required");
 
   const publicPermission = rules.derivePermissionState("Public business contact; outreach not authorized", false);
   assert.equal(publicPermission, "public_business_contact");
@@ -69,7 +70,7 @@ test("Network Intelligence queries properties and people as first-class search e
 test("search results expose evidence, freshness, and safe route state without send actions", () => {
   assert.match(page, /followers_asof/);
   assert.match(page, /source_record_id/);
-  assert.match(page, /Human review required/);
+  assert.match(page, /routeStateLabel/);
   assert.doesNotMatch(page, /mailto:/);
   assert.doesNotMatch(page, /Record outreach/);
 });
@@ -87,6 +88,7 @@ test("outreach actions use form-render idempotency and require full route contex
   assert.match(actions, /submissionNonce/);
   assert.match(actions, /!campaignId \|\| !endpointId/);
   assert.match(actions, /createHash\("sha256"\)/);
+  assert.match(actions, /invokeCapabilityCommand/);
   assert.doesNotMatch(actions, /randomUUID/);
 });
 
