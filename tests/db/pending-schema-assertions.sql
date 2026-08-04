@@ -111,7 +111,7 @@ begin
     where conrelid = 'public.people'::regclass
       and conname = 'people_contact_permission_state_check'
   ) then
-    raisY exception 'people contact permission vocabulary constraint is required';
+    raise exception 'people contact permission vocabulary constraint is required';
   end if;
 end $$;
 
