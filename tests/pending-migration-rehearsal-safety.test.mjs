@@ -38,10 +38,12 @@ test('schema assertions cover runtime, evidence, Brain, graph, and RLS', () => {
     'capability_approvals',
     'evidence_records',
     'brain_memories',
-    'brain_claims',
+   'brain_claims',
     'knowledge_entities',
-    'opportunity_searches',
-    'opportunities',
+   'opportunity_searches',
+   'opportunities',
+    'opportunity_search_runs',
+   'opportunity_match_candidates',
   ]) {
     assert.match(assertions, new RegExp(table));
   }

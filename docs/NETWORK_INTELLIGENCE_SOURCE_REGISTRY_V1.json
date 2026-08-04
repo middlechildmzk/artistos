@@ -4,6 +4,13 @@
   "privacy_note": "No raw contact records, public business emails, protected profiles, or licensed dataset rows are included.",
   "sources": [
     {
+      "source_name": "Wikidata",
+      "disposition": "accept_verified_source",
+      "official_url": "https://www.wikidata.org/wiki/Wikidata:Data_access",
+      "allowed_use": "CC0 public identity and relationship discovery through documented Wikimedia interfaces.",
+      "owner_action": "Use a meaningful User-Agent, honor Retry-After and rate guidance, preserve entity IDs and source URLs, and keep submission-route claims unverified until separately proven."
+    },
+    {
       "source_name": "YouTube Data API v3",
       "disposition": "accept_verified_source",
       "official_url": "https://developers.google.com/youtube/v3/getting-started",

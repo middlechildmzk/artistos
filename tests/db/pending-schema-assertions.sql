@@ -21,7 +21,9 @@ declare
     'opportunity_searches',
     'opportunities',
     'opportunity_source_observations',
-    'opportunity_score_features'
+    'opportunity_score_features',
+    'opportunity_search_runs',
+    'opportunity_match_candidates'
   ];
 begin
   foreach required_table in array required_tables loop
@@ -199,4 +201,53 @@ begin
       raise exception '%.workspace_id must be NOT NULL', required_table;
     end if;
   end loop;
+end $$;
+
+
+-- Network Source Runtime must preserve auditable runs, human review state,
+-- deterministic match suggestions, and explicit source-policy provenance.
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'opportunity_searches'
+      and column_name in ('source_plan','last_run_at','last_run_status','last_run_summary')
+    group by table_name
+    having count(distinct column_name) = 4
+  ) then
+    raise exception 'opportunity_searches must expose source runtime plan and run summary columns';
+  end if;
+
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'opportunities'
+      and column_name in ('source_slug','source_policy_disposition','external_id','canonical_url','review_status','review_disposition','matched_entity_type','matched_entity_id','eligibility')
+    group by table_name
+    having count(distinct column_name) = 9
+  ) then
+    raise exception 'opportunities must expose source, review, match, and eligibility state';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.opportunities'::regclass
+      and conname = 'opportunities_review_status_check'
+  ) then
+    raise exception 'opportunities review status vocabulary constraint is required';
+  end if;
+
+  if has_table_privilege('anon', 'public.opportunity_search_runs', 'select')
+     or has_table_privilege('anon', 'public.opportunity_match_candidates', 'select') then
+    raise exception 'anon must not read source runtime tables';
+  end if;
+
+  if not has_table_privilege('authenticated', 'public.opportunity_search_runs', 'select')
+     or not has_table_privilege('authenticated', 'public.opportunity_match_candidates', 'select') then
+    raise exception 'authenticated workspace members need source runtime read access';
+  end if;
 end $$;
