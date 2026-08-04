@@ -26,6 +26,21 @@ remove_replay_fixture() {
   fi
 }
 
+local_db_container() {
+  docker ps --filter "name=supabase_db_" --format '{{.ID}}' | head -n 1
+}
+
+run_sql_file() {
+  local sql_file="$1"
+  local db_container
+  db_container="$(local_db_container)"
+  if [[ -z "${db_container}" ]]; then
+    echo "Local Supabase database container was not found." >&2
+    exit 2
+  fi
+  docker exec -i "${db_container}" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < "${sql_file}"
+}
+
 cleanup() {
   remove_replay_fixture
   if [[ "${PENDING_RESTORED}" != "true" ]]; then
@@ -145,7 +160,7 @@ supabase db reset --local
 supabase migration list --local > "${BASELINE_LIST}"
 
 if [[ -f tests/rls/workspace-isolation.sql ]]; then
-  supabase db query --local --file tests/rls/workspace-isolation.sql
+  run_sql_file tests/rls/workspace-isolation.sql
 fi
 
 restore_pending
@@ -155,10 +170,10 @@ supabase db reset --local
 supabase migration list --local > "${FINAL_LIST}"
 
 if [[ -f tests/rls/workspace-isolation.sql ]]; then
-  supabase db query --local --file tests/rls/workspace-isolation.sql
+  run_sql_file tests/rls/workspace-isolation.sql
 fi
 if [[ -f tests/db/pending-schema-assertions.sql ]]; then
-  supabase db query --local --file tests/db/pending-schema-assertions.sql
+  run_sql_file tests/db/pending-schema-assertions.sql
 fi
 
 supabase db advisors --local
