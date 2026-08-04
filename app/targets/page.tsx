@@ -6,8 +6,40 @@ function label(value: string | null | undefined, fallback = "Unknown") {
   return value?.trim() || fallback;
 }
 
-function formatNumber(value: number | null | undefined) {
-  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value ?? 0);
+function numericSignal(value: string | number | null | undefined) {
+  const numeric = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function formatNumber(value: string | number | null | undefined) {
+  if (typeof value === "string" && /[a-z]/i.test(value)) return value;
+  const numeric = numericSignal(value);
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(numeric);
+}
+
+function normalize(value: string | null | undefined) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function targetTypeMatches(typeFilter: string, organizationType: string | null, properties: PropertySummary[]) {
+  if (!typeFilter) return true;
+  const haystack = [organizationType, ...properties.flatMap((property) => [property.property_type, property.platform])]
+    .map(normalize)
+    .join(" ");
+
+  const categoryTerms: Record<string, string[]> = {
+    playlist: ["playlist", "curator"],
+    creator: ["creator", "influencer", "youtube", "tiktok", "instagram", "channel"],
+    blog: ["blog", "publication", "magazine", "press", "media", "newsletter", "podcast"],
+    radio: ["radio", "station", "broadcast", "show"],
+    sync: ["sync", "licens", "supervisor", "music library", "trailer", "film", "television", "game"],
+    label: ["label", "a&r", "publisher", "publishing"],
+    agency: ["agency", "management", "manager", "booking", "promoter", "publicity", "pr"],
+    venue: ["venue", "festival", "talent buyer", "live music"],
+    platform: ["platform", "marketplace", "directory", "service"],
+  };
+
+  return (categoryTerms[typeFilter] ?? [typeFilter]).some((term) => haystack.includes(term));
 }
 
 type TargetSearchParams = Promise<{
@@ -26,7 +58,7 @@ type PropertySummary = {
   property_type: string | null;
   platform: string | null;
   url: string | null;
-  followers_estimate: number | null;
+  followers_estimate: string | null;
   genre_tags: string[] | null;
   verification_status: string | null;
 };
@@ -44,6 +76,7 @@ type EndpointSummary = {
   endpoint_type: string | null;
   submission_url: string | null;
   submission_email: string | null;
+  submission_status: string | null;
   verification_status: string | null;
 };
 
@@ -75,13 +108,10 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
     .from("organizations")
     .select("id, canonical_name, display_name, org_type, location, activity_status, trust_tier, risk_tier, verification_status, evidence_strength, website, primary_source_url, notes, relationship_stage, next_action, next_action_due", { count: "exact" })
     .eq("workspace_id", workspaceId)
-    .is("archived_at", null)
     .order("evidence_strength", { ascending: false, nullsFirst: false })
     .order("canonical_name")
-    .limit(150);
+    .limit(500);
 
-  if (queryText) organizationQuery = organizationQuery.or(`canonical_name.ilike.%${queryText}%,display_name.ilike.%${queryText}%,org_type.ilike.%${queryText}%,location.ilike.%${queryText}%`);
-  if (typeFilter) organizationQuery = organizationQuery.eq("org_type", typeFilter);
   if (trustFilter) organizationQuery = organizationQuery.eq("trust_tier", trustFilter);
   if (verificationFilter) organizationQuery = organizationQuery.eq("verification_status", verificationFilter);
   if (activityFilter) organizationQuery = organizationQuery.eq("activity_status", activityFilter);
@@ -96,11 +126,30 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
 
   const organizations = organizationResult.data ?? [];
   const organizationIds = organizations.map((organization) => organization.id);
-  const [propertiesResult, peopleResult, endpointsResult] = organizationIds.length ? await Promise.all([
-    supabase.from("properties").select("organization_id,name,property_type,platform,url,followers_estimate,genre_tags,verification_status").eq("workspace_id", workspaceId).in("organization_id", organizationIds).is("archived_at", null).limit(1000),
-    supabase.from("people").select("organization_id,email,email_status,full_name,role").eq("workspace_id", workspaceId).in("organization_id", organizationIds).is("archived_at", null).limit(1000),
-    supabase.from("submission_endpoints").select("organization_id,endpoint_type,submission_url,submission_email,verification_status").eq("workspace_id", workspaceId).in("organization_id", organizationIds).limit(1000),
-  ]) : [{ data: [] }, { data: [] }, { data: [] }];
+  const [propertiesResult, peopleResult, endpointsResult] = organizationIds.length
+    ? await Promise.all([
+        supabase
+          .from("properties")
+          .select("organization_id,name,property_type,platform,url,followers_estimate,genre_tags,verification_status")
+          .eq("workspace_id", workspaceId)
+          .in("organization_id", organizationIds)
+          .is("archived_at", null)
+          .limit(5000),
+        supabase
+          .from("people")
+          .select("organization_id,email,email_status,full_name,role")
+          .eq("workspace_id", workspaceId)
+          .in("organization_id", organizationIds)
+          .is("archived_at", null)
+          .limit(5000),
+        supabase
+          .from("submission_endpoints")
+          .select("organization_id,endpoint_type,submission_url,submission_email,submission_status,verification_status")
+          .eq("workspace_id", workspaceId)
+          .in("organization_id", organizationIds)
+          .limit(5000),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   const propertiesByOrganization = new Map<string, PropertySummary[]>();
   for (const property of (propertiesResult.data ?? []) as PropertySummary[]) {
@@ -130,10 +179,30 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
     const properties = propertiesByOrganization.get(organization.id) ?? [];
     const people = peopleByOrganization.get(organization.id) ?? [];
     const endpoints = endpointsByOrganization.get(organization.id) ?? [];
-    if (platformFilter && !properties.some((property) => property.platform === platformFilter)) return false;
+
+    if (!targetTypeMatches(typeFilter, organization.org_type, properties)) return false;
+    if (platformFilter && !properties.some((property) => normalize(property.platform) === normalize(platformFilter))) return false;
     if (contactFilter === "email" && !people.some((person) => Boolean(person.email)) && !endpoints.some((endpoint) => Boolean(endpoint.submission_email))) return false;
     if (contactFilter === "form" && !endpoints.some((endpoint) => Boolean(endpoint.submission_url))) return false;
     if (contactFilter === "any" && !people.some((person) => Boolean(person.email)) && !endpoints.some((endpoint) => Boolean(endpoint.submission_email || endpoint.submission_url))) return false;
+    if (contactFilter === "verified" && !endpoints.some((endpoint) => endpoint.verification_status === "verified")) return false;
+
+    if (queryText) {
+      const searchHaystack = [
+        organization.canonical_name,
+        organization.display_name,
+        organization.org_type,
+        organization.location,
+        organization.notes,
+        ...properties.flatMap((property) => [property.name, property.property_type, property.platform, ...(property.genre_tags ?? [])]),
+        ...people.flatMap((person) => [person.full_name, person.role, person.email]),
+        ...endpoints.flatMap((endpoint) => [endpoint.endpoint_type, endpoint.submission_email, endpoint.submission_status]),
+      ]
+        .map(normalize)
+        .join(" ");
+      if (!searchHaystack.includes(normalize(queryText))) return false;
+    }
+
     return true;
   });
 
@@ -166,12 +235,12 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
         <div className="section-heading"><div><h2>Source music-industry targets</h2><p className="muted">Recruiter-style search across organizations, public pages, contacts, submission routes, trust, activity, and verification.</p></div>{activeFilterCount ? <Link className="button ghost" href="/targets">Clear {activeFilterCount} filters</Link> : null}</div>
         <div className="form-grid two">
           <label className="field"><span>Keywords</span><input className="input" name="q" defaultValue={queryText} placeholder="Future bass, sync, radio, YouTube, Minneapolis" /></label>
-          <label className="field"><span>Target type</span><select className="input" name="type" defaultValue={typeFilter}><option value="">All target types</option><option value="playlist">Playlist or curator</option><option value="creator">Creator or influencer</option><option value="blog">Blog or publication</option><option value="radio">Radio</option><option value="sync">Sync or licensing</option><option value="label">Label</option><option value="agency">Agency</option><option value="platform">Platform</option></select></label>
+          <label className="field"><span>Target type</span><select className="input" name="type" defaultValue={typeFilter}><option value="">All target types</option><option value="playlist">Playlist or curator</option><option value="creator">Creator or influencer</option><option value="blog">Blog, press, or podcast</option><option value="radio">Radio</option><option value="sync">Sync or licensing</option><option value="label">Label or publishing</option><option value="agency">Agency, management, or booking</option><option value="venue">Venue or festival</option><option value="platform">Platform or directory</option></select></label>
           <label className="field"><span>Platform</span><select className="input" name="platform" defaultValue={platformFilter}><option value="">All platforms</option><option value="spotify">Spotify</option><option value="youtube">YouTube</option><option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="soundcloud">SoundCloud</option><option value="apple_music">Apple Music</option><option value="radio">Radio</option><option value="website">Website</option></select></label>
-          <label className="field"><span>Public contact route</span><select className="input" name="contact" defaultValue={contactFilter}><option value="">Any contact state</option><option value="any">Contact route exists</option><option value="email">Email exists</option><option value="form">Submission form exists</option></select></label>
-          <label className="field"><span>Trust</span><select className="input" name="trust" defaultValue={trustFilter}><option value="">All trust tiers</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="unknown">Unknown</option></select></label>
-          <label className="field"><span>Verification</span><select className="input" name="verification" defaultValue={verificationFilter}><option value="">All verification states</option><option value="verified">Verified</option><option value="supported">Supported</option><option value="unverified">Unverified</option><option value="stale">Stale</option></select></label>
-          <label className="field"><span>Activity</span><select className="input" name="activity" defaultValue={activityFilter}><option value="">Any activity</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="unknown">Unknown</option></select></label>
+          <label className="field"><span>Public contact route</span><select className="input" name="contact" defaultValue={contactFilter}><option value="">Any contact state</option><option value="any">Contact route exists</option><option value="email">Email exists</option><option value="form">Submission form exists</option><option value="verified">Verified route</option></select></label>
+          <label className="field"><span>Trust</span><select className="input" name="trust" defaultValue={trustFilter}><option value="">All trust tiers</option><option value="verified candidate">Verified candidate</option><option value="premium candidate">Premium candidate</option><option value="listed">Listed</option><option value="unverified">Unverified</option></select></label>
+          <label className="field"><span>Verification</span><select className="input" name="verification" defaultValue={verificationFilter}><option value="">All verification states</option><option value="verified">Verified</option><option value="partially verified">Partially verified</option><option value="unable to verify">Unable to verify</option></select></label>
+          <label className="field"><span>Activity</span><select className="input" name="activity" defaultValue={activityFilter}><option value="">Any activity</option><option value="active">Active</option><option value="unknown">Unknown</option></select></label>
         </div>
         <button className="button primary" type="submit">Search network</button>
       </form>
@@ -182,9 +251,10 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
           const properties = propertiesByOrganization.get(organization.id) ?? [];
           const people = peopleByOrganization.get(organization.id) ?? [];
           const endpoints = endpointsByOrganization.get(organization.id) ?? [];
-          const primaryProperty = [...properties].sort((a, b) => (b.followers_estimate ?? 0) - (a.followers_estimate ?? 0))[0] ?? null;
+          const primaryProperty = [...properties].sort((a, b) => numericSignal(b.followers_estimate) - numericSignal(a.followers_estimate))[0] ?? null;
           const emails = people.filter((person) => person.email).length + endpoints.filter((endpoint) => endpoint.submission_email).length;
           const forms = endpoints.filter((endpoint) => endpoint.submission_url).length;
+          const needsVerification = endpoints.filter((endpoint) => endpoint.submission_status === "needs_verification").length;
           const genres = [...new Set(properties.flatMap((property) => property.genre_tags ?? []))].slice(0, 4);
           return (
             <article className="directory-row" key={organization.id}>
@@ -194,6 +264,7 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
                   {primaryProperty ? <span className="pill">{label(primaryProperty.platform, primaryProperty.property_type || "Property")}{primaryProperty.followers_estimate ? ` · ${formatNumber(primaryProperty.followers_estimate)}` : ""}</span> : null}
                   <span className="pill">{properties.length} properties</span>
                   <span className={`pill ${emails || forms ? "success" : "blocked"}`}>{emails ? `${emails} email route${emails === 1 ? "" : "s"}` : forms ? `${forms} form${forms === 1 ? "" : "s"}` : "No contact route"}</span>
+                  {needsVerification ? <span className="pill blocked">{needsVerification} route{needsVerification === 1 ? "" : "s"} need verification</span> : null}
                   <span className="pill">Stage: {label(organization.relationship_stage, "identified")}</span>
                   <span className="pill">Trust: {label(organization.trust_tier)}</span>
                   <span className={`pill ${String(organization.risk_tier ?? "").toLowerCase().includes("high") ? "blocked" : ""}`}>Risk: {label(organization.risk_tier)}</span>
