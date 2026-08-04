@@ -35,6 +35,52 @@ import "./free-source-handlers";
 
 const ROLE_RANK: Record<WorkspaceRole, number> = { viewer: 0, contributor: 1, editor: 2, admin: 3, owner: 4 };
 
+type OutreachGuardInput = {
+  organizationId?: string;
+  campaignId?: string;
+  endpointId?: string;
+};
+
+async function assertVerifiedOutreachRoute(ctx: ActorContext, rawInput: unknown) {
+  const input = rawInput as OutreachGuardInput;
+  if (!input.organizationId || !input.campaignId || !input.endpointId) throw new Error("outreach_route_context_required");
+
+  const supabase = await createSupabaseServerClient();
+  const [{ data: target, error: targetError }, { data: endpoint, error: endpointError }] = await Promise.all([
+    supabase
+      .from("campaign_targets")
+      .select("id")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("campaign_id", input.campaignId)
+      .eq("target_kind", "organization")
+      .eq("target_id", input.organizationId)
+      .maybeSingle(),
+    supabase
+      .from("submission_endpoints")
+      .select("id,organization_id,submission_email,submission_url,submission_status")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("id", input.endpointId)
+      .maybeSingle(),
+  ]);
+  if (targetError) throw targetError;
+  if (endpointError) throw endpointError;
+  if (!target) throw new Error("campaign_target_not_assigned");
+  if (!endpoint || endpoint.organization_id !== input.organizationId) throw new Error("submission_endpoint_not_found");
+  if (endpoint.submission_status !== "open" || (!endpoint.submission_email && !endpoint.submission_url)) throw new Error("submission_endpoint_not_open");
+
+  if (endpoint.submission_email) {
+    const normalizedEmail = endpoint.submission_email.trim().toLowerCase();
+    const { data: suppressions, error: suppressionError } = await supabase
+      .from("suppressions")
+      .select("email,normalized_email")
+      .eq("workspace_id", ctx.workspaceId)
+      .limit(10000);
+    if (suppressionError) throw suppressionError;
+    const suppressed = (suppressions ?? []).some((row) => String(row.normalized_email || row.email || "").trim().toLowerCase() === normalizedEmail);
+    if (suppressed) throw new Error("submission_endpoint_suppressed");
+  }
+}
+
 export function createServerInvocationDependencies(): InvocationDependencies {
   return {
     async authorize(ctx, capabilityName) {
@@ -58,6 +104,7 @@ export function createServerInvocationDependencies(): InvocationDependencies {
       return { approvalId: data.id, preview: input };
     },
     async execute<O>(args: { ctx: ActorContext; capabilityName: string; version: number; input: unknown; idempotencyKey?: string }) {
+      if (args.capabilityName === "crm.log_outbound_outreach") await assertVerifiedOutreachRoute(args.ctx, args.input);
       const handler = getCapabilityHandler(args.capabilityName, args.version);
       const execution = await handler({ ctx: args.ctx, input: args.input, idempotencyKey: args.idempotencyKey });
       return { output: execution.output as O, evidenceIds: execution.evidenceIds, auditId: execution.auditId };
