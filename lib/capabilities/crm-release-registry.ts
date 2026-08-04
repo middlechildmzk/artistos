@@ -23,11 +23,11 @@ export const addOrganizationToCampaignCapability = registerCapability({
 });
 
 export const logOutboundOutreachCapability = registerCapability({
-  name: "crm.log_outbound_outreach", version: 1, kind: "command",
-  purpose: "Record outbound outreach and synchronize campaign and CRM follow-up state.",
-  input: z.object({ organizationId: uuid, campaignId: uuid.nullable().optional(), endpointId: uuid.nullable().optional(), channel: z.string().trim().min(1).max(80), subject: z.string().trim().min(1).max(500), body: z.string().trim().max(20000).nullable().optional(), followUpDue: nullableDate, assetLink: z.string().url().nullable().optional(), idempotencyKey }),
+  name: "crm.log_outbound_outreach", version: 2, kind: "command",
+  purpose: "Record completed human-approved outreach through an open, unsuppressed campaign route and preserve evidence.",
+  input: z.object({ organizationId: uuid, campaignId: uuid, endpointId: uuid, channel: z.string().trim().min(1).max(80), subject: z.string().trim().min(1).max(500), body: z.string().trim().min(1).max(20000), followUpDue: nullableDate, assetLink: z.string().url().nullable().optional(), idempotencyKey }),
   output: z.object({ interactionId: uuid, organizationId: uuid, campaignTargetUpdated: z.boolean() }),
-  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.interactions.write" }, risk: "R1_internal_reversible", approval: "by_policy", idempotency: "key_required", evidence: "optional", auditEvents: ["crm.outreach_logged"], retry: defaultWriteRetry, mcp: "gated_write", failureModes: ["organization_not_found", "campaign_not_found"],
+  scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.interactions.write" }, risk: "R1_internal_reversible", approval: "by_policy", idempotency: "key_required", evidence: "required", auditEvents: ["crm.outreach_logged"], retry: defaultWriteRetry, mcp: "gated_write", failureModes: ["organization_not_found", "campaign_not_found", "submission_endpoint_not_found", "submission_endpoint_not_open", "submission_endpoint_suppressed"],
 });
 
 export const createReleaseCapability = registerCapability({
