@@ -3,9 +3,10 @@ import fs from "node:fs";
 import test from "node:test";
 
 const read = (path) => fs.readFileSync(path, "utf8");
+const identityMigration = "supabase/migrations/20260730204030_external_artist_identities_and_provider_credentials.sql";
 
 test("provider credential schema permits reviewed read-only providers", () => {
-  const migration = read("supabase/migrations/20260730202500_external_artist_identities_and_provider_credentials.sql");
+  const migration = read(identityMigration);
   for (const provider of ["google", "spotify", "soundcharts", "kit", "lastfm", "ticketmaster"]) {
     assert.match(migration, new RegExp(`'${provider}'::text`));
   }
@@ -14,7 +15,7 @@ test("provider credential schema permits reviewed read-only providers", () => {
 });
 
 test("external identities are workspace scoped and collision resistant", () => {
-  const migration = read("supabase/migrations/20260730202500_external_artist_identities_and_provider_credentials.sql");
+  const migration = read(identityMigration);
   assert.match(migration, /create table if not exists public\.artist_external_identities/);
   assert.match(migration, /unique \(workspace_id, artist_id, provider\)/);
   assert.match(migration, /unique \(workspace_id, provider, external_id\)/);
