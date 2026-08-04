@@ -77,9 +77,10 @@ if [[ -e "${REPLAY_FIXTURE}" ]]; then
 fi
 
 cat > "${REPLAY_FIXTURE}" <<'SQL'
--- Disposable local-replay prerequisite for a historical migration that
--- predates source-controlled fixture generation. This file is created and
--- removed by scripts/rehearse-pending-migrations.sh and must never ship.
+-- Disposable local-replay prerequisites for historical migrations that
+-- depended on production identities and import-created columns before those
+-- prerequisites were source-controlled. This file is created and removed by
+-- scripts/rehearse-pending-migrations.sh and must never ship.
 
 insert into auth.users (
   instance_id,
@@ -123,6 +124,15 @@ values (
   'Dan Larson / BVSS FVM'
 )
 on conflict (id) do nothing;
+
+-- These columns existed in production from the original import tooling before
+-- the parity migration attempted to index them. Recreate only their schema
+-- shape in the disposable replay database; no business rows are fabricated.
+alter table public.people
+  add column if not exists normalized_email text;
+
+alter table public.properties
+  add column if not exists canonical_property_key text;
 SQL
 FIXTURE_CREATED=true
 
