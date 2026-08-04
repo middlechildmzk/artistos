@@ -143,8 +143,8 @@ registerCapabilityHandler(executeOpportunitySearchCapability, async ({ ctx, inpu
     const failedSources = executed.reports.filter((report) => report.status === "failed").length;
     const status = completedSources > 0 && failedSources === 0 ? "completed" : completedSources > 0 ? "partial" : "failed";
     const completedAt = new Date().toISOString();
-    const summary = { discovered_count: executed.candidates.length, matched_count: matchedCount, completed_sources: completedSources, skipped_sources: skippedSources, failed_sources: failedSourcesCount };
-    const { error: runCompleteError } = await supabase.from("opportunity_search_runs").update({ status, source_reports: executed.reports, result_count: executed.candidates.length, matched_count: matchedCount, completed_at: completedAt, error_summary: failedSourcesCount ? `${failedSourcesCount} source adapters failed.` : null }).eq("workspace_id", ctx.workspaceId).eq("id", run.id);
+    const summary = { discovered_count: executed.candidates.length, matched_count: matchedCount, completed_sources: completedSources, skipped_sources: skippedSources, failed_sources: failedSources };
+    const { error: runCompleteError } = await supabase.from("opportunity_search_runs").update({ status, source_reports: executed.reports, result_count: executed.candidates.length, matched_count: matchedCount, completed_at: completedAt, error_summary: failedSources ? `${failedSources} source adapters failed.` : null }).eq("workspace_id", ctx.workspaceId).eq("id", run.id);
     if (runCompleteError) throw runCompleteError;
     const { error: searchCompleteError } = await supabase.from("opportunity_searches").update({ status: "completed", last_run_at: completedAt, last_run_status: status, last_run_summary: summary, updated_at: completedAt }).eq("workspace_id", ctx.workspaceId).eq("id", search.id);
     if (searchCompleteError) throw searchCompleteError;
