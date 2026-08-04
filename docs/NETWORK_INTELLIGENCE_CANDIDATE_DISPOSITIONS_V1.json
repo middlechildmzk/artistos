@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-08-04",
+  "scope": "Sanitized aggregate disposition index for the uploaded AI-team research.",
+  "privacy_note": "The public repository file intentionally excludes raw contacts, public business emails, protected profiles, licensed rows, and contact-level evidence. The private reconciliation workbook is the review artifact.",
+  "candidate_record_count": 252,
+  "source_family_count": 71,
+  "exact_or_probable_live_matches": 47,
+  "priority_counts": {
+    "P0": 44,
+    "P1": 93
+  },
+  "candidate_dispositions": {
+    "accept_verified_route": 2,
+    "accept_verified_source": 13,
+    "existing_record_review": 37,
+    "external_handoff": 24,
+    "license_review": 8,
+    "partnership_required": 2,
+    "quarantine_identity": 33,
+    "reject_ineligible": 3,
+    "reject_no_unsolicited": 8,
+    "verify_official_route": 13,
+    "verify_official_source": 109
+  },
+  "source_family_dispositions": {
+    "accept_verified_source": 6,
+    "external_handoff": 9,
+    "license_review": 22,
+    "partnership_required": 2,
+    "reject_ineligible": 1,
+    "verify_official_route": 5,
+    "verify_official_source": 26
+  },
+  "disposition_definitions": {
+    "accept_verified_source": "Eligible for the source catalog, subject to field-level terms, rate, retention, attribution, and freshness controls.",
+    "accept_verified_route": "Current first-party route supported by official evidence. Execution still requires human approval.",
+    "verify_official_source": "Discovery seed only until current first-party identity and terms are recorded.",
+    "verify_official_route": "Potential route that remains non-actionable until current first-party policy and eligibility are verified.",
+    "existing_record_review": "Probable or exact live ArtistOS match. Enrich and reverify; do not create a duplicate.",
+    "external_handoff": "Account-based marketplace or protected platform. Deep-link and store user-owned receipts/outcomes only.",
+    "partnership_required": "Blocked until provider approval and commercial terms are obtained.",
+    "license_review": "Blocked until written ingestion, storage, display, refresh, correction, and export rights are approved.",
+    "quarantine_identity": "Blocked by masked contact, malformed stable ID, ambiguous ownership, or unresolved duplicate.",
+    "quarantine_policy": "Blocked by unofficial interface, stale or conflicting policy, or unsupported acquisition method.",
+    "reject_ineligible": "ArtistOS or the current artist/release is not eligible for the route or API.",
+    "reject_no_unsolicited": "The source or property explicitly disallows the proposed submission or outreach route."
+  },
+  "production_imports": 0,
+  "production_writes": 0
+}
