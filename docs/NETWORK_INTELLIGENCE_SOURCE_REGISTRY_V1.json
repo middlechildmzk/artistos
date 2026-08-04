@@ -14,8 +14,8 @@
       "source_name": "YouTube Data API v3",
       "disposition": "accept_verified_source",
       "official_url": "https://developers.google.com/youtube/v3/getting-started",
-      "allowed_use": "Public YouTube identity, channel, playlist, and video metadata within current API terms and quotas.",
-      "owner_action": "Implement current quota buckets, attribution, retention, refresh, and compliance controls."
+      "allowed_use": "Blocked from execution in Network Source Runtime V1 pending approved retention, refresh-or-delete, quota, and compliance controls.",
+      "owner_action": "Keep execution code-blocked. Do not configure a discovery key until the exact use case passes YouTube API policy review and 30-day refresh-or-delete controls exist."
     },
     {
       "source_name": "YouTube Analytics API",

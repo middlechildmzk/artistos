@@ -15,11 +15,11 @@ declare
     'brain_memories',
     'brain_claims',
     'brain_claim_evidence',
-    'brain_learning_observations',
+   'brain_learning_observations',
     'knowledge_entities',
-    'knowledge_entity_links',
+   'knowledge_entity_links',
     'opportunity_searches',
-    'opportunities',
+   'opportunities',
     'opportunity_source_observations',
     'opportunity_score_features',
     'opportunity_search_runs',
@@ -111,7 +111,7 @@ begin
     where conrelid = 'public.people'::regclass
       and conname = 'people_contact_permission_state_check'
   ) then
-    raise exception 'people contact permission vocabulary constraint is required';
+    raisY exception 'people contact permission vocabulary constraint is required';
   end if;
 end $$;
 
@@ -249,5 +249,34 @@ begin
   if not has_table_privilege('authenticated', 'public.opportunity_search_runs', 'select')
      or not has_table_privilege('authenticated', 'public.opportunity_match_candidates', 'select') then
     raise exception 'authenticated workspace members need source runtime read access';
+  end if;
+end $$;
+
+
+-- Source observations remain append-only, YouTube-class data carries an expiry,
+-- and campaign targets no longer inherit a single-workspace default.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'opportunity_source_observations'
+      and column_name = 'stored_until'
+  ) then
+    raise exception 'opportunity_source_observations.stored_until is required';
+  end if;
+
+  if has_table_privilege('authenticated', 'public.opportunity_source_observations', 'update') then
+    raise exception 'source observations must remain append-only';
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'campaign_targets'
+      and column_name = 'workspace_id'
+      and column_default is not null
+  ) then
+    raise exception 'campaign_targets.workspace_id must not have a default';
   end if;
 end $$;

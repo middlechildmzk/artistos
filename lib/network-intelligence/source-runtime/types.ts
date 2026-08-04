@@ -39,6 +39,8 @@ export type SourcePolicy = {
   officialUrl: string;
   allowedUse: string;
   requiresConfiguration: boolean;
+  executionEnabled: boolean;
+  executionBlockReason?: string;
 };
 
 export type SearchPlanLane = {
@@ -84,11 +86,11 @@ export type DiscoveryCandidate = {
   legitimacyStatus: "unreviewed" | "credible" | "mixed" | "suspicious" | "blocked";
   audienceSignal: number | null;
   fitScore: number;
-  legitimacyScore: number;
-  reachQualityScore: number;
-  accessibilityScore: number;
-  relationshipScore: number;
-  riskScore: number;
+  legitimacyScore: number | null;
+  reachQualityScore: number | null;
+  accessibilityScore: number | null;
+  relationshipScore: number | null;
+  riskScore: number | null;
   riskFlags: string[];
   eligibility: Record<string, unknown>;
   scoreFeatures: DiscoveryFeature[];

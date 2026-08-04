@@ -4,6 +4,15 @@ import { registerCapabilityHandler } from "../handlers";
 import { reviewOpportunityCapability } from "../opportunity-registry";
 import { readReplay, writeReplay } from "./shared";
 
+type MatchedEntityType = "organization" | "person" | "property";
+
+async function assertWorkspaceEntity(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, workspaceId: string, entityType: MatchedEntityType, entityId: string) {
+  const table = entityType === "organization" ? "organizations" : entityType === "person" ? "people" : "properties";
+  const { data, error } = await supabase.from(table).select("id").eq("workspace_id", workspaceId).eq("id", entityId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("matched_entity_not_found");
+}
+
 registerCapabilityHandler(reviewOpportunityCapability, async ({ ctx, input, idempotencyKey }) => {
   const key = idempotencyKey ?? input.idempotencyKey;
   const replay = await readReplay(ctx.workspaceId, reviewOpportunityCapability.name, key);
@@ -12,17 +21,35 @@ registerCapabilityHandler(reviewOpportunityCapability, async ({ ctx, input, idem
   const { data: opportunity, error } = await supabase.from("opportunities").select("id,review_status,review_disposition,evidence_ids").eq("workspace_id", ctx.workspaceId).eq("id", input.opportunityId).maybeSingle();
   if (error) throw error;
   if (!opportunity) throw new Error("opportunity_not_found");
+
   let matchedEntityType = input.matchedEntityType ?? null;
   let matchedEntityId = input.matchedEntityId ?? null;
+  let acceptedMatchCandidateId: string | null = null;
+
   if (input.matchCandidateId) {
     const { data: match, error: matchError } = await supabase.from("opportunity_match_candidates").select("candidate_entity_type,candidate_entity_id").eq("workspace_id", ctx.workspaceId).eq("opportunity_id", opportunity.id).eq("id", input.matchCandidateId).maybeSingle();
     if (matchError) throw matchError;
     if (!match) throw new Error("match_candidate_not_found");
-    matchedEntityType = match.candidate_entity_type;
+    matchedEntityType = match.candidate_entity_type as MatchedEntityType;
     matchedEntityId = match.candidate_entity_id;
-    await supabase.from("opportunity_match_candidates").update({ review_status: "accepted", reviewed_by: ctx.userId, reviewed_at: new Date().toISOString() }).eq("workspace_id", ctx.workspaceId).eq("id", input.matchCandidateId);
+    acceptedMatchCandidateId = input.matchCandidateId;
   }
+
+  if (matchedEntityType && matchedEntityId) {
+    await assertWorkspaceEntity(supabase, ctx.workspaceId, matchedEntityType as MatchedEntityType, matchedEntityId);
+  }
+
   if (["enrich_existing", "merge_existing"].includes(input.disposition) && (!matchedEntityType || !matchedEntityId)) throw new Error("match_required");
+  if (!["enrich_existing", "merge_existing"].includes(input.disposition)) {
+    matchedEntityType = null;
+    matchedEntityId = null;
+  }
+
+  if (acceptedMatchCandidateId) {
+    const { error: matchUpdateError } = await supabase.from("opportunity_match_candidates").update({ review_status: "accepted", reviewed_by: ctx.userId, reviewed_at: new Date().toISOString() }).eq("workspace_id", ctx.workspaceId).eq("id", acceptedMatchCandidateId);
+    if (matchUpdateError) throw matchUpdateError;
+  }
+
   const reviewStatus = input.disposition === "reject" ? "rejected" : input.disposition === "quarantine" ? "quarantined" : input.disposition === "verify_more" ? "needs_verification" : "accepted";
   const status = reviewStatus === "rejected" ? "rejected" : reviewStatus === "accepted" ? "qualified" : "qualifying";
   const changed = opportunity.review_status !== reviewStatus || opportunity.review_disposition !== input.disposition;

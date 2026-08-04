@@ -90,7 +90,7 @@ export const reviewOpportunityCapability = registerCapability({
   auditEvents: ["opportunity.review_recorded"],
   retry: defaultWriteRetry,
   mcp: "gated_write",
-  failureModes: ["opportunity_not_found", "match_required", "match_candidate_not_found"],
+  failureModes: ["opportunity_not_found", "match_required", "match_candidate_not_found", "matched_entity_not_found"],
 });
 
 export const promoteOpportunityToCrmCapability = registerCapability({
@@ -112,5 +112,5 @@ export const promoteOpportunityToCrmCapability = registerCapability({
   auditEvents: ["opportunity.promoted_to_crm"],
   retry: defaultWriteRetry,
   mcp: "gated_write",
-  failureModes: ["opportunity_not_found", "opportunity_not_accepted", "merge_requires_dedicated_workflow", "campaign_not_found"],
+  failureModes: ["opportunity_not_found", "opportunity_not_accepted", "merge_requires_dedicated_workflow", "match_required", "matched_entity_not_found", "matched_property_has_no_organization", "matched_person_has_no_organization", "campaign_not_found"],
 });

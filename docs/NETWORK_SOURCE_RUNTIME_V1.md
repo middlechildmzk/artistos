@@ -1,6 +1,6 @@
 # Network Source Runtime V1
 
-**Status:** implemented on `agent/network-source-runtime-v1`; pending CI, isolated migration replay, authenticated preview verification, merge, migration, and production rollout.
+**Status:** implemented on `agent/network-source-runtime-v1`; Wikidata-only preview candidate after audit corrections. Pending CI, isolated migration replay, authenticated preview verification, merge, migration, and production rollout.
 
 ## Purpose
 
@@ -8,83 +8,44 @@ Network Source Runtime V1 converts a human search request into an explainable so
 
 ## First executable lane
 
-The initial proof supports:
+The controlled preview proof supports:
 
 - **Wikidata:** CC0 public identity discovery through the documented Wikimedia Action API.
-- **YouTube Data API v3:** public channel identity, descriptions, stable channel IDs, and audience signals when the server-only `YOUTUBE_DATA_API_KEY` is configured.
+- **YouTube Data API v3:** adapter code exists, but execution is blocked by source policy until ArtistOS has approved retention, refresh-or-delete, quota, and compliance controls.
 
-Wikidata results are identity leads only. YouTube results are public platform metadata only. Neither adapter claims a submission route, contact permission, or outreach authority.
+Wikidata search hits are weak identity leads only. They do not prove entity type, current activity, legitimacy, submission eligibility, contact permission, or outreach authority.
 
 ## Flow
 
-1. A signed-in workspace contributor creates a search plan with explicit lanes and sources.
-2. The source registry rejects unregistered or non-executable sources before a run begins.
+1. A signed-in workspace editor creates a search plan with explicit lanes and sources.
+2. The source registry rejects unregistered, policy-blocked, or disabled sources before a run begins.
 3. A second explicit human action executes the stored plan.
-4. Each adapter returns normalized candidates and the original source payload.
-5. ArtistOS creates source observations, evidence records, and feature-level score explanations.
-6. Deterministic matching compares stable IDs where available, canonical URLs, and normalized exact names.
+4. Each executable adapter returns normalized candidates and the original source payload.
+5. ArtistOS appends source observations, evidence records, and source-supported score explanations.
+6. Deterministic matching prioritizes stable source IDs and canonical URLs. Name-only similarity never clears the match threshold.
 7. Matches remain suggestions. No automatic merge occurs.
 8. A human records create, enrich, verify, quarantine, reject, or possible-merge intent.
-9. CRM promotion is a separate capability that always requires approval.
-10. Sending, scraping, spending, and autonomous outreach remain outside this runtime.
+9. Matched entity IDs are rechecked against the active workspace.
+10. CRM promotion is a separate capability that always requires approval.
+11. Sending, scraping, spending, and autonomous outreach remain outside this runtime.
+
+## Audit corrections
+
+- UI actions use form-render nonces and semantic idempotency keys, so double submission replays instead of re-running providers.
+- Promotion never uses wildcard or name-only database matching.
+- Campaign targets explicitly receive the actor workspace, and the historical single-workspace column default is removed by the pending migration.
+- Discoveries remain `weak`, `unreviewed`, and freshness `unknown` until corroborating evidence exists.
+- Missing legitimacy, reach, accessibility, relationship, and risk evidence remain null rather than receiving synthetic scores.
+- Source observations are append-only per run.
+- Failed executions close the search and run as failed rather than remaining stuck in `running`.
+- Viewers can read runtime rows but cannot create or mutate source runs or match suggestions.
 
 ## Safety boundaries
 
 - Source execution is human-operated and workspace-scoped.
-- Provider policy is code-enforced.
+- Provider policy is re-evaluated at plan creation and execution.
+- YouTube execution is code-blocked.
 - TikTok Research API remains ineligible for commercial discovery.
 - SubmitHub and Groover remain external handoffs.
 - No service-role credential is exposed to clients.
-- `YOUTUBE_DATA_API_KEY` is server-only and must never use a `NEXT_PUBLIC_` prefix.
-- New runtime tables use RLS and deny anonymous access.
-- Source results never become CRM targets automatically.
-- `merge_existing` cannot execute through the promotion capability.
-- CRM promotion is approval-gated and optional campaign assignment remains human-selected.
-
-## Data model
-
-The runtime extends:
-
-- `opportunity_searches` for provider-neutral plans and last-run summaries.
-- `opportunity_source_observations` for raw and normalized source evidence.
-- `opportunities` for review, source policy, identity-match, and eligibility state.
-- `opportunity_score_features` for explainable scoring.
-
-It adds:
-
-- `opportunity_search_runs` for auditable executions.
-- `opportunity_match_candidates` for reviewable deterministic match suggestions.
-
-## Configuration
-
-Wikidata requires no credential. It requires a meaningful User-Agent and respectful rate handling.
-
-YouTube requires:
-
-```text
-YOUTUBE_DATA_API_KEY=<server-only key>
-```
-
-The adapter remains visible as `configuration_required` and is skipped when the key is absent.
-
-## Verification required before any production claim
-
-- Capability and architecture tests.
-- TypeScript and production build.
-- Full historical and pending migration replay.
-- RLS and anonymous-access assertions.
-- Exact-preview runtime-log check.
-- Authenticated desktop and approximately 390px browser QA.
-- One controlled plan → source run → match review → approval request proof.
-- Explicit migration, merge, and production rollout approval.
-
-## Not implemented in V1
-
-- Search engines or unrestricted open-web crawling.
-- Protected-page or CAPTCHA scraping.
-- MusicBrainz commercial integration.
-- TikTok commercial discovery.
-- Marketplace profile ingestion.
-- Automatic contact enrichment.
-- Automatic identity merges.
-- Autonomous CRM import, outreach, sending, spending, or submission.
+- `YOUTUBE_DATA_API_KEY`

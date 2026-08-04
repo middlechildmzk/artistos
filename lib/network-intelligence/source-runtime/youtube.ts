@@ -24,10 +24,14 @@ async function youtubeJson(url: URL) {
 export const youtubeAdapter: SourceAdapter = {
   slug: "youtube",
   policy: SOURCE_POLICIES.youtube,
-  health: () => process.env.YOUTUBE_DATA_API_KEY?.trim()
-    ? { status: "available", detail: "Server-only YouTube Data API key is configured." }
-    : { status: "configuration_required", detail: "YOUTUBE_DATA_API_KEY is not configured for this environment." },
+  health: () => {
+    if (!SOURCE_POLICIES.youtube.executionEnabled) return { status: "blocked_by_policy", detail: SOURCE_POLICIES.youtube.executionBlockReason ?? "YouTube execution is disabled." };
+    return process.env.YOUTUBE_DATA_API_KEY?.trim()
+      ? { status: "available", detail: "Server-only YouTube Data API key is configured." }
+      : { status: "configuration_required", detail: "YOUTUBE_DATA_API_KEY is not configured for this environment." };
+  },
   async search(input) {
+    if (!SOURCE_POLICIES.youtube.executionEnabled) throw new Error("source_policy_blocked:youtube");
     const apiKey = process.env.YOUTUBE_DATA_API_KEY?.trim();
     if (!apiKey) throw new Error("source_not_configured:youtube");
     const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
@@ -38,32 +42,18 @@ export const youtubeAdapter: SourceAdapter = {
     searchUrl.searchParams.set("safeSearch", "moderate");
     searchUrl.searchParams.set("key", apiKey);
     const searchPayload = await youtubeJson(searchUrl);
-    const items = Array.isArray(searchPayload.items) ? searchPayload.items : [];
-    const channelIds = items.map((item) => {
-      const id = objectValue(objectValue(item).id);
-      return typeof id.channelId === "string" ? id.channelId : null;
-    }).filter((value): value is string => Boolean(value));
-    if (!channelIds.length) return { sourceSlug: "youtube", status: "completed", candidates: [], nextCursor: null, rateLimit: { search_requests: 1 } };
-
-    const channelsUrl = new URL("https://www.googleapis.com/youtube/v3/channels");
-    channelsUrl.searchParams.set("part", "snippet,statistics,brandingSettings");
-    channelsUrl.searchParams.set("id", channelIds.join(","));
-    channelsUrl.searchParams.set("key", apiKey);
-    const channelsPayload = await youtubeJson(channelsUrl);
     const observedAt = new Date().toISOString();
-    const channels = Array.isArray(channelsPayload.items) ? channelsPayload.items : [];
-    const candidates = channels.map((raw): DiscoveryCandidate | null => {
+    const items = Array.isArray(searchPayload.items) ? searchPayload.items : [];
+    const candidates = items.map((raw): DiscoveryCandidate | null => {
       const row = objectValue(raw);
-      const externalId = typeof row.id === "string" ? row.id : null;
+      const id = objectValue(row.id);
       const snippet = objectValue(row.snippet);
-      const statistics = objectValue(row.statistics);
+      const externalId = typeof id.channelId === "string" ? id.channelId : null;
       const title = typeof snippet.title === "string" ? snippet.title : null;
       if (!externalId || !title) return null;
       const summary = typeof snippet.description === "string" ? snippet.description.slice(0, 2000) : null;
-      const subscribers = Number(statistics.subscriberCount);
-      const audienceSignal = Number.isFinite(subscribers) ? subscribers : null;
       const canonicalUrl = `https://www.youtube.com/channel/${encodeURIComponent(externalId)}`;
-      const scored = scoreDiscovery({ title, summary, query: input.query, fitContext: input.fitContext, lane: input.lane, sourceSlug: "youtube", audienceSignal });
+      const scored = scoreDiscovery({ title, summary, query: input.query, fitContext: input.fitContext, lane: input.lane, sourceSlug: "youtube" });
       return {
         sourceSlug: "youtube",
         sourcePolicyDisposition: SOURCE_POLICIES.youtube.disposition,
@@ -74,21 +64,21 @@ export const youtubeAdapter: SourceAdapter = {
         candidateKind: "property",
         opportunityType: input.lane,
         observedAt,
-        freshnessStatus: "current",
-        confidence: "supported",
-        legitimacyStatus: "credible",
-        audienceSignal,
+        freshnessStatus: "unknown",
+        confidence: "weak",
+        legitimacyStatus: "unreviewed",
+        audienceSignal: null,
         fitScore: scored.fit,
         legitimacyScore: scored.legitimacy,
         reachQualityScore: scored.reachQuality,
         accessibilityScore: scored.accessibility,
         relationshipScore: scored.relationshipScore,
         riskScore: scored.risk,
-        riskFlags: ["submission_route_unverified", "public_platform_metadata"],
-        eligibility: { source_use: "public_channel_discovery", actionable_route: false },
+        riskFlags: ["submission_route_unverified", "public_platform_identity_only", "refresh_or_delete_within_30_days"],
+        eligibility: { source_use: "public_channel_identity_discovery", actionable_route: false, retention_days: 30 },
         scoreFeatures: scored.features,
         rawPayload: row,
-        normalizedPayload: { external_id: externalId, canonical_url: canonicalUrl, title, summary, subscriber_count: audienceSignal, lane: input.lane },
+        normalizedPayload: { external_id: externalId, canonical_url: canonicalUrl, title, summary, lane: input.lane },
       };
     }).filter((candidate): candidate is DiscoveryCandidate => Boolean(candidate));
     return {
@@ -96,7 +86,7 @@ export const youtubeAdapter: SourceAdapter = {
       status: "completed",
       candidates,
       nextCursor: typeof searchPayload.nextPageToken === "string" ? searchPayload.nextPageToken : null,
-      rateLimit: { search_requests: 1, channel_detail_requests: 1 },
+      rateLimit: { search_requests: 1, quota_units_estimate: 100 },
     };
   },
 };

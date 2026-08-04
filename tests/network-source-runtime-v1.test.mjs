@@ -1,82 +1,166 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
+import test from "node:test";
+import ts from "typescript";
 
-const root = path.resolve(import.meta.dirname, "..");
-const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-const files = {
-  page: read("app/opportunities/page.tsx"),
-  actions: read("app/opportunities/actions.ts"),
-  handlers: read("lib/capabilities/opportunity-handlers.ts"),
-  registry: read("lib/capabilities/opportunity-registry.ts"),
-  serverRuntime: read("lib/capabilities/server-runtime.ts"),
-  policy: read("lib/network-intelligence/source-runtime/policy.ts"),
-  core: read("lib/network-intelligence/source-runtime/core.ts"),
-  wikidata: read("lib/network-intelligence/source-runtime/wikidata.ts"),
-  youtube: read("lib/network-intelligence/source-runtime/youtube.ts"),
-  migration: read("supabase/migrations/20260804163000_network_source_runtime_v1.sql"),
-  env: read(".env.example"),
-};
+async function loadTypeScriptModule(path) {
+  const source = fs.readFileSync(path, "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ES2022,
+      target: ts.ScriptTarget.ES2022,
+      strict: true,
+    },
+    fileName: path,
+  }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+}
 
-test("source runtime reuses capability and Opportunity Intelligence boundaries", () => {
-  for (const capability of ["opportunity.create_search", "opportunity.execute_search", "opportunity.review", "opportunity.promote_to_crm"]) {
-    assert.match(files.registry, new RegExp(capability.replaceAll(".", "\\.")));
+const scoring = await loadTypeScriptModule("lib/network-intelligence/source-runtime/scoring.ts");
+const matching = await loadTypeScriptModule("lib/network-intelligence/source-runtime/matching.ts");
+const idempotency = await loadTypeScriptModule("lib/network-intelligence/source-runtime/idempotency.ts");
+const policy = await loadTypeScriptModule("lib/network-intelligence/source-runtime/policy.ts");
+
+const read = (file) => fs.readFileSync(file, "utf8");
+const actions = read("app/opportunities/actions.ts");
+const page = read("app/opportunities/page.tsx");
+const execute = read("lib/capabilities/opportunity-handlers/execute-search.ts");
+const promote = read("lib/capabilities/opportunity-handlers/promote.ts");
+const review = read("lib/capabilities/opportunity-handlers/review.ts");
+const core = read("lib/network-intelligence/source-runtime/core.ts");
+const wikidata = read("lib/network-intelligence/source-runtime/wikidata.ts");
+const youtube = read("lib/network-intelligence/source-runtime/youtube.ts");
+const migration = read("supabase/migrations/20260804163000_network_source_runtime_v1.sql");
+
+function candidate(overrides = {}) {
+  return {
+    sourceSlug: "wikidata",
+    sourcePolicyDisposition: "accept_verified_source",
+    externalId: "Q123",
+    canonicalUrl: "https://www.wikidata.org/wiki/Q123",
+    title: "100% Pure Sound",
+    summary: null,
+    candidateKind: "unknown",
+    opportunityType: "radio",
+    observedAt: "2026-08-04T00:00:00.000Z",
+    freshnessStatus: "unknown",
+    confidence: "weak",
+    legitimacyStatus: "unreviewed",
+    audienceSignal: null,
+    fitScore: 0,
+    legitimacyScore: null,
+    reachQualityScore: null,
+    accessibilityScore: null,
+    relationshipScore: null,
+    riskScore: null,
+    riskFlags: [],
+    eligibility: {},
+    scoreFeatures: [],
+    rawPayload: {},
+    normalizedPayload: {},
+    ...overrides,
+  };
+}
+
+test("missing evidence stays unassessed instead of receiving synthetic positive scores", () => {
+  const result = scoring.scoreDiscovery({ title: "Example station", summary: null, query: "melodic bass radio", fitContext: null, lane: "radio", sourceSlug: "wikidata" });
+  assert.equal(result.legitimacy, null);
+  assert.equal(result.reachQuality, null);
+  assert.equal(result.accessibility, null);
+  assert.equal(result.relationshipScore, null);
+  assert.equal(result.risk, null);
+  assert.equal(result.features.some((feature) => feature.key === "audience_signal"), false);
+});
+
+test("name-only identity similarity never clears the deterministic match threshold", () => {
+  const matches = matching.findMatches(candidate(), [{ id: "org-1", canonical_name: "100% Pure Sound", display_name: null, website: "https://other.example", primary_source_url: null }], []);
+  assert.deepEqual(matches, []);
+});
+
+test("stable source IDs and canonical URLs remain strong match signals", () => {
+  const stable = matching.findMatches(candidate(), [], [{ id: "prop-1", organization_id: null, name: "Different", url: null, platform_url: null, raw_record: { source_slug: "wikidata", external_id: "Q123" } }]);
+  assert.equal(stable[0].score, 1);
+  assert.deepEqual(stable[0].reasons, ["stable_external_id_exact"]);
+
+  const url = matching.findMatches(candidate(), [{ id: "org-1", canonical_name: "Different", display_name: null, website: "https://www.wikidata.org/wiki/Q123/?utm_source=test", primary_source_url: null }], []);
+  assert.equal(url[0].score, 0.98);
+});
+
+test("URL normalization removes query strings, fragments, www, casing, and trailing slashes", () => {
+  assert.equal(matching.normalizeUrl("HTTPS://WWW.Example.com/Path/?x=1#top"), "example.com/Path");
+  assert.equal(matching.normalizeUrl("https://example.com/"), "example.com");
+});
+
+test("form-render nonces make double submissions replayable but allow a new rendered form", () => {
+  const first = idempotency.semanticIdempotencyKey("opportunity-execute", ["search-1", 12, "nonce-a"]);
+  const duplicate = idempotency.semanticIdempotencyKey("opportunity-execute", ["search-1", 12, "nonce-a"]);
+  const newRender = idempotency.semanticIdempotencyKey("opportunity-execute", ["search-1", 12, "nonce-b"]);
+  assert.equal(first, duplicate);
+  assert.notEqual(first, newRender);
+});
+
+test("YouTube execution is code-blocked until compliance controls are approved", () => {
+  assert.equal(policy.SOURCE_POLICIES.youtube.executionEnabled, false);
+  assert.equal(policy.policyAllowsExecution(policy.SOURCE_POLICIES.youtube), false);
+  assert.equal(policy.policyAllowsExecution(policy.SOURCE_POLICIES.wikidata), true);
+  assert.match(youtube, /blocked_by_policy/);
+  assert.doesNotMatch(youtube, /subscriberCount|brandingSettings|statistics/);
+});
+
+test("discovery facts remain weak, unreviewed, and freshness-unknown", () => {
+  for (const adapter of [wikidata, youtube]) {
+    assert.match(adapter, /freshnessStatus: "unknown"/);
+    assert.match(adapter, /confidence: "weak"/);
+    assert.match(adapter, /legitimacyStatus: "unreviewed"/);
+    assert.doesNotMatch(adapter, /legitimacyStatus: "credible"/);
   }
-  assert.match(files.serverRuntime, /opportunity-registry/);
-  assert.match(files.serverRuntime, /opportunity-handlers/);
-  assert.match(files.actions, /invokeCapability/);
-  assert.doesNotMatch(files.actions, /\.insert\s*\(|\.update\s*\(|\.upsert\s*\(/);
+  assert.match(page, /Unassessed legitimacy/);
 });
 
-test("source policy allows only approved official adapters", () => {
-  assert.match(files.policy, /wikidata/);
-  assert.match(files.policy, /youtube/);
-  assert.match(files.policy, /accept_verified_source/);
-  assert.match(files.policy, /policyAllowsExecution/);
-  assert.doesNotMatch(files.policy, /tiktok|submithub|groover/i);
-  assert.match(files.page, /TikTok Research API/);
-  assert.match(files.page, /Commercial use rejected/);
-  assert.match(files.page, /External handoff only/);
+test("UI actions use semantic keys and form-render nonces", () => {
+  assert.match(actions, /semanticIdempotencyKey/);
+  assert.match(actions, /submissionNonce/);
+  assert.doesNotMatch(actions, /randomUUID/);
+  assert.match(page, /name="submissionNonce"/);
 });
 
-test("adapters use official endpoints and server-only configuration", () => {
-  assert.match(files.wikidata, /https:\/\/www\.wikidata\.org\/w\/api\.php/);
-  assert.match(files.wikidata, /User-Agent/);
-  assert.match(files.youtube, /https:\/\/www\.googleapis\.com\/youtube\/v3\/search/);
-  assert.match(files.youtube, /https:\/\/www\.googleapis\.com\/youtube\/v3\/channels/);
-  assert.match(files.youtube, /process\.env\.YOUTUBE_DATA_API_KEY/);
-  assert.match(files.env, /YOUTUBE_DATA_API_KEY=/);
-  assert.doesNotMatch(files.env, /NEXT_PUBLIC_YOUTUBE/);
+test("promotion never performs wildcard name matching and stamps the actor workspace", () => {
+  assert.doesNotMatch(promote, /\.ilike\(/);
+  assert.match(promote, /review_disposition === "enrich_existing"/);
+  assert.match(promote, /workspace_id: ctx\.workspaceId[\s\S]*campaign_id: campaign\.id/);
+  assert.deesNotMatch(promote, /\.ilike\(/);
+  assert.deesNotMatch(promote, /\.eq\(\"canonical_name\", opportunity\.title\)/);
+  assert.match(promote, /verification_status: "unverified"/);
+  assert.match(promote, /evidence_strength: 1/);
 });
 
-test("discovery remains review-only and CRM promotion is approval gated", () => {
-  assert.match(files.page, /No result becomes a CRM target merely because an API returned it/);
-  assert.match(files.registry, /approval: "always"/);
-  assert.match(files.handlers, /merge_requires_dedicated_workflow/);
-  assert.match(files.handlers, /opportunity_match_candidates/);
-  assert.match(files.handlers, /evidence_records/);
-  assert.doesNotMatch(files.handlers, /mailto:|sendEmail|gmail\.send|automatic outreach/i);
+test("review and promotion verify matched entities inside the active workspace", () => {
+  assert.match(review, /assertWorkspaceEntity/);
+  assert.match(review, /\.eq\("workspace_id", workspaceId\)/);
+  assert.match(review, /matched_entity_not_found/);
+  assert.match(promote, /resolveReviewedEntity/);
+  assert.match(promote, /\.eq\("workspace_id", workspaceId\)/);
 });
 
-test("source runtime migration is workspace scoped and anonymous access is denied", () => {
-  for (const table of ["opportunity_search_runs", "opportunity_match_candidates"]) {
-    assert.match(files.migration, new RegExp(`create table if not exists public\.${table}`));
-    assert.match(files.migration, new RegExp(`alter table public\.${table} enable row level security`));
-  }
-  assert.match(files.migration, /revoke all on public\.opportunity_search_runs, public\.opportunity_match_candidates from anon/);
-  assert.match(files.migration, /private\.is_workspace_member/);
-  assert.match(files.migration, /private\.can_manage_workspace/);
-  assert.match(files.migration, /No row authorizes an automatic merge/);
+test("failed executions close the run and observations remain append-only", () => {
+  assert.match(execute, /status: "failed"/);
+  assert.match(execute, /last_run_status: "failed"/);
+  assert.doesNotMatch(execute, /approved_by|approved_at/);
+  assert.match(execute, /from\("opportunity_source_observations"\)\.insert/);
+  assert.doesNotMatch(execute, /from\("opportunity_source_observations"\)\.upsert/);
+  assert.match(execute, /stored_until/);
 });
 
-test("scoring and identity review remain explainable", () => {
-  assert.match(files.page, /Follower count alone never determines quality/);
-  assert.match(files.page, /Identity and duplicate resolution/);
-  assert.match(files.page, /Feature-level fit scoring/);
-  assert.match(files.handlers, /raw_payload/);
-  assert.match(files.handlers, /stable_external_id_exact/);
-  assert.match(files.handlers, /raw_record: \{ source_slug:/);
-  assert.match(files.handlers, /canonical_url_exact/);
-  assert.match(files.handlers, /normalized_name_exact/);
+test("source policy is evaluated again at execution time", () => {
+  assert.match(core, /policyAllowsExecution\(policy\)/);
+  assert.match(core, /source_policy_blocked/);
+});
+
+test("migration removes the single-workspace default and blocks viewer writes", () => {
+  assert.match(migration, /campaign_targets alter column workspace_id drop default/);
+  assert.match(migration, /opportunity_search_runs_insert[\s\S]*private\.can_manage_workspace/);
+  assert.match(migration, /opportunity_match_candidates_insert[\s\S]*private\.can_manage_workspace/);
+  assert.match(migration, /revoke update on public\.opportunity_source_observations/);
+  assert.match(migration, /opportunity_match_candidates_delete/);
+  assert.match(migration, /stored_until timestamptz/);
 });

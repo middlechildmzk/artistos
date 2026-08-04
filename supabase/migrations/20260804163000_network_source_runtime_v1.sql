@@ -9,6 +9,14 @@ alter table public.opportunity_searches
   add column if not exists last_run_status text,
   add column if not exists last_run_summary jsonb not null default '{}'::jsonb;
 
+
+-- Search execution can end in a truthful failed state.
+alter table public.opportunity_searches
+  drop constraint if exists opportunity_searches_status_check;
+alter table public.opportunity_searches
+  add constraint opportunity_searches_status_check
+  check (status in ('draft','approved','running','paused','completed','failed','cancelled'));
+
 alter table public.opportunity_searches
   drop constraint if exists opportunity_searches_last_run_status_check;
 alter table public.opportunity_searches
@@ -72,7 +80,16 @@ alter table public.opportunities
 
 alter table public.opportunity_source_observations
   add column if not exists search_run_id uuid references public.opportunity_search_runs(id) on delete set null,
-  add column if not exists source_policy_disposition text;
+  add column if not exists source_policy_disposition text,
+  add column if not exists stored_until timestamptz;
+
+-- Existing observations were unique by entity and source, which made raw evidence mutable.
+-- Runtime V1 is append-only per search run.
+alter table public.opportunity_source_observations
+  drop constraint if exists opportunity_source_observatio_workspace_id_source_type_exte_key;
+create unique index if not exists opportunity_observations_run_identity_idx
+  on public.opportunity_source_observations (workspace_id, opportunity_id, search_run_id, source_type, external_id)
+  where search_run_id is not null;
 
 create table if not exists public.opportunity_match_candidates (
   id uuid primary key default gen_random_uuid(),
@@ -100,11 +117,14 @@ create index if not exists opportunities_review_queue_idx
 create index if not exists opportunity_matches_opportunity_idx
   on public.opportunity_match_candidates (workspace_id, opportunity_id, match_score desc);
 
+-- Remove the historical single-workspace default. Every writer must stamp the actor workspace explicitly.
+alter table public.campaign_targets alter column workspace_id drop default;
+
 alter table public.opportunity_search_runs enable row level security;
 alter table public.opportunity_match_candidates enable row level security;
 
 revoke all on public.opportunity_search_runs, public.opportunity_match_candidates from anon;
-grant select, insert, update on public.opportunity_search_runs, public.opportunity_match_candidates to authenticated;
+grant select, insert, update, delete on public.opportunity_search_runs, public.opportunity_match_candidates to authenticated;
 
 drop policy if exists opportunity_search_runs_read on public.opportunity_search_runs;
 create policy opportunity_search_runs_read on public.opportunity_search_runs
@@ -112,7 +132,7 @@ create policy opportunity_search_runs_read on public.opportunity_search_runs
 drop policy if exists opportunity_search_runs_insert on public.opportunity_search_runs;
 create policy opportunity_search_runs_insert on public.opportunity_search_runs
   for insert to authenticated with check (
-    private.is_workspace_member(workspace_id)
+    private.can_manage_workspace(workspace_id)
     and (created_by is null or created_by = (select auth.uid()))
     and exists (
       select 1 from public.opportunity_searches search
@@ -131,7 +151,7 @@ create policy opportunity_match_candidates_read on public.opportunity_match_cand
 drop policy if exists opportunity_match_candidates_insert on public.opportunity_match_candidates;
 create policy opportunity_match_candidates_insert on public.opportunity_match_candidates
   for insert to authenticated with check (
-    private.is_workspace_member(workspace_id)
+    private.can_manage_workspace(workspace_id)
     and exists (
       select 1 from public.opportunities opportunity
       where opportunity.id = opportunity_id and opportunity.workspace_id = opportunity_match_candidates.workspace_id
@@ -142,14 +162,14 @@ create policy opportunity_match_candidates_update on public.opportunity_match_ca
   for update to authenticated
   using (private.can_manage_workspace(workspace_id))
   with check (private.can_manage_workspace(workspace_id));
+drop policy if exists opportunity_match_candidates_delete on public.opportunity_match_candidates;
+create policy opportunity_match_candidates_delete on public.opportunity_match_candidates
+  for delete to authenticated using (private.can_manage_workspace(workspace_id));
 
--- Runtime refreshes source observations and score explanations idempotently.
-grant update on public.opportunity_source_observations, public.opportunity_score_features to authenticated;
+-- Source observations are append-only. Score explanations may be refreshed.
+revoke update on public.opportunity_source_observations from authenticated;
 drop policy if exists opportunity_observations_update on public.opportunity_source_observations;
-create policy opportunity_observations_update on public.opportunity_source_observations
-  for update to authenticated
-  using (private.can_manage_workspace(workspace_id))
-  with check (private.can_manage_workspace(workspace_id));
+grant update on public.opportunity_score_features to authenticated;
 drop policy if exists opportunity_features_update on public.opportunity_score_features;
 create policy opportunity_features_update on public.opportunity_score_features
   for update to authenticated

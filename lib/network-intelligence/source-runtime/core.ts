@@ -29,7 +29,7 @@ export function buildSourcePlan(input: {
   const baseQuery = input.query.trim().slice(0, 240);
   const objective = input.objective.trim().slice(0, 1000);
   if (!baseQuery) throw new Error("search_query_required");
-  const requested = input.requestedSources.length ? input.requestedSources : ["wikidata", "youtube"];
+  const requested = input.requestedSources.length ? input.requestedSources : ["wikidata"];
   const selectedPolicies = [] as SourceSearchPlan["sourcePolicies"];
   const skippedSources: SourceSearchPlan["skippedSources"] = [];
   for (const rawSlug of requested) {
@@ -41,12 +41,12 @@ export function buildSourcePlan(input: {
     const adapter = getSourceAdapter(policy.slug);
     const health = adapter.health();
     if (!policyAllowsExecution(policy)) {
-      skippedSources.push({ slug: policy.slug, reason: `policy_${policy.disposition}` });
+      skippedSources.push({ slug: policy.slug, reason: policy.executionBlockReason ?? `policy_${policy.disposition}` });
       continue;
     }
     selectedPolicies.push({ ...policy, health });
   }
-  const lanes = [...new Set(input.lanes.length ? input.lanes : ["youtube_channel"])] as SearchLane[];
+  const lanes = [...new Set(input.lanes.length ? input.lanes : ["radio"])] as SearchLane[];
   return {
     planVersion: "network-source-runtime-v1",
     generatedAt: new Date().toISOString(),
@@ -57,7 +57,7 @@ export function buildSourcePlan(input: {
     lanes: lanes.map((lane) => ({
       lane,
       query: `${baseQuery} ${laneQuerySuffix[lane]}`.trim(),
-      sources: selectedPolicies.map((source) => source.slug).filter((slug) => slug !== "youtube" || ["playlist", "publication", "youtube_channel", "creator", "radio", "podcast", "label"].includes(lane)),
+      sources: selectedPolicies.map((source) => source.slug),
     })),
     sourcePolicies: selectedPolicies,
     skippedSources,
@@ -67,8 +67,14 @@ export function buildSourcePlan(input: {
 
 export async function executeSourcePlan(plan: SourceSearchPlan, maxResultsPerLane = 12) {
   const results: SourceSearchResult[] = [];
+  const boundedMax = Math.max(1, Math.min(25, maxResultsPerLane));
   for (const lane of plan.lanes) {
     for (const sourceSlug of lane.sources) {
+      const policy = SOURCE_POLICIES[sourceSlug];
+      if (!policy || !policyAllowsExecution(policy)) {
+        results.push({ sourceSlug, status: "skipped", candidates: [], nextCursor: null, rateLimit: {}, error: policy?.executionBlockReason ?? "source_policy_blocked" });
+        continue;
+      }
       const adapter = getSourceAdapter(sourceSlug);
       const health = adapter.health();
       if (health.status !== "available") {
@@ -76,7 +82,7 @@ export async function executeSourcePlan(plan: SourceSearchPlan, maxResultsPerLan
         continue;
       }
       try {
-        results.push(await adapter.search({ query: lane.query, lane: lane.lane, maxResults: maxResultsPerLane, fitContext: plan.fitContext }));
+        results.push(await adapter.search({ query: lane.query, lane: lane.lane, maxResults: boundedMax, fitContext: plan.fitContext }));
       } catch (error) {
         results.push({ sourceSlug, status: "failed", candidates: [], nextCursor: null, rateLimit: {}, error: error instanceof Error ? error.message : "source_search_failed" });
       }

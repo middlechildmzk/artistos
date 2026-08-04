@@ -1,5 +1,5 @@
 import "server-only";
-import type { DiscoveryCandidate, SearchLane, SourceAdapter } from "./types";
+import type { DiscoveryCandidate, SourceAdapter } from "./types";
 import { SOURCE_POLICIES } from "./policy";
 import { scoreDiscovery } from "./scoring";
 
@@ -9,16 +9,10 @@ function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-function candidateKind(lane: SearchLane): DiscoveryCandidate["candidateKind"] {
-  if (["playlist", "youtube_channel", "radio", "podcast", "music_library"].includes(lane)) return "property";
-  if (["publication", "creator", "sync", "label", "booking"].includes(lane)) return "organization";
-  return "unknown";
-}
-
 export const wikidataAdapter: SourceAdapter = {
   slug: "wikidata",
   policy: SOURCE_POLICIES.wikidata,
-  health: () => ({ status: "available", detail: "Public CC0 search is available without credentials." }),
+  health: () => ({ status: "available", detail: "Public CC0 identity search is available without credentials." }),
   async search(input) {
     const url = new URL("https://www.wikidata.org/w/api.php");
     url.searchParams.set("action", "wbsearchentities");
@@ -28,10 +22,10 @@ export const wikidataAdapter: SourceAdapter = {
     url.searchParams.set("type", "item");
     url.searchParams.set("limit", String(Math.max(1, Math.min(25, input.maxResults))));
     url.searchParams.set("format", "json");
-    url.searchParams.set("origin", "*");
     const origin = process.env.ARTISTOS_PUBLIC_ORIGIN || "https://artistos-next.vercel.app";
+    const contact = process.env.ARTISTOS_SOURCE_CONTACT || origin;
     const response = await fetch(url, {
-      headers: { Accept: "application/json", "Accept-Encoding": "gzip,deflate", "User-Agent": `ArtistOS/0.1 (${origin})` },
+      headers: { Accept: "application/json", "Accept-Encoding": "gzip,deflate", "User-Agent": `ArtistOS/0.1 (${contact})` },
       cache: "no-store",
       signal: AbortSignal.timeout(12_000),
     });
@@ -56,12 +50,12 @@ export const wikidataAdapter: SourceAdapter = {
         canonicalUrl,
         title,
         summary,
-        candidateKind: candidateKind(input.lane),
+        candidateKind: "unknown",
         opportunityType: input.lane,
         observedAt,
-        freshnessStatus: "current",
-        confidence: "supported",
-        legitimacyStatus: "credible",
+        freshnessStatus: "unknown",
+        confidence: "weak",
+        legitimacyStatus: "unreviewed",
         audienceSignal: null,
         fitScore: scored.fit,
         legitimacyScore: scored.legitimacy,
@@ -69,13 +63,13 @@ export const wikidataAdapter: SourceAdapter = {
         accessibilityScore: scored.accessibility,
         relationshipScore: scored.relationshipScore,
         riskScore: scored.risk,
-        riskFlags: ["public_identity_only", "submission_route_unverified"],
+        riskFlags: ["public_identity_only", "entity_type_unverified", "submission_route_unverified"],
         eligibility: { source_use: "identity_discovery", actionable_route: false },
         scoreFeatures: scored.features,
         rawPayload: row,
-        normalizedPayload: { external_id: externalId, canonical_url: canonicalUrl, title, summary, lane: input.lane },
+        normalizedPayload: { external_id: externalId, canonical_url: canonicalUrl, title, summary, requested_lane: input.lane, entity_type: "unverified" },
       };
     }).filter((candidate): candidate is DiscoveryCandidate => Boolean(candidate));
-    return { sourceSlug: "wikidata", status: "completed", candidates, nextCursor: null, rateLimit: { guidance: "Respect Wikimedia User-Agent and retry-after policies." } };
+    return { sourceSlug: "wikidata", status: "completed", candidates, nextCursor: null, rateLimit: { guidance: "Respect Wikimedia User-Agent, Retry-After, caching, and backoff policies." } };
   },
 };

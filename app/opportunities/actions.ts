@@ -1,10 +1,10 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { invokeCapability } from "@/lib/capabilities/invoke";
 import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
+import { semanticIdempotencyKey } from "@/lib/network-intelligence/source-runtime/idempotency";
 
 async function invokeOpportunity(name: string, input: Record<string, unknown>) {
   const ctx = await createActorContext();
@@ -22,16 +22,24 @@ function assertCompleted(result: Awaited<ReturnType<typeof invokeOpportunity>>) 
 export async function createOpportunitySearch(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const query = String(formData.get("query") ?? "").trim();
-  if (!title || !query) return;
+  const objective = String(formData.get("objective") ?? "").trim() || `Find evidence-backed targets for ${query}.`;
+  const fitContext = String(formData.get("fitContext") ?? "").trim() || null;
+  const releaseId = String(formData.get("releaseId") ?? "") || null;
+  const lanes = formData.getAll("lanes").map(String).filter(Boolean);
+  const sources = formData.getAll("sources").map(String).filter(Boolean);
+  const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
+  if (!title || !query || !submissionNonce) return;
+  const effectiveLanes = lanes.length ? lanes : ["radio"];
+  const effectiveSources = sources.length ? sources : ["wikidata"];
   const result = await invokeOpportunity("opportunity.create_search", {
-    releaseId: String(formData.get("releaseId") ?? "") || null,
+    releaseId,
     title,
     query,
-    objective: String(formData.get("objective") ?? "").trim() || `Find evidence-backed targets for ${query}.`,
-    fitContext: String(formData.get("fitContext") ?? "").trim() || null,
-    lanes: formData.getAll("lanes").map(String).filter(Boolean).length ? formData.getAll("lanes").map(String) : ["youtube_channel"],
-    sources: formData.getAll("sources").map(String).filter(Boolean).length ? formData.getAll("sources").map(String) : ["wikidata", "youtube"],
-    idempotencyKey: `opportunity-search:${randomUUID()}`,
+    objective,
+    fitContext,
+    lanes: effectiveLanes,
+    sources: effectiveSources,
+    idempotencyKey: semanticIdempotencyKey("opportunity-search", [title, query, objective, fitContext, releaseId, effectiveLanes, effectiveSources, submissionNonce]),
   });
   assertCompleted(result);
   revalidatePath("/opportunities");
@@ -39,11 +47,13 @@ export async function createOpportunitySearch(formData: FormData) {
 
 export async function executeOpportunitySearch(formData: FormData) {
   const searchId = String(formData.get("searchId") ?? "");
-  if (!searchId) return;
+  const maxResultsPerLane = Number(formData.get("maxResultsPerLane") ?? 12);
+  const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
+  if (!searchId || !submissionNonce) return;
   const result = await invokeOpportunity("opportunity.execute_search", {
     searchId,
-    maxResultsPerLane: Number(formData.get("maxResultsPerLane") ?? 12),
-    idempotencyKey: `opportunity-execute:${searchId}:${randomUUID()}`,
+    maxResultsPerLane,
+    idempotencyKey: semanticIdempotencyKey("opportunity-execute", [searchId, maxResultsPerLane, submissionNonce]),
   });
   assertCompleted(result);
   revalidatePath("/opportunities");
@@ -52,8 +62,10 @@ export async function executeOpportunitySearch(formData: FormData) {
 export async function reviewOpportunity(formData: FormData) {
   const opportunityId = String(formData.get("opportunityId") ?? "");
   const disposition = String(formData.get("disposition") ?? "verify_more");
-  if (!opportunityId) return;
   const matchValue = String(formData.get("match") ?? "");
+  const note = String(formData.get("note") ?? "").trim() || null;
+  const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
+  if (!opportunityId || !submissionNonce) return;
   const [matchCandidateId, matchedEntityType, matchedEntityId] = matchValue ? matchValue.split(":") : [null, null, null];
   const result = await invokeOpportunity("opportunity.review", {
     opportunityId,
@@ -61,8 +73,8 @@ export async function reviewOpportunity(formData: FormData) {
     matchCandidateId: matchCandidateId || null,
     matchedEntityType: matchedEntityType || null,
     matchedEntityId: matchedEntityId || null,
-    note: String(formData.get("note") ?? "").trim() || null,
-    idempotencyKey: `opportunity-review:${opportunityId}:${randomUUID()}`,
+    note,
+    idempotencyKey: semanticIdempotencyKey("opportunity-review", [opportunityId, disposition, matchValue, note, submissionNonce]),
   });
   assertCompleted(result);
   revalidatePath("/opportunities");
@@ -70,11 +82,13 @@ export async function reviewOpportunity(formData: FormData) {
 
 export async function requestOpportunityPromotion(formData: FormData) {
   const opportunityId = String(formData.get("opportunityId") ?? "");
-  if (!opportunityId) return;
+  const campaignId = String(formData.get("campaignId") ?? "") || null;
+  const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
+  if (!opportunityId || !submissionNonce) return;
   const result = await invokeOpportunity("opportunity.promote_to_crm", {
     opportunityId,
-    campaignId: String(formData.get("campaignId") ?? "") || null,
-    idempotencyKey: `opportunity-promote:${opportunityId}:${randomUUID()}`,
+    campaignId,
+    idempotencyKey: semanticIdempotencyKey("opportunity-promote", [opportunityId, campaignId, submissionNonce]),
   });
   const output = assertCompleted(result) as { approvalId?: string };
   revalidatePath("/opportunities");
