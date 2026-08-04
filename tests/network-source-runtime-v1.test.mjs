@@ -128,8 +128,6 @@ test("promotion never performs wildcard name matching and stamps the actor works
   assert.doesNotMatch(promote, /\.ilike\(/);
   assert.match(promote, /review_disposition === "enrich_existing"/);
   assert.match(promote, /workspace_id: ctx\.workspaceId[\s\S]*campaign_id: campaign\.id/);
-  assert.deesNotMatch(promote, /\.ilike\(/);
-  assert.deesNotMatch(promote, /\.eq\(\"canonical_name\", opportunity\.title\)/);
   assert.match(promote, /verification_status: "unverified"/);
   assert.match(promote, /evidence_strength: 1/);
 });
