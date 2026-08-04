@@ -92,3 +92,36 @@ jobs:
           path: build.log
           if-no-files-found: warn
           retention-days: 7
+
+  database-rehearsal:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.84.2
+          github-token: ${{ github.token }}
+
+      - name: Rehearse historical and pending migrations locally
+        id: rehearsal
+        shell: bash
+        run: |
+          set -o pipefail
+          PENDING_REHEARSAL_OUTPUT_DIR=artifacts/pending-migration-rehearsal \
+            bash scripts/rehearse-pending-migrations.sh 2>&1 | tee migration-rehearsal.log
+
+      - name: Upload migration rehearsal evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pending-migration-rehearsal
+          path: |
+            migration-rehearsal.log
+            artifacts/pending-migration-rehearsal
+          if-no-files-found: warn
+          retention-days: 7
