@@ -1,14 +1,19 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { invokeCapability } from "@/lib/capabilities/invoke";
 import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
 
+function idempotencyKey(prefix: string, values: Array<string | null>) {
+  const digest = createHash("sha256").update(values.map((value) => value ?? "").join("\u001f"), "utf8").digest("hex");
+  return `${prefix}:${digest}`;
+}
+
 async function invoke(name: string, input: Record<string, unknown>) {
   const ctx = await createActorContext();
-  const idempotencyKey = String(input.idempotencyKey);
-  const result = await invokeCapability({ name, ctx, input, idempotencyKey, dependencies: createServerInvocationDependencies() });
+  const key = String(input.idempotencyKey);
+  const result = await invokeCapability({ name, ctx, input, idempotencyKey: key, dependencies: createServerInvocationDependencies() });
   if (result.status !== "ok") throw new Error(result.status === "failed" ? result.error.message : `Capability ${result.status}`);
 }
 
@@ -16,7 +21,11 @@ export async function addOrganizationToCampaign(formData: FormData) {
   const organizationId = String(formData.get("organizationId") ?? "");
   const campaignId = String(formData.get("campaignId") ?? "");
   if (!organizationId || !campaignId) return;
-  await invoke("crm.add_organization_to_campaign", { organizationId, campaignId, idempotencyKey: `crm-campaign:${organizationId}:${campaignId}:${randomUUID()}` });
+  await invoke("crm.add_organization_to_campaign", {
+    organizationId,
+    campaignId,
+    idempotencyKey: idempotencyKey("crm-campaign", [organizationId, campaignId]),
+  });
   revalidatePath(`/targets/${organizationId}`);
   revalidatePath("/targets");
   revalidatePath("/campaigns");
@@ -24,9 +33,25 @@ export async function addOrganizationToCampaign(formData: FormData) {
 
 export async function logOutreach(formData: FormData) {
   const organizationId = String(formData.get("organizationId") ?? "");
+  const campaignId = String(formData.get("campaignId") ?? "");
+  const endpointId = String(formData.get("endpointId") ?? "");
   const subject = String(formData.get("subject") ?? "").trim();
-  if (!organizationId || !subject) return;
-  await invoke("crm.log_outbound_outreach", { organizationId, campaignId: String(formData.get("campaignId") ?? "") || null, endpointId: String(formData.get("endpointId") ?? "") || null, channel: String(formData.get("channel") ?? "email").trim(), subject, body: String(formData.get("body") ?? "").trim() || null, followUpDue: String(formData.get("followUpDue") ?? "") || null, assetLink: String(formData.get("assetLink") ?? "").trim() || null, idempotencyKey: `crm-outreach:${organizationId}:${randomUUID()}` });
+  const body = String(formData.get("body") ?? "").trim();
+  const channel = String(formData.get("channel") ?? "email").trim();
+  const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
+  if (!organizationId || !campaignId || !endpointId || !subject || !body || !submissionNonce) return;
+
+  await invoke("crm.log_outbound_outreach", {
+    organizationId,
+    campaignId,
+    endpointId,
+    channel,
+    subject,
+    body,
+    followUpDue: String(formData.get("followUpDue") ?? "") || null,
+    assetLink: String(formData.get("assetLink") ?? "").trim() || null,
+    idempotencyKey: idempotencyKey("crm-outreach", [organizationId, campaignId, endpointId, submissionNonce]),
+  });
   revalidatePath(`/targets/${organizationId}`);
   revalidatePath("/dashboard");
   revalidatePath("/campaigns");
@@ -34,9 +59,18 @@ export async function logOutreach(formData: FormData) {
 
 export async function updateRelationship(formData: FormData) {
   const organizationId = String(formData.get("organizationId") ?? "");
+  const relationshipStage = String(formData.get("relationshipStage") ?? "identified");
+  const nextAction = String(formData.get("nextAction") ?? "").trim() || null;
+  const nextActionDue = String(formData.get("nextActionDue") ?? "") || null;
   if (!organizationId) return;
-  // invokeCapability remains the only business-write path; this helper centralizes its identical guard sequence.
-  await invoke("crm.update_organization_relationship", { organizationId, relationshipStage: String(formData.get("relationshipStage") ?? "identified"), nextAction: String(formData.get("nextAction") ?? "").trim() || null, nextActionDue: String(formData.get("nextActionDue") ?? "") || null, idempotencyKey: `crm-relationship:${organizationId}:${randomUUID()}` });
+
+  await invoke("crm.update_organization_relationship", {
+    organizationId,
+    relationshipStage,
+    nextAction,
+    nextActionDue,
+    idempotencyKey: idempotencyKey("crm-relationship", [organizationId, relationshipStage, nextAction, nextActionDue]),
+  });
   revalidatePath(`/targets/${organizationId}`);
   revalidatePath("/targets");
 }
