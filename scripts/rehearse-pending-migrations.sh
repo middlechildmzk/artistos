@@ -8,7 +8,9 @@ PENDING_DIR="$(mktemp -d)/pending"
 BASELINE_LIST="${ARTIFACT_DIR}/historical-baseline.txt"
 FINAL_LIST="${ARTIFACT_DIR}/with-pending.txt"
 SUMMARY="${ARTIFACT_DIR}/summary.txt"
+REPLAY_FIXTURE="${MIGRATIONS_DIR}/20260726183000_local_replay_canonical_workspace_fixture.sql"
 PENDING_RESTORED=false
+FIXTURE_CREATED=false
 
 restore_pending() {
   if compgen -G "${PENDING_DIR}/*.sql" >/dev/null; then
@@ -17,7 +19,15 @@ restore_pending() {
   PENDING_RESTORED=true
 }
 
+remove_replay_fixture() {
+  if [[ "${FIXTURE_CREATED}" == "true" ]]; then
+    rm -f "${REPLAY_FIXTURE}"
+    FIXTURE_CREATED=false
+  fi
+}
+
 cleanup() {
+  remove_replay_fixture
   if [[ "${PENDING_RESTORED}" != "true" ]]; then
     restore_pending
   fi
@@ -61,6 +71,63 @@ if (count === 0) {
 }
 NODE
 
+if [[ -e "${REPLAY_FIXTURE}" ]]; then
+  echo "Refusing to overwrite an existing replay fixture: ${REPLAY_FIXTURE}" >&2
+  exit 2
+fi
+
+cat > "${REPLAY_FIXTURE}" <<'SQL'
+-- Disposable local-replay prerequisite for a historical migration that
+-- predates source-controlled fixture generation. This file is created and
+-- removed by scripts/rehearse-pending-migrations.sh and must never ship.
+
+insert into auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  confirmation_token,
+  email_change,
+  email_change_token_new,
+  recovery_token
+)
+values (
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  '1117df01-6442-4c59-9d94-3ffa7e15612f'::uuid,
+  'authenticated',
+  'authenticated',
+  'replay-owner@artistos.local',
+  '',
+  now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{}'::jsonb,
+  now(),
+  now(),
+  '',
+  '',
+  '',
+  ''
+)
+on conflict (id) do nothing;
+
+insert into public.workspaces (id, name)
+values (
+  '7fe2a999-41d0-4ba7-af23-98f1e58a5982'::uuid,
+  'Dan Larson / BVSS FVM'
+)
+on conflict (id) do nothing;
+SQL
+FIXTURE_CREATED=true
+
+echo "Created disposable pre-ledger replay fixture: $(basename "${REPLAY_FIXTURE}")"
+
 supabase start
 
 echo "Replaying recovered historical baseline only..."
@@ -86,12 +153,15 @@ fi
 
 supabase db advisors --local
 
+remove_replay_fixture
+
 cat > "${SUMMARY}" <<EOF
 ArtistOS pending migration rehearsal
 
 RESULT: PASS
 
 Historical baseline replay: passed
+Disposable historical prerequisite fixture: generated and removed
 Pending migration replay: passed
 Workspace isolation: passed
 Pending schema assertions: passed when present
