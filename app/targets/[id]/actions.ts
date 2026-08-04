@@ -10,7 +10,7 @@ function idempotencyKey(prefix: string, values: Array<string | null>) {
   return `${prefix}:${digest}`;
 }
 
-async function invoke(name: string, input: Record<string, unknown>) {
+async function invokeCapabilityCommand(name: string, input: Record<string, unknown>) {
   const ctx = await createActorContext();
   const key = String(input.idempotencyKey);
   const result = await invokeCapability({ name, ctx, input, idempotencyKey: key, dependencies: createServerInvocationDependencies() });
@@ -21,7 +21,7 @@ export async function addOrganizationToCampaign(formData: FormData) {
   const organizationId = String(formData.get("organizationId") ?? "");
   const campaignId = String(formData.get("campaignId") ?? "");
   if (!organizationId || !campaignId) return;
-  await invoke("crm.add_organization_to_campaign", {
+  await invokeCapabilityCommand("crm.add_organization_to_campaign", {
     organizationId,
     campaignId,
     idempotencyKey: idempotencyKey("crm-campaign", [organizationId, campaignId]),
@@ -41,7 +41,7 @@ export async function logOutreach(formData: FormData) {
   const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
   if (!organizationId || !campaignId || !endpointId || !subject || !body || !submissionNonce) return;
 
-  await invoke("crm.log_outbound_outreach", {
+  await invokeCapabilityCommand("crm.log_outbound_outreach", {
     organizationId,
     campaignId,
     endpointId,
@@ -64,7 +64,7 @@ export async function updateRelationship(formData: FormData) {
   const nextActionDue = String(formData.get("nextActionDue") ?? "") || null;
   if (!organizationId) return;
 
-  await invoke("crm.update_organization_relationship", {
+  await invokeCapabilityCommand("crm.update_organization_relationship", {
     organizationId,
     relationshipStage,
     nextAction,
