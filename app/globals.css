@@ -137,3 +137,35 @@ summary { cursor: pointer; font-weight: 650; }
   .feature-grid { grid-template-columns: 1fr; }
   .login-copy h1 { font-size: clamp(2.5rem, 15vw, 3.5rem); }
 }
+
+/* Network Discovery V2 */
+.discovery-stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.discovery-planner { position: relative; }
+.quick-lanes { display: grid; gap: 8px; }
+.advanced-panel { background: rgba(9,10,16,.42); }
+.source-choice, .source-boundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.source-choice:last-child, .source-boundary:last-child { border-bottom: 0; }
+.source-choice > span:first-child, .source-boundary > div:first-child { display: grid; gap: 4px; min-width: 0; }
+.source-choice small { display: block; line-height: 1.45; }
+.discovery-plan-row, .discovery-result { align-items: flex-start; }
+.run-plan-form { display: flex; gap: 10px; align-items: end; min-width: 260px; }
+.compact-field { min-width: 92px; }
+.query-variant { display: block; max-width: 100%; overflow-wrap: anywhere; padding: 9px 10px; border-radius: 9px; background: rgba(0,0,0,.24); color: #cdd5ff; font-size: .78rem; }
+.result-heading { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+.promotion-row { align-items: end; }
+@media (max-width: 1120px) {
+  .discovery-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 820px) {
+  .source-choice, .source-boundary, .result-heading, .promotion-row { flex-direction: column; align-items: stretch; }
+  .run-plan-form { width: 100%; min-width: 0; }
+  .run-plan-form .button { flex: 1; }
+  .sticky-mobile-action { position: sticky; bottom: 10px; z-index: 4; box-shadow: 0 14px 40px rgba(0,0,0,.38); }
+}
+@media (max-width: 520px) {
+  .discovery-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .discovery-stats .card { padding: 13px; }
+  .discovery-stats .stat-value { font-size: 1.42rem; }
+  .run-plan-form { flex-direction: column; align-items: stretch; }
+  .compact-field { width: 100%; }
+}

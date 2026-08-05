@@ -280,3 +280,53 @@ begin
     raise exception 'campaign_targets.workspace_id must not have a default';
   end if;
 end $$;
+
+-- Network Discovery V2 must preserve cross-source identity clusters and request transparency.
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'opportunity_search_runs'
+      and column_name in ('estimated_request_count','actual_request_count','source_cost_summary')
+    group by table_name
+    having count(distinct column_name) = 3
+  ) then
+    raise exception 'opportunity_search_runs must expose estimated and actual request transparency';
+  end if;
+
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'opportunities'
+      and column_name in ('discovery_cluster_key','corroborating_sources','corroboration_count','identity_urls','external_identifiers')
+    group by table_name
+    having count(distinct column_name) = 5
+  ) then
+    raise exception 'opportunities must expose identity clustering and corroboration state';
+  end if;
+
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'opportunity_source_observations'
+      and column_name in ('identity_urls','external_identifiers')
+    group by table_name
+    having count(distinct column_name) = 2
+  ) then
+    raise exception 'source observations must preserve identity URLs and external identifiers';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_indexes
+    where schemaname = 'public'
+      and tablename = 'opportunities'
+      and indexname = 'opportunities_discovery_cluster_idx'
+  ) then
+    raise exception 'cross-source discovery cluster index is required';
+  end if;
+end $$;

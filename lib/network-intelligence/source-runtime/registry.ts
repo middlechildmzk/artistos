@@ -1,10 +1,20 @@
 import type { SourceAdapter, SourceSlug } from "./types";
+import { blockedAdapter } from "./blocked";
+import { radioBrowserAdapter } from "./radio-browser";
 import { wikidataAdapter } from "./wikidata";
-import { youtubeAdapter } from "./youtube";
+
+const youtubeAdapter = blockedAdapter("youtube");
+const xAdapter = blockedAdapter("x");
+const musicBrainzAdapter = blockedAdapter("musicbrainz");
+const podcastIndexAdapter = blockedAdapter("podcast_index");
 
 const adapters = new Map<SourceSlug, SourceAdapter>([
   [wikidataAdapter.slug, wikidataAdapter],
+  [radioBrowserAdapter.slug, radioBrowserAdapter],
   [youtubeAdapter.slug, youtubeAdapter],
+  [xAdapter.slug, xAdapter],
+  [musicBrainzAdapter.slug, musicBrainzAdapter],
+  [podcastIndexAdapter.slug, podcastIndexAdapter],
 ]);
 
 export function getSourceAdapter(slug: SourceSlug) {

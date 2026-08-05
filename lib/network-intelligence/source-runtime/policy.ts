@@ -1,4 +1,18 @@
-import type { SourcePolicy, SourceSlug } from "./types";
+import type { SearchLane, SourcePolicy, SourceSlug } from "./types";
+
+const ALL_LANES: SearchLane[] = [
+  "playlist",
+  "publication",
+  "youtube_channel",
+  "creator",
+  "radio",
+  "podcast",
+  "sync",
+  "music_library",
+  "label",
+  "booking",
+  "other",
+];
 
 export const SOURCE_POLICIES: Record<SourceSlug, SourcePolicy> = {
   wikidata: {
@@ -6,22 +20,95 @@ export const SOURCE_POLICIES: Record<SourceSlug, SourcePolicy> = {
     label: "Wikidata",
     disposition: "accept_verified_source",
     officialUrl: "https://www.wikidata.org/wiki/Wikidata:Data_access",
-    allowedUse: "CC0 public entity identity and relationship data through documented Wikimedia interfaces.",
+    allowedUse: "CC0 public entity identity, classification, identifiers, and official-website relationships through documented Wikimedia interfaces.",
     requiresConfiguration: false,
     executionEnabled: true,
+    supportedLanes: ALL_LANES,
+    estimatedRequestsPerLane: 2,
+    costLabel: "No API fee",
+    cacheTtlSeconds: 86_400,
+    dataClass: "public_identity",
+  },
+  radio_browser: {
+    slug: "radio_browser",
+    label: "Radio Browser",
+    disposition: "accept_verified_source",
+    officialUrl: "https://docs.radio-browser.info/",
+    allowedUse: "Public internet-radio directory identity, station UUID, homepage, tags, territory, language, and current stream-health observations.",
+    requiresConfiguration: false,
+    executionEnabled: true,
+    supportedLanes: ["radio"],
+    estimatedRequestsPerLane: 1,
+    costLabel: "No API fee; community service",
+    cacheTtlSeconds: 300,
+    dataClass: "public_directory",
   },
   youtube: {
     slug: "youtube",
     label: "YouTube Data API v3",
     disposition: "accept_verified_source",
     officialUrl: "https://developers.google.com/youtube/v3",
-    allowedUse: "Public channel identity metadata through the official API only after ArtistOS retention, refresh, quota, and policy controls are approved.",
+    allowedUse: "Public channel identity metadata through the official API only after ArtistOS retention, refresh, quota, derived-metric, and policy controls are approved.",
     requiresConfiguration: true,
     executionEnabled: false,
     executionBlockReason: "Blocked pending YouTube API compliance approval and 30-day refresh-or-delete controls.",
+    supportedLanes: ["youtube_channel", "playlist", "creator"],
+    estimatedRequestsPerLane: 2,
+    costLabel: "Quota metered",
+    cacheTtlSeconds: 0,
+    dataClass: "public_identity",
+  },
+  x: {
+    slug: "x",
+    label: "X API",
+    disposition: "license_review",
+    officialUrl: "https://developer.x.com/",
+    allowedUse: "Potential public creator, publication, label, and conversation identity discovery through paid official API access only.",
+    requiresConfiguration: true,
+    executionEnabled: false,
+    executionBlockReason: "Blocked pending paid-access budget, endpoint entitlement, storage, display, deletion, and commercial-use review.",
+    supportedLanes: ["creator", "publication", "label", "other"],
+    estimatedRequestsPerLane: 1,
+    costLabel: "Pay per use",
+    cacheTtlSeconds: 0,
+    dataClass: "public_identity",
+  },
+  musicbrainz: {
+    slug: "musicbrainz",
+    label: "MusicBrainz",
+    disposition: "partnership_required",
+    officialUrl: "https://musicbrainz.org/doc/MusicBrainz_API",
+    allowedUse: "Potential label, artist, release, identifier, and URL-relationship discovery after commercial API or data-dump rights are approved.",
+    requiresConfiguration: true,
+    executionEnabled: false,
+    executionBlockReason: "Blocked because the hosted API is free for non-commercial use only; ArtistOS needs a commercial plan or approved core-data mirror strategy.",
+    supportedLanes: ["label", "sync", "music_library", "other"],
+    estimatedRequestsPerLane: 1,
+    costLabel: "Commercial plan required",
+    cacheTtlSeconds: 0,
+    dataClass: "public_identity",
+  },
+  podcast_index: {
+    slug: "podcast_index",
+    label: "Podcast Index",
+    disposition: "license_review",
+    officialUrl: "https://podcastindex-org.github.io/docs-api/",
+    allowedUse: "Potential podcast feed, publisher, episode, and show identity discovery after API credentials and current storage/display terms are approved.",
+    requiresConfiguration: true,
+    executionEnabled: false,
+    executionBlockReason: "Blocked pending API credential setup and current commercial storage, display, refresh, and attribution review.",
+    supportedLanes: ["podcast", "publication"],
+    estimatedRequestsPerLane: 1,
+    costLabel: "Credentialed API",
+    cacheTtlSeconds: 0,
+    dataClass: "public_directory",
   },
 };
 
 export function policyAllowsExecution(policy: SourcePolicy) {
   return policy.disposition === "accept_verified_source" && policy.executionEnabled;
+}
+
+export function policySupportsLane(policy: SourcePolicy, lane: SearchLane) {
+  return policy.supportedLanes.includes(lane);
 }

@@ -1,4 +1,4 @@
-export const sourceSlugs = ["wikidata", "youtube"] as const;
+export const sourceSlugs = ["wikidata", "radio_browser", "youtube", "x", "musicbrainz", "podcast_index"] as const;
 export type SourceSlug = (typeof sourceSlugs)[number];
 
 export const searchLanes = [
@@ -41,16 +41,23 @@ export type SourcePolicy = {
   requiresConfiguration: boolean;
   executionEnabled: boolean;
   executionBlockReason?: string;
+  supportedLanes: SearchLane[];
+  estimatedRequestsPerLane: number;
+  costLabel: string;
+  cacheTtlSeconds: number;
+  dataClass: "public_identity" | "public_directory" | "authorized_private" | "external_handoff";
 };
 
 export type SearchPlanLane = {
   lane: SearchLane;
   query: string;
+  queryVariants: string[];
   sources: SourceSlug[];
+  estimatedRequests: number;
 };
 
 export type SourceSearchPlan = {
-  planVersion: "network-source-runtime-v1";
+  planVersion: "network-source-runtime-v1" | "network-source-runtime-v2";
   generatedAt: string;
   objective: string;
   baseQuery: string;
@@ -58,7 +65,9 @@ export type SourceSearchPlan = {
   fitContext: string | null;
   lanes: SearchPlanLane[];
   sourcePolicies: Array<SourcePolicy & { health: SourceHealth }>;
-  skippedSources: Array<{ slug: string; reason: string }>;
+  skippedSources: Array<{ slug: string; reason: string; lane?: SearchLane }>;
+  estimatedRequestCount: number;
+  estimatedCostSummary: Record<string, string>;
   executionMode: "human_operated";
 };
 
@@ -69,6 +78,18 @@ export type DiscoveryFeature = {
   weight: number;
   contribution: number;
   explanation: string;
+};
+
+export type CandidateObservation = {
+  sourceSlug: SourceSlug;
+  sourcePolicyDisposition: SourcePolicyDisposition;
+  externalId: string;
+  canonicalUrl: string;
+  observedAt: string;
+  identityUrls: string[];
+  externalIdentifiers: Record<string, string>;
+  rawPayload: Record<string, unknown>;
+  normalizedPayload: Record<string, unknown>;
 };
 
 export type DiscoveryCandidate = {
@@ -96,6 +117,11 @@ export type DiscoveryCandidate = {
   scoreFeatures: DiscoveryFeature[];
   rawPayload: Record<string, unknown>;
   normalizedPayload: Record<string, unknown>;
+  identityUrls: string[];
+  externalIdentifiers: Record<string, string>;
+  discoveryClusterKey: string;
+  corroboratingSources: SourceSlug[];
+  sourceObservations: CandidateObservation[];
 };
 
 export type SourceSearchInput = {
@@ -110,7 +136,9 @@ export type SourceSearchResult = {
   status: "completed" | "skipped" | "failed";
   candidates: DiscoveryCandidate[];
   nextCursor: string | null;
+  requestCount: number;
   rateLimit: Record<string, unknown>;
+  warnings: string[];
   error?: string;
 };
 

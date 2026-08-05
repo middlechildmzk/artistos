@@ -58,6 +58,11 @@ function candidate(overrides = {}) {
     scoreFeatures: [],
     rawPayload: {},
     normalizedPayload: {},
+    identityUrls: [],
+    externalIdentifiers: {},
+    discoveryClusterKey: "source:wikidata:Q123",
+    corroboratingSources: ["wikidata"],
+    sourceObservations: [{ sourceSlug: "wikidata", sourcePolicyDisposition: "accept_verified_source", externalId: "Q123", canonicalUrl: "https://www.wikidata.org/wiki/Q123", observedAt: "2026-08-04T00:00:00.000Z", identityUrls: [], externalIdentifiers: {}, rawPayload: {}, normalizedPayload: {} }],
     ...overrides,
   };
 }
@@ -80,7 +85,7 @@ test("name-only identity similarity never clears the deterministic match thresho
 test("stable source IDs and canonical URLs remain strong match signals", () => {
   const stable = matching.findMatches(candidate(), [], [{ id: "prop-1", organization_id: null, name: "Different", url: null, platform_url: null, raw_record: { source_slug: "wikidata", external_id: "Q123" } }]);
   assert.equal(stable[0].score, 1);
-  assert.deepEqual(stable[0].reasons, ["stable_external_id_exact"]);
+  assert.deepEqual(stable[0].reasons, ["stable_source_identity_exact"]);
 
   const url = matching.findMatches(candidate(), [{ id: "org-1", canonical_name: "Different", display_name: null, website: "https://www.wikidata.org/wiki/Q123/?utm_source=test", primary_source_url: null }], []);
   assert.equal(url[0].score, 0.98);
@@ -103,17 +108,15 @@ test("YouTube execution is code-blocked until compliance controls are approved",
   assert.equal(policy.SOURCE_POLICIES.youtube.executionEnabled, false);
   assert.equal(policy.policyAllowsExecution(policy.SOURCE_POLICIES.youtube), false);
   assert.equal(policy.policyAllowsExecution(policy.SOURCE_POLICIES.wikidata), true);
-  assert.match(youtube, /blocked_by_policy/);
+  assert.match(youtube, /blockedAdapter\("youtube"\)/);
   assert.doesNotMatch(youtube, /subscriberCount|brandingSettings|statistics/);
 });
 
-test("discovery facts remain weak, unreviewed, and freshness-unknown", () => {
-  for (const adapter of [wikidata, youtube]) {
-    assert.match(adapter, /freshnessStatus: "unknown"/);
-    assert.match(adapter, /confidence: "weak"/);
-    assert.match(adapter, /legitimacyStatus: "unreviewed"/);
-    assert.doesNotMatch(adapter, /legitimacyStatus: "credible"/);
-  }
+test("discovery facts remain reviewable and do not overstate legitimacy or freshness", () => {
+  assert.match(wikidata, /freshnessStatus: "unknown"/);
+  assert.match(wikidata, /confidence = officialWebsites\.length \|\| instanceOf\.length \? "supported" as const : "weak" as const/);
+  assert.match(wikidata, /legitimacyStatus: "unreviewed"/);
+  assert.doesNotMatch(wikidata, /legitimacyStatus: "credible"/);
   assert.match(page, /Unassessed legitimacy/);
 });
 
