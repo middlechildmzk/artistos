@@ -5,6 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { listSourceAdapters } from "@/lib/network-intelligence/source-runtime/registry";
 import OpportunityDirectory, { type DirectoryCampaign, type DirectoryItem, type DirectoryMatch } from "./opportunity-directory";
 import { executeOpportunitySearch, searchOpportunityDirectory } from "./actions";
+import ReleaseFitPanel, { type ReleaseFitItem, type ReleaseHeader } from "./release-fit-panel";
+import { buildFeaturedArtistEvidence, buildReleaseContext, buildTargetContext, missingReleaseMetadata } from "@/lib/release-fit/context";
+import { describeAudienceSignal, scoreReleaseFit } from "@/lib/release-fit/scoring";
+import "./release-fit.css";
 import "./opportunities.css";
 
 // Product lineage: SourcingOS for music and Opportunity Intelligence.
@@ -67,6 +71,7 @@ type OpportunityRow = {
 
 type ObservationRow = {
   opportunity_id: string;
+  evidence_id?: string | null;
   raw_payload: unknown;
   normalized_payload: unknown;
   observed_at: string | null;
@@ -95,7 +100,25 @@ const laneOptions = [
   ["booking", "Live"],
 ] as const;
 
-export default async function OpportunitiesPage() {
+type ReleaseSourcingRow = {
+  id: string;
+  title: string;
+  status: string | null;
+  release_date: string | null;
+  artist_id: string | null;
+  subgenre_tags?: string[] | null;
+  mood_tags?: string[] | null;
+  territory_focus?: string[] | null;
+  artist_size_band?: string | null;
+  primary_language?: string | null;
+  vocal_type?: string | null;
+  ai_involvement?: string | null;
+  ai_disclosure_preference?: string | null;
+  lyrical_themes?: string[] | null;
+};
+
+export default async function OpportunitiesPage({ searchParams }: { searchParams: Promise<{ releaseId?: string }> }) {
+  const requestedReleaseId = (await searchParams).releaseId ?? null;
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
@@ -103,16 +126,18 @@ export default async function OpportunitiesPage() {
   if (!membership) redirect("/dashboard");
   const workspaceId = membership.workspace_id;
 
-  const [opportunityResult, runProbe, releasesResult, campaignsResult, observationResult, searchResult] = await Promise.all([
+  const [opportunityResult, runProbe, baseReleasesResult, campaignsResult, observationResult, searchResult, releaseFitProbe] = await Promise.all([
     supabase.from("opportunities").select("*").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }).limit(500),
     supabase.from("opportunity_search_runs").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("releases").select("id,title").eq("workspace_id", workspaceId).order("release_date", { ascending: false, nullsFirst: false }).limit(30),
-    supabase.from("campaigns").select("id,name").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(50),
-    supabase.from("opportunity_source_observations").select("opportunity_id,raw_payload,normalized_payload,observed_at,retrieved_at").eq("workspace_id", workspaceId).order("retrieved_at", { ascending: false }).limit(3000),
+    supabase.from("releases").select("id,title,status,release_date,artist_id").eq("workspace_id", workspaceId).order("release_date", { ascending: false, nullsFirst: false }).limit(30),
+    supabase.from("campaigns").select("id,name,release_id").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(50),
+    supabase.from("opportunity_source_observations").select("opportunity_id,raw_payload,normalized_payload,observed_at,retrieved_at,evidence_id").eq("workspace_id", workspaceId).order("retrieved_at", { ascending: false }).limit(3000),
     supabase.from("opportunity_searches").select("id,title,last_run_status,last_run_at,last_run_summary").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }).limit(8),
+    supabase.from("release_similar_artists").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
   ]);
 
   const runtimeReady = !runProbe.error;
+  const releaseFitReady = !releaseFitProbe.error;
   const opportunities = (opportunityResult.data ?? []) as OpportunityRow[];
   const observations = (observationResult.data ?? []) as ObservationRow[];
   const latestObservation = new Map<string, ObservationRow>();
@@ -176,9 +201,132 @@ export default async function OpportunitiesPage() {
     };
   });
 
-  const campaigns = (campaignsResult.data ?? []) as DirectoryCampaign[];
+  const campaigns = (campaignsResult.data ?? []) as Array<DirectoryCampaign & { release_id?: string | null }>;
   const availableSources = listSourceAdapters().filter((adapter) => adapter.health().status === "available").map((adapter) => adapter.policy.label);
   const searches = searchResult.data ?? [];
+
+  // ---- Release-fit sourcing -------------------------------------------------
+  // Preview remains truthful before the pending migration is applied: base release
+  // browsing works, while fit writes and enriched reads stay disabled.
+  const baseReleaseRows = (baseReleasesResult.data ?? []) as ReleaseSourcingRow[];
+  const enrichedReleasesResult = releaseFitReady
+    ? await supabase.from("releases")
+        .select("id,title,status,release_date,artist_id,subgenre_tags,mood_tags,territory_focus,artist_size_band,primary_language,vocal_type,ai_involvement,ai_disclosure_preference,lyrical_themes")
+        .eq("workspace_id", workspaceId)
+        .order("release_date", { ascending: false, nullsFirst: false })
+        .limit(30)
+    : { data: baseReleaseRows, error: releaseFitProbe.error };
+  const releaseRows = (enrichedReleasesResult.data ?? baseReleaseRows) as ReleaseSourcingRow[];
+  const selectedRelease =
+    (requestedReleaseId ? releaseRows.find((release) => release.id === requestedReleaseId) : null)
+    ?? releaseRows[0]
+    ?? null;
+
+  let releaseHeader: ReleaseHeader | null = null;
+  let releaseFitItems: ReleaseFitItem[] = [];
+
+  if (selectedRelease && runtimeReady && releaseFitReady) {
+    const [artistResult, similarArtistResult, decisionResult, shortlistResult] = await Promise.all([
+      selectedRelease.artist_id
+        ? supabase.from("artists").select("name,genre_tags").eq("workspace_id", workspaceId).eq("id", selectedRelease.artist_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      supabase.from("release_similar_artists").select("artist_name,normalized_name,external_identifiers,confirmation_state").eq("workspace_id", workspaceId).eq("release_id", selectedRelease.id),
+      supabase.from("release_target_decisions").select("opportunity_id,decision").eq("workspace_id", workspaceId).eq("release_id", selectedRelease.id),
+      supabase.from("release_shortlist_items").select("opportunity_id,readiness_state,blocking_reasons").eq("workspace_id", workspaceId).eq("release_id", selectedRelease.id),
+    ]);
+
+    const artistRow = (artistResult.data ?? null) as { name: string; genre_tags: string[] | null } | null;
+    const releaseContext = buildReleaseContext({
+      release: selectedRelease,
+      artistName: artistRow?.name ?? null,
+      artistGenreTags: artistRow?.genre_tags ?? null,
+      similarArtists: (similarArtistResult.data ?? []) as never[],
+    });
+
+    const decisionByOpportunity = new Map<string, string>();
+    for (const row of (decisionResult.data ?? []) as { opportunity_id: string; decision: string }[]) decisionByOpportunity.set(row.opportunity_id, row.decision);
+    const shortlistByOpportunity = new Map<string, { readiness_state: string; blocking_reasons: unknown }>();
+    for (const row of (shortlistResult.data ?? []) as { opportunity_id: string; readiness_state: string; blocking_reasons: unknown }[]) shortlistByOpportunity.set(row.opportunity_id, row);
+
+    const releaseGenreLine = releaseContext.subgenreTags.length ? releaseContext.subgenreTags.join(" · ") : releaseContext.genreTags.join(" · ");
+    releaseHeader = {
+      releaseId: releaseContext.releaseId,
+      title: releaseContext.title,
+      artistName: releaseContext.artistName,
+      releaseDate: releaseContext.releaseDate,
+      status: releaseContext.status,
+      genreLine: releaseGenreLine,
+      genreSource: releaseContext.subgenreTags.length ? "release" : releaseContext.genreTags.length ? "artist" : "none",
+      missingMetadata: missingReleaseMetadata(releaseContext),
+      confirmedSimilarArtists: releaseContext.confirmedSimilarArtists.filter((artist) => artist.confirmationState === "user_confirmed").map((artist) => artist.name),
+      releaseOptions: releaseRows.map((release) => ({ id: release.id, title: release.title, releaseDate: release.release_date, status: release.status })),
+      profileNonce: randomUUID(),
+      similarArtistNonce: randomUUID(),
+      profile: {
+        subgenreTags: releaseContext.subgenreTags,
+        moodTags: releaseContext.moodTags,
+        lyricalThemes: stringArray(selectedRelease.lyrical_themes),
+        territoryFocus: releaseContext.territoryFocus,
+        primaryLanguage: selectedRelease.primary_language ?? null,
+        vocalType: selectedRelease.vocal_type ?? null,
+        aiInvolvement: selectedRelease.ai_involvement ?? null,
+        aiDisclosurePreference: selectedRelease.ai_disclosure_preference ?? null,
+        artistSizeBand: releaseContext.artistSizeBand,
+      },
+    };
+
+    const directoryById = new Map(items.map((item) => [item.id, item]));
+    releaseFitItems = opportunities.map((opportunity) => {
+      const observation = latestObservation.get(opportunity.id) ?? null;
+      const directoryItem = directoryById.get(opportunity.id) ?? null;
+      const targetContext = buildTargetContext({
+        opportunity: {
+          id: opportunity.id,
+          title: opportunity.title,
+          opportunity_type: opportunity.opportunity_type,
+          country: directoryItem?.country ?? null,
+          normalized_payload: (observation?.normalized_payload ?? null) as Record<string, unknown> | null,
+          eligibility: (opportunity as { eligibility?: Record<string, unknown> | null }).eligibility ?? null,
+          tags: directoryItem?.tags ?? [],
+        },
+        featuredArtists: observation ? buildFeaturedArtistEvidence([observation as never]) : [],
+        audienceObservedAt: observation?.observed_at ?? null,
+      });
+      const fit = scoreReleaseFit(releaseContext, targetContext);
+      const audience = describeAudienceSignal(targetContext);
+      const shortlistRow = shortlistByOpportunity.get(opportunity.id) ?? null;
+      const routeState = directoryItem?.riskFlags.includes("submission_route_unverified") ? "route_unverified" : "route_unknown";
+      return {
+        opportunityId: opportunity.id,
+        title: opportunity.title,
+        targetType: opportunity.opportunity_type ?? null,
+        country: targetContext.country,
+        platforms: directoryItem ? (directoryItem.corroboratingSources.length ? directoryItem.corroboratingSources : directoryItem.source ? [directoryItem.source] : []).slice(0, 3) : [],
+        genres: targetContext.genreTags,
+        activityLabel: directoryItem?.activityLabel ?? null,
+        overall: fit.overall,
+        knownDimensionCount: fit.knownDimensionCount,
+        unknownDimensionCount: fit.unknownDimensionCount,
+        dimensions: fit.dimensions.map((dimension) => ({ key: dimension.key, label: dimension.label, value: dimension.value, explanation: dimension.explanation, unknownReason: dimension.unknownReason })),
+        explanations: fit.explanations,
+        ineligible: fit.ineligible,
+        audienceLabel: audience.label,
+        audienceAsOf: audience.asOf,
+        audienceStale: audience.stale,
+        routeState,
+        routeIsFree: null,
+        aiPolicy: null,
+        relationshipState: null,
+        sourceFreshness: directoryItem?.freshness ?? "unknown",
+        corroborationCount: directoryItem?.corroborationCount ?? 1,
+        decision: decisionByOpportunity.get(opportunity.id) ?? null,
+        shortlisted: shortlistByOpportunity.has(opportunity.id),
+        readinessState: shortlistRow?.readiness_state ?? null,
+        blockingReasons: stringArray(shortlistRow?.blocking_reasons),
+        actionNonce: randomUUID(),
+      } satisfies ReleaseFitItem;
+    });
+  }
 
   return (
     <main className="shell opportunity-shell">
@@ -211,7 +359,7 @@ export default async function OpportunitiesPage() {
           <details className="search-more-options"><summary>More search options</summary><div className="search-secondary-row">
             <input name="genre" placeholder="Genre or mood" />
             <input name="territory" placeholder="Country or region" />
-            <select name="releaseId"><option value="">Any release</option>{(releasesResult.data ?? []).map((release) => <option key={release.id} value={release.id}>{release.title}</option>)}</select>
+            <select name="releaseId"><option value="">Any release</option>{baseReleaseRows.map((release) => <option key={release.id} value={release.id}>{release.title}</option>)}</select>
             <select name="maxResultsPerLane" defaultValue="10"><option value="5">5 per type</option><option value="10">10 per type</option><option value="20">20 per type</option></select>
           </div></details>
         </form>
@@ -221,7 +369,9 @@ export default async function OpportunitiesPage() {
 
       {!runtimeReady ? <div className="notice">The discovery runtime is unavailable in this environment.</div> : null}
 
-      <OpportunityDirectory items={items} campaigns={campaigns} />
+      {!releaseFitReady ? <div className="notice">Release-aware recommendations are implemented on this branch, but the pending migration is not applied to this environment. Advanced discovery remains available.</div> : null}
+
+      {releaseHeader ? <ReleaseFitPanel release={releaseHeader} items={releaseFitItems} campaigns={campaigns} directoryItems={items} /> : <OpportunityDirectory items={items} campaigns={campaigns} />}
 
       {searches.length ? <details className="search-history-panel"><summary>Recent searches</summary><div className="search-history-list">{searches.map((search) => <div key={search.id}><div><strong>{search.title}</strong><span>{search.last_run_status ?? "not run"}</span></div><form action={executeOpportunitySearch}><input type="hidden" name="searchId" value={search.id} /><input type="hidden" name="submissionNonce" value={randomUUID()} /><input type="hidden" name="maxResultsPerLane" value="10" /><button className="button ghost compact-button" type="submit">Run again</button></form></div>)}</div></details> : null}
 

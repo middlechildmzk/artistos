@@ -330,3 +330,41 @@ begin
     raise exception 'cross-source discovery cluster index is required';
   end if;
 end $$;
+
+-- Release Fit Sourcing V1 keeps unknown metadata nullable and all review tables isolated.
+do $$
+declare
+  required_table text;
+begin
+  foreach required_table in array array[
+    'release_similar_artists',
+    'release_target_decisions',
+    'release_shortlist_items'
+  ] loop
+    if to_regclass(format('public.%I', required_table)) is null then
+      raise exception 'release-fit table % is required', required_table;
+    end if;
+    if not exists (select 1 from pg_class where oid = format('public.%I', required_table)::regclass and relrowsecurity) then
+      raise exception 'RLS must be enabled on %', required_table;
+    end if;
+    if has_table_privilege('anon', format('public.%I', required_table), 'select') then
+      raise exception 'anon must not read %', required_table;
+    end if;
+  end loop;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'release_similar_artists' and column_name = 'identity_key' and is_nullable = 'NO'
+  ) then
+    raise exception 'release_similar_artists.identity_key is required';
+  end if;
+
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'releases'
+      and column_name in ('subgenre_tags','mood_tags','lyrical_themes','vocal_type','territory_focus','primary_language','ai_involvement','ai_disclosure_preference','artist_size_band')
+      and (is_nullable <> 'YES' or column_default is not null)
+  ) then
+    raise exception 'release sourcing metadata must remain nullable with no defaults';
+  end if;
+end $$;
