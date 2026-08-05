@@ -106,7 +106,7 @@ export default function ReleaseFitPanel({
   campaigns: DirectoryCampaign[];
   directoryItems: DirectoryItem[];
 }) {
-  const [mode, setMode] = useState<Mode>("recommended");
+  const [mode, setMode] = useState<Mode>("advanced");
   const [openId, setOpenId] = useState<string | null>(null);
   const [showShortlist, setShowShortlist] = useState(false);
   const [query, setQuery] = useState("");
@@ -141,7 +141,49 @@ export default function ReleaseFitPanel({
     });
   }, [hideIneligible, items, onlyEvidenced, query]);
 
+  const directoryItemsWithFit = useMemo<DirectoryItem[]>(() => {
+    const fitByOpportunity = new Map(items.map((item) => [item.opportunityId, item]));
+    return directoryItems.map((item) => {
+      const fit = fitByOpportunity.get(item.id);
+      if (!fit) return item;
+      return {
+        ...item,
+        releaseFit: {
+          releaseTitle: release.title,
+          score: fit.overall,
+          knownDimensionCount: fit.knownDimensionCount,
+          totalDimensionCount: fit.knownDimensionCount + fit.unknownDimensionCount,
+          explanations: fit.explanations,
+          decision: fit.decision,
+          shortlisted: fit.shortlisted,
+          readinessState: fit.readinessState,
+          ineligible: fit.ineligible,
+        },
+      };
+    });
+  }, [directoryItems, items, release.title]);
+
+  const evidencedFitCount = items.filter((item) => item.knownDimensionCount > 0 && item.explanations.length > 0 && !item.ineligible).length;
+
   const openItem = openId ? items.find((item) => item.opportunityId === openId) ?? null : null;
+  const shortlistPanel = showShortlist ? (
+    <section className="rfs-shortlist" aria-label="Release shortlist">
+      <h3>Shortlist for {release.title}</h3>
+      {shortlist.length ? <ul className="rfs-shortlist-list">{shortlist.map((item) => (
+        <li key={item.opportunityId} className="rfs-shortlist-item">
+          <div><strong>{item.title}</strong><span className={`rfs-pill rfs-readiness-${item.readinessState ?? "needs_review"}`}>{(item.readinessState ?? "needs review").replace(/_/g, " ")}</span>{item.blockingReasons.length ? <p className="rfs-blocking">Blocking: {item.blockingReasons.join(", ").replace(/_/g, " ")}</p> : null}</div>
+          <form action={updateShortlistItem} className="rfs-shortlist-form">
+            <input type="hidden" name="releaseId" value={release.releaseId} />
+            <input type="hidden" name="opportunityId" value={item.opportunityId} />
+            <input type="hidden" name="submissionNonce" value={item.actionNonce} />
+            <label className="rfs-field-inline"><span>Campaign proposal</span><select className="rfs-input" name="proposedCampaignId" defaultValue=""><option value="">Propose later</option>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
+            <button className="rfs-btn" type="submit">Save proposal</button>
+          </form>
+        </li>
+      ))}</ul> : <p className="rfs-empty">Nothing shortlisted yet.</p>}
+      <p className="rfs-note">A shortlist proposal records intent only. It does not contact anyone, submit music, spend credits, or create a CRM record.</p>
+    </section>
+  ) : null;
 
   return (
     <section className="rfs-root">
@@ -206,11 +248,18 @@ export default function ReleaseFitPanel({
       </details>
 
       <div className="rfs-modes" role="tablist" aria-label="Sourcing mode">
-        <button type="button" role="tab" aria-selected={mode === "recommended"} className={`rfs-mode ${mode === "recommended" ? "rfs-mode-on" : ""}`} onClick={() => setMode("recommended")}>Recommended for this release</button>
-        <button type="button" role="tab" aria-selected={mode === "advanced"} className={`rfs-mode ${mode === "advanced" ? "rfs-mode-on" : ""}`} onClick={() => setMode("advanced")}>Advanced search</button>
+        <button type="button" role="tab" aria-selected={mode === "advanced"} className={`rfs-mode ${mode === "advanced" ? "rfs-mode-on" : ""}`} onClick={() => setMode("advanced")}>Browse &amp; filter</button>
+        <button type="button" role="tab" aria-selected={mode === "recommended"} className={`rfs-mode ${mode === "recommended" ? "rfs-mode-on" : ""}`} onClick={() => setMode("recommended")}>Recommended for {release.title}</button>
       </div>
 
-      {mode === "advanced" ? <OpportunityDirectory items={directoryItems} campaigns={campaigns} /> : (
+      {mode === "advanced" ? <>
+        <div className="rfs-directory-intelligence">
+          <div><strong>Release fit is active for {release.title}</strong><span>{evidencedFitCount} explainable {evidencedFitCount === 1 ? "match" : "matches"} · {shortlist.length} shortlisted</span></div>
+          <button type="button" className="rfs-btn" onClick={() => setMode("recommended")}>Review recommendations</button>
+        </div>
+        {shortlistPanel}
+        <OpportunityDirectory items={directoryItemsWithFit} campaigns={campaigns} />
+      </> : (
         <>
           <div className="rfs-filter-grid rfs-recommendation-filters">
             <label className="rfs-field"><span>Filter recommendations</span><input className="rfs-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="name, genre, country or platform" /></label>
@@ -218,24 +267,7 @@ export default function ReleaseFitPanel({
             <label className="rfs-check"><input type="checkbox" checked={onlyEvidenced} onChange={() => setOnlyEvidenced((value) => !value)} /><span>Only show explainable matches</span></label>
           </div>
 
-          {showShortlist ? (
-            <section className="rfs-shortlist" aria-label="Release shortlist">
-              <h3>Shortlist for {release.title}</h3>
-              {shortlist.length ? <ul className="rfs-shortlist-list">{shortlist.map((item) => (
-                <li key={item.opportunityId} className="rfs-shortlist-item">
-                  <div><strong>{item.title}</strong><span className={`rfs-pill rfs-readiness-${item.readinessState ?? "needs_review"}`}>{(item.readinessState ?? "needs review").replace(/_/g, " ")}</span>{item.blockingReasons.length ? <p className="rfs-blocking">Blocking: {item.blockingReasons.join(", ").replace(/_/g, " ")}</p> : null}</div>
-                  <form action={updateShortlistItem} className="rfs-shortlist-form">
-                    <input type="hidden" name="releaseId" value={release.releaseId} />
-                    <input type="hidden" name="opportunityId" value={item.opportunityId} />
-                    <input type="hidden" name="submissionNonce" value={item.actionNonce} />
-                    <label className="rfs-field-inline"><span>Campaign proposal</span><select className="rfs-input" name="proposedCampaignId" defaultValue=""><option value="">Propose later</option>{campaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label>
-                    <button className="rfs-btn" type="submit">Save proposal</button>
-                  </form>
-                </li>
-              ))}</ul> : <p className="rfs-empty">Nothing shortlisted yet.</p>}
-              <p className="rfs-note">A shortlist proposal records intent only. It does not contact anyone, submit music, spend credits, or create a CRM record.</p>
-            </section>
-          ) : null}
+          {shortlistPanel}
 
           <p className="rfs-count">{visible.length} explainable {visible.length === 1 ? "target" : "targets"}</p>
           <ul className="rfs-results">

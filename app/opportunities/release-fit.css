@@ -82,6 +82,21 @@
 
 .rfs-btn-primary { border-color: var(--accent, #7c6cf5); }
 
+.rfs-directory-intelligence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(124, 108, 245, .28);
+  border-radius: 10px;
+  background: rgba(124, 108, 245, .065);
+}
+.rfs-directory-intelligence > div { display: grid; gap: 2px; }
+.rfs-directory-intelligence strong { font-size: .84rem; }
+.rfs-directory-intelligence span { color: var(--muted, #9aa0b5); font-size: .72rem; }
+
 .rfs-filters { border: 1px solid var(--border, #2a2a35); border-radius: 8px; padding: 8px 10px; }
 .rfs-filters summary { cursor: pointer; font-size: 0.85rem; min-height: 32px; }
 .rfs-filter-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
@@ -250,4 +265,5 @@
   .rfs-release-switcher label { flex: 1; min-width: 0; }
   .rfs-release-switcher select { width: 100%; max-width: none; }
   .rfs-context-actions > .rfs-chip { flex: 1 1 100%; }
+  .rfs-directory-intelligence > .rfs-btn { width: 100%; }
 }

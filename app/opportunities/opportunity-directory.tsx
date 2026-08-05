@@ -11,6 +11,18 @@ export type DirectoryMatch = {
   conflicts: string[];
 };
 
+export type DirectoryReleaseFit = {
+  releaseTitle: string;
+  score: number | null;
+  knownDimensionCount: number;
+  totalDimensionCount: number;
+  explanations: string[];
+  decision: string | null;
+  shortlisted: boolean;
+  readinessState: string | null;
+  ineligible: boolean;
+};
+
 export type DirectoryItem = {
   id: string;
   title: string;
@@ -43,12 +55,14 @@ export type DirectoryItem = {
   matches: DirectoryMatch[];
   reviewNonce: string;
   promotionNonce: string;
+  releaseFit?: DirectoryReleaseFit;
 };
 
 export type DirectoryCampaign = { id: string; name: string };
 
 type SortKey = "popular" | "fit" | "recent" | "name";
 type ActivityFilter = "all" | "online" | "current" | "unknown";
+type ReleaseFitFilter = "all" | "evidenced" | "recommended" | "shortlisted";
 
 const typeOptions = [
   ["all", "All"],
@@ -85,6 +99,10 @@ function score(value: number | null) {
   return value == null ? "—" : Math.round(value).toString();
 }
 
+function effectiveFit(item: DirectoryItem) {
+  return item.releaseFit ? item.releaseFit.score : item.fitScore;
+}
+
 function unique(values: Array<string | null | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
@@ -111,6 +129,8 @@ function ResultCard({ item, onOpen }: { item: DirectoryItem; onOpen: () => void 
             {item.tags.slice(0, 4).map((tag) => <span key={tag}>{tag}</span>)}
             {sourceNames.slice(0, 1).map((source) => <span key={source}>{cleanLabel(source)}</span>)}
             {item.corroborationCount > 1 ? <span className="positive">{item.corroborationCount} sources</span> : null}
+            {item.releaseFit?.shortlisted ? <span className="positive">Shortlisted</span> : null}
+            {item.releaseFit && item.releaseFit.knownDimensionCount > 0 ? <span className="release-fit-tag">{item.releaseFit.knownDimensionCount}/{item.releaseFit.totalDimensionCount} fit signals</span> : null}
           </span>
           {item.summary ? <span className="opportunity-summary">{item.summary}</span> : null}
         </span>
@@ -118,7 +138,7 @@ function ResultCard({ item, onOpen }: { item: DirectoryItem; onOpen: () => void 
 
       <div className="opportunity-metrics">
         <div><strong>{item.popularityLabel ?? "—"}</strong><span>Popularity</span></div>
-        <div><strong>{score(item.fitScore)}</strong><span>Fit</span></div>
+        <div><strong>{score(effectiveFit(item))}</strong><span>{item.releaseFit ? "Release fit" : "Fit"}</span></div>
         <div><strong>{item.activityLabel ?? cleanLabel(item.freshness)}</strong><span>Activity</span></div>
       </div>
 
@@ -151,12 +171,26 @@ function DetailDrawer({ item, campaigns, onClose }: { item: DirectoryItem; campa
         <div className="drawer-body">
           <section className="drawer-score-grid">
             <div><strong>{item.popularityLabel ?? "—"}</strong><span>Popularity</span></div>
-            <div><strong>{score(item.fitScore)}</strong><span>Fit</span></div>
+            <div><strong>{score(effectiveFit(item))}</strong><span>{item.releaseFit ? "Release fit" : "Fit"}</span></div>
             <div><strong>{score(item.legitimacyScore)}</strong><span>Legitimacy</span></div>
             <div><strong>{score(item.riskScore)}</strong><span>Risk</span></div>
           </section>
 
           {item.summary ? <section className="drawer-section"><h3>About</h3><p>{item.summary}</p></section> : null}
+
+          {item.releaseFit ? (
+            <section className="drawer-section drawer-release-fit">
+              <h3>Fit for {item.releaseFit.releaseTitle}</h3>
+              <p><strong>{score(item.releaseFit.score)}</strong> release-fit score · {item.releaseFit.knownDimensionCount}/{item.releaseFit.totalDimensionCount} dimensions evidenced</p>
+              {item.releaseFit.explanations.length ? <ul>{item.releaseFit.explanations.slice(0, 4).map((explanation) => <li key={explanation}>{explanation}</li>)}</ul> : <p>No evidenced reason to recommend this target yet.</p>}
+              <div className="opportunity-tags">
+                {item.releaseFit.shortlisted ? <span className="positive">Shortlisted</span> : null}
+                {item.releaseFit.decision ? <span>{cleanLabel(item.releaseFit.decision)}</span> : null}
+                {item.releaseFit.readinessState ? <span>{cleanLabel(item.releaseFit.readinessState)}</span> : null}
+                {item.releaseFit.ineligible ? <span className="warning-tag">Evidenced ineligible</span> : null}
+              </div>
+            </section>
+          ) : null}
 
           <section className="drawer-section">
             <h3>Genres and signals</h3>
@@ -216,6 +250,7 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
   const [source, setSource] = useState("all");
   const [review, setReview] = useState("all");
   const [activity, setActivity] = useState<ActivityFilter>("all");
+  const [releaseFit, setReleaseFit] = useState<ReleaseFitFilter>("all");
   const [minimumPopularity, setMinimumPopularity] = useState(0);
   const [sort, setSort] = useState<SortKey>("popular");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -225,6 +260,7 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
   const countries = useMemo(() => unique(items.map((item) => item.country)).sort((a, b) => a.localeCompare(b)), [items]);
   const languages = useMemo(() => unique(items.map((item) => item.language)).sort((a, b) => a.localeCompare(b)), [items]);
   const sources = useMemo(() => unique(items.flatMap((item) => item.corroboratingSources.length ? item.corroboratingSources : [item.source])).sort((a, b) => a.localeCompare(b)), [items]);
+  const hasReleaseFit = items.some((item) => item.releaseFit);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -235,6 +271,12 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
       .filter((item) => language === "all" || item.language === language)
       .filter((item) => source === "all" || item.source === source || item.corroboratingSources.includes(source))
       .filter((item) => review === "all" || (item.reviewStatus ?? "pending") === review)
+      .filter((item) => {
+        if (releaseFit === "all") return true;
+        if (releaseFit === "shortlisted") return item.releaseFit?.shortlisted === true;
+        if (releaseFit === "evidenced") return (item.releaseFit?.knownDimensionCount ?? 0) > 0;
+        return Boolean(item.releaseFit && !item.releaseFit.ineligible && item.releaseFit.explanations.length > 0);
+      })
       .filter((item) => minimumPopularity === 0 || (item.popularityValue ?? -1) >= minimumPopularity)
       .filter((item) => {
         if (activity === "all") return true;
@@ -245,17 +287,17 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
       .filter((item) => !normalizedQuery || [item.title, item.summary, item.country, item.state, item.language, ...item.tags].filter(Boolean).join(" ").toLowerCase().includes(normalizedQuery))
       .sort((a, b) => {
         if (sort === "name") return a.title.localeCompare(b.title);
-        if (sort === "fit") return (b.fitScore ?? -1) - (a.fitScore ?? -1);
+        if (sort === "fit") return (effectiveFit(b) ?? -1) - (effectiveFit(a) ?? -1);
         if (sort === "recent") {
           const rank = { current: 3, aging: 2, unknown: 1, stale: 0 } as Record<string, number>;
           return (rank[b.freshness] ?? 0) - (rank[a.freshness] ?? 0);
         }
-        return (b.popularityValue ?? -1) - (a.popularityValue ?? -1) || (b.fitScore ?? -1) - (a.fitScore ?? -1);
+        return (b.popularityValue ?? -1) - (a.popularityValue ?? -1) || (effectiveFit(b) ?? -1) - (effectiveFit(a) ?? -1);
       });
-  }, [activity, country, genre, items, language, minimumPopularity, query, review, sort, source, type]);
+  }, [activity, country, genre, items, language, minimumPopularity, query, releaseFit, review, sort, source, type]);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
-  const activeFilterCount = [genre !== "all", country !== "all", language !== "all", source !== "all", review !== "all", activity !== "all", minimumPopularity > 0].filter(Boolean).length;
+  const activeFilterCount = [genre !== "all", country !== "all", language !== "all", source !== "all", review !== "all", activity !== "all", releaseFit !== "all", minimumPopularity > 0].filter(Boolean).length;
 
   function clearFilters() {
     setGenre("all");
@@ -264,6 +306,7 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
     setSource("all");
     setReview("all");
     setActivity("all");
+    setReleaseFit("all");
     setMinimumPopularity(0);
   }
 
@@ -285,6 +328,10 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
           <label className="filter-group"><span>Language</span><select value={language} onChange={(event) => setLanguage(event.target.value)}><option value="all">All languages</option>{languages.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <label className="filter-group"><span>Source</span><select value={source} onChange={(event) => setSource(event.target.value)}><option value="all">All sources</option>{sources.map((value) => <option key={value} value={value}>{cleanLabel(value)}</option>)}</select></label>
           <label className="filter-group"><span>Review status</span><select value={review} onChange={(event) => setReview(event.target.value)}><option value="all">Any status</option><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="needs_verification">Needs verification</option><option value="quarantined">Quarantined</option><option value="rejected">Rejected</option><option value="promoted">Promoted</option></select></label>
+
+          {hasReleaseFit ? <fieldset className="filter-group filter-options"><legend>Release fit</legend>
+            {([['all', 'All opportunities'], ['recommended', 'Explainable matches'], ['evidenced', 'Has fit evidence'], ['shortlisted', 'Shortlisted']] as const).map(([value, label]) => <label key={value}><input type="radio" name="release-fit-filter" checked={releaseFit === value} onChange={() => setReleaseFit(value)} /><span>{label}</span></label>)}
+          </fieldset> : null}
 
           <fieldset className="filter-group filter-options"><legend>Activity</legend>
             {([['all', 'Any activity'], ['online', 'Online now'], ['current', 'Recently verified'], ['unknown', 'Unknown']] as const).map(([value, label]) => <label key={value}><input type="radio" name="activity-filter" checked={activity === value} onChange={() => setActivity(value)} /><span>{label}</span></label>)}

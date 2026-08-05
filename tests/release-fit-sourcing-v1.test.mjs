@@ -18,6 +18,7 @@ const registry = read("lib/capabilities/release-fit-registry.ts");
 const handlers = read("lib/capabilities/release-fit-handlers.ts");
 const actions = read("app/opportunities/release-fit-actions.ts");
 const panel = read("app/opportunities/release-fit-panel.tsx");
+const directory = read("app/opportunities/opportunity-directory.tsx");
 const styles = read("app/opportunities/release-fit.css");
 
 function baseRelease(overrides = {}) {
@@ -294,8 +295,8 @@ test("the release context persists and the shortlist cannot act", () => {
   assert.match(panel, /rfs-context/, "release context bar must exist");
   assert.match(panel, /position: sticky|rfs-context/);
   assert.match(styles, /\.rfs-context\s*\{[^}]*position:\s*sticky/);
-  assert.match(panel, /Recommended for this release/);
-  assert.match(panel, /Advanced search/);
+  assert.match(panel, /Recommended for \{release\.title\}/);
+  assert.match(panel, /Browse &amp; filter/);
   // The shortlist proposes; it does not act.
   assert.doesNotMatch(panel, /Submit to|Send pitch|Buy credits|Pay|Purchase/i);
   assert.match(panel, /records intent only/i);
@@ -338,6 +339,18 @@ test("recommended and advanced modes share one result surface instead of renderi
   assert.equal((page.match(/<OpportunityDirectory/g) ?? []).length, 1, "page fallback should render the directory only once");
   assert.match(panel, /<OpportunityDirectory/);
   assert.match(panel, /mode === "advanced"/);
+});
+
+test("the left-filter directory is primary and release intelligence enriches it", () => {
+  assert.match(panel, /useState<Mode>\("advanced"\)/, "browse and filter must be the default mode");
+  assert.ok(panel.indexOf("Browse &amp; filter") < panel.indexOf("Recommended for {release.title}"), "browse belongs before recommendations");
+  assert.match(panel, /directoryItemsWithFit/);
+  assert.match(panel, /releaseFit:\s*\{/);
+  assert.match(panel, /<OpportunityDirectory items=\{directoryItemsWithFit\}/);
+  assert.match(directory, /Release fit/);
+  assert.match(directory, /Explainable matches/);
+  assert.match(directory, /Fit for \{item\.releaseFit\.releaseTitle\}/);
+  assert.match(directory, /release-fit-filter/);
 });
 
 test("form-render nonces collapse double clicks but permit later intentional updates", () => {

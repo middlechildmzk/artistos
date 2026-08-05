@@ -24,6 +24,13 @@ test("directory offers category, genre, geography, language, source, status, act
   assert.match(directory, /minimumPopularity/);
 });
 
+test("release-aware builds keep the persistent left filters as the primary browse surface", () => {
+  assert.match(directory, /directory-sidebar/);
+  assert.match(directory, /Release fit/);
+  assert.match(directory, /Explainable matches/);
+  assert.match(directory, /releaseFit === "shortlisted"/);
+});
+
 test("trust and review detail move into a dedicated slide-over drawer", () => {
   assert.match(directory, /opportunity-drawer/);
   assert.match(directory, /Identity evidence/);
