@@ -176,7 +176,7 @@ function DetailDrawer({ item, campaigns, onClose }: { item: DirectoryItem; campa
             {Object.keys(item.identifiers).length ? <div className="identity-table">{Object.entries(item.identifiers).map(([key, value]) => <div key={key}><span>{cleanLabel(key)}</span><strong>{value}</strong></div>)}</div> : null}
           </section>
 
-          {item.matches.length ? <section className="drawer-section"><h3>Possible existing matches</h3><div className="compact-stack">{item.matches.map((match) => <div className="match-row" key={match.id}><span>{cleanLabel(match.entityType)} · {Math.round(match.score * 100)}%</span>{match.conflicts.length ? <small>{match.conflicts.map(cleanLabel).join(", ")}</small> : null}</div>)}</div></section> : null}
+          {item.matches.length ? <section className="drawer-section"><h3>Possible existing matches</h3><div className="compact-stack">{item.matches.map((match) => <div className="match-row" key={match.id}><span>{cleanLabel(match.entityType)} · {Math.round(match.score * 100)}%</span>{match.conflicts.length ? <small>{match.conflicts.map((conflict) => cleanLabel(conflict)).join(", ")}</small> : null}</div>)}</div></section> : null}
 
           <section className="drawer-section">
             <h3>Review</h3>
