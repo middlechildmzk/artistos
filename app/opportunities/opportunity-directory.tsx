@@ -51,6 +51,18 @@ export type DirectoryItem = {
   language: string | null;
   popularityValue: number | null;
   popularityLabel: string | null;
+  ownerOrCurator: string | null;
+  submissionRouteUrl: string | null;
+  submissionRouteType: string | null;
+  workflowMode: string | null;
+  acceptsReleased: string | null;
+  acceptsUnreleased: string | null;
+  feeAmount: number | null;
+  feeCurrency: string | null;
+  eligibilityNotes: string | null;
+  verificationClaim: string | null;
+  observedAt: string | null;
+  sourceFile: string | null;
   activityLabel: string | null;
   matches: DirectoryMatch[];
   reviewNonce: string;
@@ -76,6 +88,7 @@ const typeOptions = [
   ["sync", "Sync"],
   ["music_library", "Libraries"],
   ["booking", "Live"],
+  ["other", "Other research"],
 ] as const;
 
 const typeMarks: Record<string, string> = {
@@ -89,7 +102,10 @@ const typeMarks: Record<string, string> = {
   sync: "SY",
   music_library: "ML",
   booking: "LV",
+  other: "OT",
 };
+
+const resultPageSize = 120;
 
 function cleanLabel(value: string | null | undefined, fallback = "Unknown") {
   return value?.replaceAll("_", " ") || fallback;
@@ -105,6 +121,20 @@ function effectiveFit(item: DirectoryItem) {
 
 function unique(values: Array<string | null | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function safeRouteUrl(value: string | null) {
+  return value && /^(https?:\/\/|mailto:)/i.test(value) ? value : null;
+}
+
+function feeLabel(item: DirectoryItem) {
+  if (item.feeAmount == null) return "Unknown";
+  if (item.feeAmount === 0) return "Free";
+  return `${item.feeCurrency ?? ""} ${item.feeAmount}`.trim();
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
 function ResultCard({ item, onOpen }: { item: DirectoryItem; onOpen: () => void }) {
@@ -129,6 +159,8 @@ function ResultCard({ item, onOpen }: { item: DirectoryItem; onOpen: () => void 
             {item.tags.slice(0, 4).map((tag) => <span key={tag}>{tag}</span>)}
             {sourceNames.slice(0, 1).map((source) => <span key={source}>{cleanLabel(source)}</span>)}
             {item.corroborationCount > 1 ? <span className="positive">{item.corroborationCount} sources</span> : null}
+            {item.reviewStatus === "needs_verification" ? <span className="warning-tag">Needs verification</span> : null}
+            {item.reviewStatus === "quarantined" ? <span className="danger-tag">Quarantined</span> : null}
             {item.releaseFit?.shortlisted ? <span className="positive">Shortlisted</span> : null}
             {item.releaseFit && item.releaseFit.knownDimensionCount > 0 ? <span className="release-fit-tag">{item.releaseFit.knownDimensionCount}/{item.releaseFit.totalDimensionCount} fit signals</span> : null}
           </span>
@@ -137,7 +169,7 @@ function ResultCard({ item, onOpen }: { item: DirectoryItem; onOpen: () => void 
       </button>
 
       <div className="opportunity-metrics">
-        <div><strong>{item.popularityLabel ?? "—"}</strong><span>Popularity</span></div>
+        <div><strong>{item.popularityLabel ?? "—"}</strong><span>Audience</span></div>
         <div><strong>{score(effectiveFit(item))}</strong><span>{item.releaseFit ? "Release fit" : "Fit"}</span></div>
         <div><strong>{item.activityLabel ?? cleanLabel(item.freshness)}</strong><span>Activity</span></div>
       </div>
@@ -154,6 +186,7 @@ function DetailDrawer({ item, campaigns, onClose }: { item: DirectoryItem; campa
   const accepted = item.reviewStatus === "accepted";
   const location = [item.country, item.state].filter(Boolean).join(" · ");
   const sources = item.corroboratingSources.length ? item.corroboratingSources : item.source ? [item.source] : [];
+  const routeUrl = safeRouteUrl(item.submissionRouteUrl);
 
   return (
     <div className="opportunity-drawer-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -170,7 +203,7 @@ function DetailDrawer({ item, campaigns, onClose }: { item: DirectoryItem; campa
 
         <div className="drawer-body">
           <section className="drawer-score-grid">
-            <div><strong>{item.popularityLabel ?? "—"}</strong><span>Popularity</span></div>
+            <div><strong>{item.popularityLabel ?? "—"}</strong><span>Audience</span></div>
             <div><strong>{score(effectiveFit(item))}</strong><span>{item.releaseFit ? "Release fit" : "Fit"}</span></div>
             <div><strong>{score(item.legitimacyScore)}</strong><span>Legitimacy</span></div>
             <div><strong>{score(item.riskScore)}</strong><span>Risk</span></div>
@@ -203,11 +236,27 @@ function DetailDrawer({ item, campaigns, onClose }: { item: DirectoryItem; campa
             </div>
           </section>
 
+          <section className="drawer-section route-section">
+            <div className="route-heading"><h3>Submission route</h3><span>{item.verificationClaim && ["route_verified", "fully_verified"].includes(item.verificationClaim) ? "Source marked verified" : "Verify before contact"}</span></div>
+            <p className="route-caution">Source-reported intake data. Recheck the official destination, current terms and permission before using it.</p>
+            <div className="route-grid">
+              <div><span>Route</span><strong>{cleanLabel(item.submissionRouteType)}</strong></div>
+              <div><span>Workflow</span><strong>{cleanLabel(item.workflowMode, "Research only")}</strong></div>
+              <div><span>Fee</span><strong>{feeLabel(item)}</strong></div>
+              <div><span>Released music</span><strong>{cleanLabel(item.acceptsReleased)}</strong></div>
+              <div><span>Unreleased music</span><strong>{cleanLabel(item.acceptsUnreleased)}</strong></div>
+            </div>
+            {item.ownerOrCurator ? <p><strong>Owner or curator:</strong> {item.ownerOrCurator}</p> : null}
+            {item.eligibilityNotes ? <p>{item.eligibilityNotes}</p> : null}
+            {routeUrl ? <a className="button ghost compact-button route-link" href={routeUrl} target={routeUrl.startsWith("mailto:") ? undefined : "_blank"} rel={routeUrl.startsWith("mailto:") ? undefined : "noreferrer"}>Open submission route</a> : <p className="muted">No usable submission route has been captured yet.</p>}
+          </section>
+
           <section className="drawer-section">
             <h3>Identity evidence</h3>
             {item.identityUrls.length ? item.identityUrls.map((url) => <a className="detail-link" href={url} target="_blank" rel="noreferrer" key={url}>{url}</a>) : <p className="muted">No official identity URL returned.</p>}
             {item.externalId ? <code className="compact-code">{item.externalId}</code> : null}
             {Object.keys(item.identifiers).length ? <div className="identity-table">{Object.entries(item.identifiers).map(([key, value]) => <div key={key}><span>{cleanLabel(key)}</span><strong>{value}</strong></div>)}</div> : null}
+            <div className="identity-meta"><span>{item.observedAt ? `Observed ${item.observedAt.slice(0, 10)}` : "Observation date unknown"}</span>{item.sourceFile ? <span>{item.sourceFile}</span> : null}</div>
           </section>
 
           {item.matches.length ? <section className="drawer-section"><h3>Possible existing matches</h3><div className="compact-stack">{item.matches.map((match) => <div className="match-row" key={match.id}><span>{cleanLabel(match.entityType)} · {Math.round(match.score * 100)}%</span>{match.conflicts.length ? <small>{match.conflicts.map((conflict) => cleanLabel(conflict)).join(", ")}</small> : null}</div>)}</div></section> : null}
@@ -255,12 +304,22 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
   const [sort, setSort] = useState<SortKey>("popular");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(resultPageSize);
 
   const genres = useMemo(() => unique(items.flatMap((item) => item.tags)).sort((a, b) => a.localeCompare(b)).slice(0, 150), [items]);
   const countries = useMemo(() => unique(items.map((item) => item.country)).sort((a, b) => a.localeCompare(b)), [items]);
   const languages = useMemo(() => unique(items.map((item) => item.language)).sort((a, b) => a.localeCompare(b)), [items]);
   const sources = useMemo(() => unique(items.flatMap((item) => item.corroboratingSources.length ? item.corroboratingSources : [item.source])).sort((a, b) => a.localeCompare(b)), [items]);
   const hasReleaseFit = items.some((item) => item.releaseFit);
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const item of items) counts.set(item.type, (counts.get(item.type) ?? 0) + 1);
+    return counts;
+  }, [items]);
+  const coverageTypes = typeOptions.slice(1).filter(([value]) => (typeCounts.get(value) ?? 0) > 0);
+  const routeCount = useMemo(() => items.filter((item) => Boolean(item.submissionRouteUrl)).length, [items]);
+  const audienceCount = useMemo(() => items.filter((item) => item.popularityValue != null).length, [items]);
+  const quarantineCount = useMemo(() => items.filter((item) => item.reviewStatus === "quarantined").length, [items]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -297,6 +356,7 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
   }, [activity, country, genre, items, language, minimumPopularity, query, releaseFit, review, sort, source, type]);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
+  const visible = filtered.slice(0, visibleCount);
   const activeFilterCount = [genre !== "all", country !== "all", language !== "all", source !== "all", review !== "all", activity !== "all", releaseFit !== "all", minimumPopularity > 0].filter(Boolean).length;
 
   function clearFilters() {
@@ -312,9 +372,21 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
 
   return (
     <section className="directory-workbench">
+      <div className="coverage-pulse">
+        <div className="coverage-heading"><div><span className="eyebrow">Dataset at a glance</span><strong>{formatCount(items.length)} opportunities across {coverageTypes.length} active categories</strong></div><span>Private research workspace</span></div>
+        <div className="coverage-kpis">
+          <div><strong>{formatCount(audienceCount)}</strong><span>Audience signals</span></div>
+          <div><strong>{formatCount(routeCount)}</strong><span>Routes captured</span></div>
+          <div><strong>{formatCount(quarantineCount)}</strong><span>Quarantined</span></div>
+        </div>
+        <div className="coverage-categories">
+          {coverageTypes.map(([value, label]) => <button key={value} type="button" className={type === value ? "active" : ""} onClick={() => setType(value)}><span>{typeMarks[value] ?? "OT"}</span><strong>{formatCount(typeCounts.get(value) ?? 0)}</strong><small>{label}</small></button>)}
+        </div>
+      </div>
+
       <div className="category-tabs" role="tablist" aria-label="Opportunity type">
         {typeOptions.map(([value, label]) => {
-          const count = value === "all" ? items.length : items.filter((item) => item.type === value).length;
+          const count = value === "all" ? items.length : typeCounts.get(value) ?? 0;
           return <button key={value} type="button" className={type === value ? "active" : ""} onClick={() => setType(value)}>{label}<span>{count}</span></button>;
         })}
       </div>
@@ -352,12 +424,13 @@ export default function OpportunityDirectory({ items, campaigns }: { items: Dire
           </div>
 
           <div className="directory-summary-row">
-            <p><strong>{filtered.length}</strong> result{filtered.length === 1 ? "" : "s"}</p>
+            <p><strong>{filtered.length}</strong> result{filtered.length === 1 ? "" : "s"} · showing {visible.length}</p>
             <p>{type === "all" ? "All opportunity types" : cleanLabel(type)}</p>
           </div>
 
           <div className="opportunity-list">
-            {filtered.length ? filtered.map((item) => <ResultCard key={item.id} item={item} onOpen={() => setSelectedId(item.id)} />) : <div className="empty-state"><strong>No matches</strong><p>Clear a filter or run a broader search.</p></div>}
+            {filtered.length ? visible.map((item) => <ResultCard key={item.id} item={item} onOpen={() => setSelectedId(item.id)} />) : <div className="empty-state"><strong>No matches</strong><p>Clear a filter or run a broader search.</p></div>}
+            {visible.length < filtered.length ? <div className="load-more-row"><button className="button ghost" type="button" onClick={() => setVisibleCount((count) => count + resultPageSize)}>Show {Math.min(resultPageSize, filtered.length - visible.length)} more</button><span>{formatCount(filtered.length - visible.length)} remaining</span></div> : null}
           </div>
         </div>
       </div>

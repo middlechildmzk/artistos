@@ -24,6 +24,32 @@ test("directory offers category, genre, geography, language, source, status, act
   assert.match(directory, /minimumPopularity/);
 });
 
+test("large research intakes are fully paged, quality-ranked, and follower-aware", () => {
+  assert.match(page, /databasePageSize = 1000/);
+  assert.match(page, /fetchAllOpportunities/);
+  assert.match(page, /fetchAllObservations/);
+  assert.match(page, /\.range\(from, from \+ databasePageSize - 1\)/);
+  assert.match(page, /quality_rank/);
+  assert.match(page, /normalized\.followers/);
+  assert.match(page, /compactNumber\(followers\).*followers/);
+});
+
+test("the directory summarizes every active category without rendering the entire dataset at once", () => {
+  assert.match(directory, /Dataset at a glance/);
+  assert.match(directory, /Routes captured/);
+  assert.match(directory, /Other research/);
+  assert.match(directory, /resultPageSize = 120/);
+  assert.match(directory, /filtered\.slice\(0, visibleCount\)/);
+  assert.match(directory, /Show \{Math\.min/);
+});
+
+test("source-reported routes stay visibly distinct from permission or independent verification", () => {
+  assert.match(directory, /Source-reported intake data/);
+  assert.match(directory, /Verify before contact/);
+  assert.match(directory, /submissionRouteUrl/);
+  assert.match(directory, /No usable submission route has been captured yet/);
+});
+
 test("release-aware builds keep the persistent left filters as the primary browse surface", () => {
   assert.match(directory, /directory-sidebar/);
   assert.match(directory, /Release fit/);

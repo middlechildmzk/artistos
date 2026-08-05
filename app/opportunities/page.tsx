@@ -67,6 +67,7 @@ type OpportunityRow = {
   corroboration_count?: number | null;
   identity_urls?: unknown;
   external_identifiers?: unknown;
+  eligibility?: unknown;
 };
 
 type ObservationRow = {
@@ -117,6 +118,54 @@ type ReleaseSourcingRow = {
   lyrical_themes?: string[] | null;
 };
 
+const databasePageSize = 1000;
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+async function fetchAllOpportunities(supabase: SupabaseServerClient, workspaceId: string) {
+  const rows: OpportunityRow[] = [];
+  for (let from = 0; ; from += databasePageSize) {
+    const result = await supabase
+      .from("opportunities")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .order("updated_at", { ascending: false })
+      .range(from, from + databasePageSize - 1);
+    if (result.error) throw new Error(`Unable to load opportunities: ${result.error.message}`);
+    const page = (result.data ?? []) as OpportunityRow[];
+    rows.push(...page);
+    if (page.length < databasePageSize) return rows;
+  }
+}
+
+async function fetchAllObservations(supabase: SupabaseServerClient, workspaceId: string) {
+  const rows: ObservationRow[] = [];
+  for (let from = 0; ; from += databasePageSize) {
+    const result = await supabase
+      .from("opportunity_source_observations")
+      .select("opportunity_id,raw_payload,normalized_payload,observed_at,retrieved_at,evidence_id")
+      .eq("workspace_id", workspaceId)
+      .order("retrieved_at", { ascending: false })
+      .range(from, from + databasePageSize - 1);
+    if (result.error) throw new Error(`Unable to load source observations: ${result.error.message}`);
+    const page = (result.data ?? []) as ObservationRow[];
+    rows.push(...page);
+    if (page.length < databasePageSize) return rows;
+  }
+}
+
+async function fetchOpportunityMatches(supabase: SupabaseServerClient, workspaceId: string, opportunityIds: string[]) {
+  const chunkSize = 200;
+  const chunks = Array.from({ length: Math.ceil(opportunityIds.length / chunkSize) }, (_, index) => opportunityIds.slice(index * chunkSize, (index + 1) * chunkSize));
+  const results = await Promise.all(chunks.map((ids) => supabase
+    .from("opportunity_match_candidates")
+    .select("id,opportunity_id,candidate_entity_type,candidate_entity_id,match_score,conflicting_fields")
+    .eq("workspace_id", workspaceId)
+    .in("opportunity_id", ids)
+    .order("match_score", { ascending: false })));
+  return results.flatMap((result) => result.error ? [] : (result.data ?? []) as MatchRow[]);
+}
+
 export default async function OpportunitiesPage({ searchParams }: { searchParams: Promise<{ releaseId?: string }> }) {
   const requestedReleaseId = (await searchParams).releaseId ?? null;
   const supabase = await createSupabaseServerClient();
@@ -126,28 +175,33 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   if (!membership) redirect("/dashboard");
   const workspaceId = membership.workspace_id;
 
-  const [opportunityResult, runProbe, baseReleasesResult, campaignsResult, observationResult, searchResult, releaseFitProbe] = await Promise.all([
-    supabase.from("opportunities").select("*").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }).limit(500),
+  const [opportunityRows, runProbe, baseReleasesResult, campaignsResult, observationRows, searchResult, releaseFitProbe] = await Promise.all([
+    fetchAllOpportunities(supabase, workspaceId),
     supabase.from("opportunity_search_runs").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
     supabase.from("releases").select("id,title,status,release_date,artist_id").eq("workspace_id", workspaceId).order("release_date", { ascending: false, nullsFirst: false }).limit(30),
     supabase.from("campaigns").select("id,name,release_id").eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(50),
-    supabase.from("opportunity_source_observations").select("opportunity_id,raw_payload,normalized_payload,observed_at,retrieved_at,evidence_id").eq("workspace_id", workspaceId).order("retrieved_at", { ascending: false }).limit(3000),
+    fetchAllObservations(supabase, workspaceId),
     supabase.from("opportunity_searches").select("id,title,last_run_status,last_run_at,last_run_summary").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }).limit(8),
     supabase.from("release_similar_artists").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
   ]);
 
   const runtimeReady = !runProbe.error;
   const releaseFitReady = !releaseFitProbe.error;
-  const opportunities = (opportunityResult.data ?? []) as OpportunityRow[];
-  const observations = (observationResult.data ?? []) as ObservationRow[];
+  const opportunities = opportunityRows;
+  const observations = observationRows;
   const latestObservation = new Map<string, ObservationRow>();
-  for (const observation of observations) if (!latestObservation.has(observation.opportunity_id)) latestObservation.set(observation.opportunity_id, observation);
+  for (const observation of observations) {
+    const current = latestObservation.get(observation.opportunity_id);
+    const quality = numberValue(objectValue(observation.normalized_payload).quality_rank) ?? 0;
+    const currentQuality = current ? numberValue(objectValue(current.normalized_payload).quality_rank) ?? 0 : -1;
+    if (!current || quality > currentQuality) latestObservation.set(observation.opportunity_id, observation);
+  }
 
-  const matchesResult = runtimeReady && opportunities.length
-    ? await supabase.from("opportunity_match_candidates").select("id,opportunity_id,candidate_entity_type,candidate_entity_id,match_score,conflicting_fields").eq("workspace_id", workspaceId).in("opportunity_id", opportunities.map((item) => item.id)).order("match_score", { ascending: false })
-    : { data: [] as MatchRow[], error: null };
+  const matches = runtimeReady && opportunities.length
+    ? await fetchOpportunityMatches(supabase, workspaceId, opportunities.map((item) => item.id))
+    : [];
   const matchesByOpportunity = new Map<string, DirectoryMatch[]>();
-  for (const match of (matchesResult.data ?? []) as MatchRow[]) {
+  for (const match of matches) {
     const mapped = { id: match.id, entityType: match.candidate_entity_type, entityId: match.candidate_entity_id, score: match.match_score, conflicts: stringArray(match.conflicting_fields) };
     matchesByOpportunity.set(match.opportunity_id, [...(matchesByOpportunity.get(match.opportunity_id) ?? []), mapped]);
   }
@@ -163,8 +217,9 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
     const clicks = numberValue(raw.clickcount, normalized.clickcount);
     const votes = numberValue(raw.votes, normalized.votes);
     const clickTrend = numberValue(raw.clicktrend, normalized.clicktrend);
-    const popularityValue = clicks == null && votes == null && clickTrend == null ? null : (clicks ?? 0) + (votes ?? 0) * 100 + Math.max(clickTrend ?? 0, 0) * 10;
-    const popularityLabel = clicks != null && clicks > 0 ? `${compactNumber(clicks)} clicks` : votes != null && votes > 0 ? `${compactNumber(votes)} votes` : null;
+    const followers = numberValue(normalized.followers, raw.followers);
+    const popularityValue = followers ?? (clicks == null && votes == null && clickTrend == null ? null : (clicks ?? 0) + (votes ?? 0) * 100 + Math.max(clickTrend ?? 0, 0) * 10);
+    const popularityLabel = followers != null ? `${compactNumber(followers)} followers` : clicks != null && clicks > 0 ? `${compactNumber(clicks)} clicks` : votes != null && votes > 0 ? `${compactNumber(votes)} votes` : null;
     const streamOnline = normalized.stream_online === true || raw.lastcheckok === 1 || raw.lastcheckok === "1";
     return {
       id: item.id,
@@ -194,6 +249,18 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
       language,
       popularityValue,
       popularityLabel,
+      ownerOrCurator: stringValue(normalized.owner_or_curator, raw.owner_or_curator, raw.curator, raw.owner),
+      submissionRouteUrl: stringValue(normalized.submission_route_url, raw.submission_route_url),
+      submissionRouteType: stringValue(normalized.submission_route_type, raw.submission_route_type),
+      workflowMode: stringValue(normalized.workflow_mode, raw.workflow_mode),
+      acceptsReleased: stringValue(normalized.accepts_released, raw.accepts_released),
+      acceptsUnreleased: stringValue(normalized.accepts_unreleased, raw.accepts_unreleased),
+      feeAmount: numberValue(normalized.fee_amount, raw.fee_amount),
+      feeCurrency: stringValue(normalized.fee_currency, raw.fee_currency),
+      eligibilityNotes: stringValue(normalized.eligibility_notes, raw.eligibility_notes),
+      verificationClaim: stringValue(normalized.verification_claim),
+      observedAt: observation?.observed_at ?? null,
+      sourceFile: stringValue(normalized.source_file),
       activityLabel: streamOnline ? "Online" : item.freshness_status === "current" ? "Current" : null,
       matches: matchesByOpportunity.get(item.id) ?? [],
       reviewNonce: randomUUID(),
