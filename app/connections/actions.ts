@@ -34,7 +34,7 @@ async function invokeSourceCapability(name: string, input: Record<string, unknow
 
 function refreshSourceViews() {
   revalidatePath("/connections");
-  revalidatePath("/analytics");
+  revalidatePath("/insights");
   revalidatePath("/proof");
 }
 
@@ -51,7 +51,7 @@ export async function savePlatformProfile(formData: FormData) {
       `platform-profile:${artistId}:${platformId}:${randomUUID()}`,
     );
     revalidatePath("/connections");
-    revalidatePath("/analytics");
+    revalidatePath("/insights");
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
@@ -115,7 +115,7 @@ export async function syncGoogleYouTube() {
     ) as { metricCount?: number };
     metricCount = output.metricCount ?? 0;
     revalidatePath("/connections");
-    revalidatePath("/analytics");
+    revalidatePath("/insights");
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
@@ -137,7 +137,7 @@ export async function connectApiProvider(formData: FormData) {
       `provider-connect:${provider}:${randomUUID()}`,
     );
     revalidatePath("/connections");
-    revalidatePath("/analytics");
+    revalidatePath("/insights");
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
@@ -212,7 +212,7 @@ export async function connectFreeApiProvider(formData: FormData) {
       `free-provider-connect:${provider}:${randomUUID()}`,
     );
     revalidatePath("/connections");
-    revalidatePath("/analytics");
+    revalidatePath("/insights");
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
