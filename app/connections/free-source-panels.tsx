@@ -8,6 +8,7 @@ import {
   syncListenBrainz,
   syncTicketmaster,
 } from "./actions";
+import { verifySoundchartsSandbox } from "./music-activity-actions";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "Never";
@@ -49,6 +50,30 @@ export default async function FreeSourcePanels() {
 
   return (
     <>
+      <section className="card stack" style={{ marginBottom: 16 }}>
+        <div className="section-heading">
+          <div>
+            <div className="eyebrow">Free provider contract test</div>
+            <h2>Soundcharts public sandbox</h2>
+            <p className="muted">Verify that ArtistOS can read Soundcharts' limited sandbox through the evidence and audit runtime before any production credential is added.</p>
+          </div>
+          <span className="pill">No credentials</span>
+        </div>
+        <div className="grid stats">
+          <div className="card"><div className="eyebrow">Access level</div><strong>Sandbox only</strong></div>
+          <div className="card"><div className="eyebrow">Production data</div><strong>Not included</strong></div>
+          <div className="card"><div className="eyebrow">Secrets stored</div><strong>None</strong></div>
+        </div>
+        <div className="notice">
+          <strong>Verification boundary</strong>
+          <p className="muted">A successful test proves the read-only integration contract. It does not prove Middle Child coverage, production entitlement, historical depth, redistribution rights, or provider verification.</p>
+        </div>
+        <form action={verifySoundchartsSandbox}>
+          <button className="button primary" type="submit">Test free Soundcharts sandbox</button>
+        </form>
+        <p className="muted">Running the test creates one idempotent Proof receipt and capability audit record. It does not create an external account, start a trial, store credentials, spend money, or change production access.</p>
+      </section>
+
       <section className="card stack" style={{ marginBottom: 16 }}>
         <div className="section-heading">
           <div>
