@@ -35,6 +35,19 @@ test("legacy product routes consolidate into the new information architecture", 
   assert.match(read("app/analytics/page.tsx"), /<h1>Insights<\/h1>/);
 });
 
+test("Network is the canonical home for discovery, saved targets, and relationships", () => {
+  const network = read("app/network/page.tsx");
+  const config = read("next.config.ts");
+  assert.doesNotMatch(network, /export \{ default \}/);
+  assert.match(network, /OpportunitiesPage/);
+  assert.match(network, /TargetsPage/);
+  assert.match(network, /requestedView === "saved"/);
+  assert.match(network, /requestedView === "relationships"/);
+  assert.match(network, /reviewStatus !== "quarantined"/);
+  assert.match(config, /source: "\/opportunities"[\s\S]*destination: "\/network"[\s\S]*permanent: true/);
+  assert.match(config, /source: "\/targets"[\s\S]*destination: "\/network\?view=saved"/);
+});
+
 test("music smart links infer major services and reject malformed input", () => {
   assert.equal(inferMusicService("https://open.spotify.com/track/123"), "spotify");
   assert.equal(inferMusicService("https://music.apple.com/us/album/example/123"), "apple_music");
