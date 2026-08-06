@@ -58,6 +58,7 @@ begin
   if (select count(*) from public.workspaces where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') <> 1 then
     raise exception 'owner cannot read their workspace';
   end if;
+
 end $$;
 
 insert into public.tasks (workspace_id, title, status)
@@ -86,6 +87,19 @@ insert into public.opportunities (
   'RLS opportunity',
   'discovered'
 );
+
+insert into public.release_similar_artists
+  (workspace_id, release_id, identity_key, artist_name, normalized_name, confirmation_state)
+values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+        'external:wikidata:q-rls', 'RLS Comparable', 'rls comparable', 'user_confirmed');
+
+insert into public.release_target_decisions (workspace_id, release_id, opportunity_id, decision)
+values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+        'aaaaaaaa-0000-0000-0000-000000000011', 'shortlisted');
+
+insert into public.release_shortlist_items (workspace_id, release_id, opportunity_id)
+values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+        'aaaaaaaa-0000-0000-0000-000000000011');
 
 insert into public.opportunity_search_runs (
   id, workspace_id, search_id, status, idempotency_key, created_by
@@ -156,6 +170,35 @@ begin
   exception
     when insufficient_privilege then null;
   end;
+
+  -- Release Fit Sourcing V1: viewers read but never write.
+  begin
+    insert into public.release_target_decisions (workspace_id, release_id, opportunity_id, decision)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+            'aaaaaaaa-0000-0000-0000-000000000011', 'shortlisted');
+    raise exception 'viewer release-decision write unexpectedly succeeded';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    insert into public.release_shortlist_items (workspace_id, release_id, opportunity_id)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+            'aaaaaaaa-0000-0000-0000-000000000011');
+    raise exception 'viewer shortlist write unexpectedly succeeded';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    insert into public.release_similar_artists
+      (workspace_id, release_id, identity_key, artist_name, normalized_name, confirmation_state)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+            'external:wikidata:q-viewer', 'Viewer Comparable', 'viewer comparable', 'user_confirmed');
+    raise exception 'viewer similar-artist write unexpectedly succeeded';
+  exception
+    when insufficient_privilege then null;
+  end;
 end $$;
 
 -- Member of workspace B cannot read or write workspace A data.
@@ -179,6 +222,29 @@ begin
   if (select count(*) from public.opportunity_match_candidates where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') <> 0 then
     raise exception 'cross-workspace match-candidate read leaked';
   end if;
+
+  -- Release Fit Sourcing V1: no cross-workspace visibility.
+  if (select count(*) from public.release_target_decisions
+      where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') <> 0 then
+    raise exception 'cross-workspace release-decision read leaked';
+  end if;
+  if (select count(*) from public.release_shortlist_items
+      where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') <> 0 then
+    raise exception 'cross-workspace shortlist read leaked';
+  end if;
+  if (select count(*) from public.release_similar_artists
+      where workspace_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') <> 0 then
+    raise exception 'cross-workspace similar-artist read leaked';
+  end if;
+
+  begin
+    insert into public.release_target_decisions (workspace_id, release_id, opportunity_id, decision)
+    values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'aaaaaaaa-0000-0000-0000-000000000002',
+            'aaaaaaaa-0000-0000-0000-000000000011', 'saved');
+    raise exception 'cross-workspace release-decision write unexpectedly succeeded';
+  exception
+    when insufficient_privilege then null;
+  end;
 
   begin
     insert into public.opportunity_search_runs (workspace_id, search_id, status, idempotency_key, created_by)

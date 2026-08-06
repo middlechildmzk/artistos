@@ -159,7 +159,8 @@ test("V2 schema preserves identity clusters, source observations, and request tr
     assert.match(migration, new RegExp(field));
   }
   assert.match(migration, /opportunities_discovery_cluster_idx/);
-  assert.match(page, /Cross-source matches/);
-  assert.match(page, /Est\. \{plan\?\.estimatedRequestCount/);
-  assert.match(page, /sources corroborate identity/);
+  assert.match(page, /corroboratingSources:/);
+  assert.match(page, /corroborationCount:/);
+  assert.match(page, /identityUrls:/);
+  assert.match(page, /external_identifiers/);
 });
