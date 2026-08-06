@@ -17,7 +17,7 @@ const primaryNavigation = [
   { key: "network", label: "Network", href: "/network", icon: Search },
   { key: "releases", label: "Releases", href: "/releases", icon: CalendarDays },
   { key: "campaigns", label: "Campaigns", href: "/campaigns", icon: Megaphone },
-  { key: "insights", label: "Insights", href: "/analytics", icon: BarChart3 },
+  { key: "insights", label: "Insights", href: "/insights", icon: BarChart3 },
 ] as const;
 
 const workspaceNavigation = [
