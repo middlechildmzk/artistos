@@ -19,6 +19,7 @@ export const verifySoundchartsSandboxCapability = registerCapability({
     productionAccess: z.literal(false),
     credentialsStored: z.literal(false),
     checkedAt: z.string().datetime(),
+    evidenceId: z.string().uuid(),
   }),
   scope: { resource: "workspace", minRole: "contributor", grantPermission: "artist.integrations.write" },
   risk: "R1_internal_reversible",
