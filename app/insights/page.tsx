@@ -29,6 +29,15 @@ function statePillClass(state: IntegrationSourceState) {
   return ["error", "stale", "not_configured"].includes(state) ? "pill blocked" : "pill";
 }
 
+function objectMetadata(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function metadataString(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 const OAUTH_SOURCE_SLUG: Record<string, string> = {
   google: "youtube",
   kit: "kit",
@@ -89,9 +98,10 @@ export default async function InsightsPage() {
       .limit(5000),
     supabase
       .from("oauth_connections")
-      .select("provider,account_email,last_success_at,last_error,expires_at,metadata")
+      .select("provider,account_email,last_success_at,last_error,expires_at,scopes,metadata,updated_at")
       .eq("workspace_id", workspaceId)
-      .eq("user_id", auth.user.id),
+      .eq("user_id", auth.user.id)
+      .order("updated_at", { ascending: false }),
     supabase
       .from("artist_platform_profiles")
       .select("id,platform_id,artist_name,connection_state,source_type,last_synced_at,last_verified_at,freshness_status,profile_url")
@@ -129,7 +139,7 @@ export default async function InsightsPage() {
       .limit(1000),
     supabase
       .from("evidence_records")
-      .select("id,evidence_type,verification_status,observed_at,summary,source_url")
+      .select("id,evidence_type,verification_status,observed_at,summary,source_uri")
       .eq("workspace_id", workspaceId)
       .order("observed_at", { ascending: false })
       .limit(500),
@@ -167,7 +177,7 @@ export default async function InsightsPage() {
   const oauthBySlug = new Map<string, (typeof oauthConnections)[number]>();
   for (const connection of oauthConnections) {
     const slug = OAUTH_SOURCE_SLUG[connection.provider] ?? connection.provider;
-    oauthBySlug.set(slug, connection);
+    if (!oauthBySlug.has(slug)) oauthBySlug.set(slug, connection);
   }
 
   const sourceSlugs = Array.from(new Set([
@@ -183,6 +193,7 @@ export default async function InsightsPage() {
     const sourceMetrics = metricsBySlug.get(slug) ?? [];
     const sourceProfiles = profilesBySlug.get(slug) ?? [];
     const oauth = oauthBySlug.get(slug) ?? null;
+    const metadata = objectMetadata(oauth?.metadata);
     const latestMetric = sourceMetrics[0] ?? null;
     const latestProfileEvidence = sourceProfiles
       .map((profile) => profile.last_synced_at ?? profile.last_verified_at)
@@ -191,13 +202,24 @@ export default async function InsightsPage() {
       .at(-1) ?? null;
     const publicIdentities = sourceProfiles.filter((profile) => profile.source_type === "public" || profile.connection_state === "identified");
     const connectedProfiles = sourceProfiles.filter((profile) => profile.connection_state === "connected");
-    const lastSuccessAt = oauth?.last_success_at ?? connectedProfiles.map((profile) => profile.last_synced_at).filter(Boolean).sort().at(-1) ?? null;
+    const connectedProfileSuccess = connectedProfiles
+      .map((profile) => profile.last_synced_at)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
+    const youtubeChannelId = slug === "youtube" ? metadataString(metadata, "youtube_channel_id") : null;
+    const sourceSpecificSuccess = slug === "youtube"
+      ? (youtubeChannelId ? oauth?.last_success_at ?? null : null)
+      : oauth?.last_success_at ?? connectedProfileSuccess;
+    const sourceSpecificError = slug === "youtube"
+      ? metadataString(metadata, "youtube_error") ?? oauth?.last_error ?? null
+      : oauth?.last_error ?? null;
     const latestSnapshotOn = latestMetric?.captured_on ?? latestProfileEvidence;
     const state = deriveIntegrationSourceState({
       configured: Boolean(oauth),
       authorized: Boolean(oauth),
-      lastSuccessAt,
-      lastError: oauth?.last_error ?? null,
+      lastSuccessAt: sourceSpecificSuccess,
+      lastError: sourceSpecificError,
       snapshotCount: sourceMetrics.length,
       latestSnapshotOn,
       profileCount: sourceProfiles.length,
@@ -205,15 +227,7 @@ export default async function InsightsPage() {
       publicIdentityCount: publicIdentities.length,
       staleAfterDays: 14,
     });
-    return {
-      slug,
-      catalog,
-      sourceMetrics,
-      sourceProfiles,
-      oauth,
-      state,
-      latestMetric,
-    };
+    return { slug, catalog, sourceMetrics, sourceProfiles, oauth, state };
   }).sort((a, b) => {
     const aIndex = SOURCE_ORDER.indexOf(a.slug);
     const bIndex = SOURCE_ORDER.indexOf(b.slug);
@@ -240,7 +254,7 @@ export default async function InsightsPage() {
     const previousValue = previous ? Number(previous.value) : null;
     const delta = previousValue === null ? null : currentValue - previousValue;
     const percent = previousValue && delta !== null ? (delta / Math.abs(previousValue)) * 100 : null;
-    return { latest, previous, currentValue, delta, percent };
+    return { latest, currentValue, delta, percent };
   }).sort((a, b) => (b.percent ?? b.delta ?? -Infinity) - (a.percent ?? a.delta ?? -Infinity));
 
   const totalViews = events.filter((event) => event.event_type === "page_view").length;
@@ -277,13 +291,14 @@ export default async function InsightsPage() {
       clicks,
       signups,
       releaseMetrics,
-      releasePlacements,
       verifiedPlacements,
     };
   });
 
   const importReceipts = evidence.filter((row) => row.evidence_type === "metric_export_import");
   const verifiedEvidence = evidence.filter((row) => row.verification_status === "verified");
+  const activeSources = sourceRows.filter((source) => source.state.state !== "not_configured");
+  const sourceGaps = sourceRows.filter((source) => ["not_configured", "configured", "authorized", "stale", "error"].includes(source.state.state));
 
   return (
     <>
@@ -303,8 +318,8 @@ export default async function InsightsPage() {
         </header>
 
         <section className="grid stats" style={{ marginBottom: 16 }}>
-          <div className="card"><div className="eyebrow">Provider verified</div><div className="stat-value">{providerVerified}</div><p className="muted">Successful provider request recorded</p></div>
-          <div className="card"><div className="eyebrow">Imported sources</div><div className="stat-value">{importedSources}</div><p className="muted">Source-visible export or observation</p></div>
+          <div className="card"><div className="eyebrow">Provider verified</div><div className="stat-value">{providerVerified}</div><p className="muted">Successful source-specific request</p></div>
+          <div className="card"><div className="eyebrow">Imported sources</div><div className="stat-value">{importedSources}</div><p className="muted">Export or public observation</p></div>
           <div className="card"><div className="eyebrow">Public identities</div><div className="stat-value">{publicIdentitySources}</div><p className="muted">Mapped profile, not private analytics</p></div>
           <div className="card"><div className="eyebrow">Needs attention</div><div className="stat-value">{attentionSources}</div><p className="muted">Stale source or recorded failure</p></div>
         </section>
@@ -314,14 +329,11 @@ export default async function InsightsPage() {
             <div><h2>Source truth</h2><p className="muted">Configured, authorized and provider verified are separate states. Public profile mapping never becomes private analytics.</p></div>
             <Link className="next-action" href="/connections">Manage connections →</Link>
           </div>
-          <div className="grid two-col">
-            {sourceRows.map((source) => (
+          {activeSources.length ? <div className="grid two-col">
+            {activeSources.map((source) => (
               <article className="notice" key={source.slug}>
                 <div className="section-heading tight">
-                  <div>
-                    <div className="eyebrow">{source.catalog?.connection?.replace(/_/g, " ") ?? "observed source"}</div>
-                    <h3>{source.catalog?.label ?? source.slug}</h3>
-                  </div>
+                  <div><div className="eyebrow">{source.catalog?.connection?.replace(/_/g, " ") ?? "observed source"}</div><h3>{source.catalog?.label ?? source.slug}</h3></div>
                   <span className={statePillClass(source.state.state)}>{source.state.label}</span>
                 </div>
                 <p className="muted">{source.state.detail}</p>
@@ -332,7 +344,7 @@ export default async function InsightsPage() {
                 {source.catalog?.limitation ? <p className="muted">Limit: {source.catalog.limitation}</p> : null}
               </article>
             ))}
-          </div>
+          </div> : <div className="empty">No external source identity, import or connection exists yet.</div>}
         </section>
 
         <section className="grid two-col" style={{ marginBottom: 16 }}>
@@ -373,7 +385,7 @@ export default async function InsightsPage() {
               <div style={{ textAlign: "right" }}>
                 <strong>{row.clicks} clicks</strong>
                 <p className="muted">{row.pageViews} views · {row.signups} signups</p>
-                {row.smartLink ? <Link className="next-action" href={`/links#release-${row.release.id}`}>Improve link →</Link> : <Link className="next-action" href="/links">Create link →</Link>}
+                <Link className="next-action" href={row.smartLink ? `/links#release-${row.release.id}` : "/links"}>{row.smartLink ? "Improve link" : "Create link"} →</Link>
               </div>
             </article>
           )) : <div className="empty">No releases are available.</div>}
@@ -388,11 +400,11 @@ export default async function InsightsPage() {
           </section>
 
           <section className="card">
-            <div className="section-heading"><div><h2>Next data actions</h2><p className="muted">Close the highest-value gaps before adding another generic dashboard.</p></div></div>
-            {sourceRows.filter((source) => ["not_configured", "configured", "authorized", "stale", "error"].includes(source.state.state)).slice(0, 6).map((source) => (
+            <div className="section-heading"><div><h2>Next data actions</h2><p className="muted">Close high-value gaps before adding another generic dashboard.</p></div></div>
+            {sourceGaps.slice(0, 6).map((source) => (
               <div className="row" key={source.slug}><div><strong>{source.catalog?.label ?? source.slug}</strong><p className="muted">{source.state.detail}</p></div><Link className="next-action" href="/connections">Resolve →</Link></div>
             ))}
-            {!sourceRows.some((source) => ["not_configured", "configured", "authorized", "stale", "error"].includes(source.state.state)) ? <div className="empty small">No connection gaps are currently detected.</div> : null}
+            {!sourceGaps.length ? <div className="empty small">No connection gaps are currently detected.</div> : null}
           </section>
         </section>
       </main>
