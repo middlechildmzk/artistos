@@ -8,10 +8,10 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type Notice = { tone: "error" | "success"; text: string } | null;
 
 const capabilities = [
-  "Release command center",
-  "Evidence-first opportunities",
-  "Human-approved AI execution",
-  "Artist Brain with source lineage",
+  "Release-specific opportunity matches",
+  "Playlists, radio, media, labels and sync",
+  "Music smart links and fan attribution",
+  "Pitch, follow-up and outcome tracking",
 ];
 
 export default function LoginPage() {
@@ -59,17 +59,17 @@ export default function LoginPage() {
         <section className="login-intro" aria-labelledby="artistos-login-title">
           <div className="brand login-brand">
             <div className="logo">A</div>
-            <div><div className="eyebrow">Private artist operating system</div><strong>ArtistOS</strong></div>
+            <div><div className="eyebrow">Opportunity intelligence for artists</div><strong>ArtistOS</strong></div>
           </div>
           <div className="login-copy">
             <span className="pill">Built for independent artists</span>
-            <h1 id="artistos-login-title">Run the release, not the chaos.</h1>
-            <p>Plan releases, find credible opportunities, coordinate content, preserve relationships, and keep AI actions reviewable in one connected workspace.</p>
+            <h1 id="artistos-login-title">Know where your next release belongs.</h1>
+            <p>Find the right playlists, radio, blogs, labels, sync opportunities, creators and industry contacts, then keep every pitch and result connected.</p>
           </div>
           <div className="feature-grid">
             {capabilities.map((capability) => <div className="feature-chip" key={capability}><span aria-hidden="true">✓</span>{capability}</div>)}
           </div>
-          <p className="login-trust">Your workspace stays private. Consequential actions remain human approved.</p>
+          <p className="login-trust">Network Intelligence gets you in. The connected artist workspace keeps you growing.</p>
         </section>
 
         <section className="card login-card stack" aria-label="Sign in to ArtistOS">
@@ -92,8 +92,8 @@ export default function LoginPage() {
           </form>
           <div className="login-divider"><span>or</span></div>
           <button className="button ghost" type="button" onClick={sendMagicLink} disabled={busy}>Email me a magic link</button>
-          <Link className="button tour-link" href="/tour">View the guided product tour</Link>
-          <p className="login-footnote">Access is limited to invited ArtistOS workspaces.</p>
+          <Link className="button tour-link" href="/tour">See how ArtistOS works</Link>
+          <p className="login-footnote">Use a magic link to create or access your secure workspace.</p>
         </section>
       </div>
     </main>

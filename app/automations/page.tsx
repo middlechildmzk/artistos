@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { getWorkspaceContext } from "@/lib/application/workspace-context";
 import { addAutomation } from "../intelligence/actions";
 
@@ -22,20 +23,16 @@ export default async function AutomationsPage() {
   if (error) throw error;
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Workflow planning</div>
-          <h1>Planned automations</h1>
-          <p className="muted">
-            Design repeatable workflows here. These rules are stored as plans only and do not run automatically yet.
-          </p>
+          <div className="eyebrow">Workspace settings</div>
+          <h1>Automations</h1>
+          <p>Save repeatable workflows and keep them under your control.</p>
         </div>
-        <nav className="nav-links">
-          <Link className="button ghost" href="/command-center">Command</Link>
-          <Link className="button ghost" href="/studio">Studio</Link>
-          <Link className="button ghost" href="/analytics">Analytics</Link>
-        </nav>
+        <Link className="button ghost" href="/settings">Back to settings</Link>
       </header>
 
       <section className="card" style={{ marginBottom: 20 }}>
@@ -138,6 +135,7 @@ export default async function AutomationsPage() {
           <button className="button primary" type="submit">Save workflow plan</button>
         </form>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

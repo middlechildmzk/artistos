@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   createReleaseCampaign,
@@ -65,10 +66,12 @@ export default async function CampaignsPage() {
   };
 
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div><div className="eyebrow">Release growth engine</div><h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Campaign Intelligence</h1><p className="muted">One evidence-backed pipeline from release strategy and target qualification through submission, reply, deliverable, placement, and measured outcome.</p></div>
-        <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/targets">Network</Link><Link className="button ghost" href="/proof">Proof</Link><Link className="button ghost" href="/analytics">Music Intelligence</Link><Link className="button ghost" href="/releases">Releases</Link></nav>
+    <>
+      <AppHeader active="campaigns" />
+      <main className="shell">
+      <header className="app-page-heading">
+        <div><div className="eyebrow">Pitching and relationships in motion</div><h1>Campaigns</h1><p>Move saved opportunities through pitching, follow-up, replies, placements and outcomes without losing the relationship history.</p></div>
+        <nav className="section-tabs" aria-label="Campaign views"><Link className="active" href="/campaigns">Pipeline</Link><Link href="/proof">Proof & outcomes</Link></nav>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -184,6 +187,7 @@ export default async function CampaignsPage() {
           );
         }) : <section className="card"><h2>No campaign exists yet</h2><p className="muted">Create a release campaign above, then use Network Intelligence to add qualified targets and begin outreach.</p></section>}
       </section>
-    </main>
+      </main>
+    </>
   );
 }

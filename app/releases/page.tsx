@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addReleaseAsset, createRelease, createReleaseCampaign, updateRelease } from "./actions";
 
@@ -16,12 +17,13 @@ export default async function ReleasesPage() {
   if (!membership) redirect("/dashboard");
   const workspaceId = membership.workspace_id;
 
-  const [{ data: artists }, { data: releases }, { data: tasks }, { data: assets }, { data: campaigns }] = await Promise.all([
+  const [{ data: artists }, { data: releases }, { data: tasks }, { data: assets }, { data: campaigns }, { data: smartLinks }] = await Promise.all([
     supabase.from("artists").select("id, name, aliases").eq("workspace_id", workspaceId).order("name"),
     supabase.from("releases").select("*").eq("workspace_id", workspaceId).order("release_date", { ascending: false }),
     supabase.from("tasks").select("id, release_id, status, blocked_by, blocker_cleared").eq("workspace_id", workspaceId),
     supabase.from("assets").select("id, release_id, name, asset_type, url, location_note, status").eq("workspace_id", workspaceId).order("created_at", { ascending: false }),
     supabase.from("campaigns").select("id, release_id, name, status, start_date, end_date").eq("workspace_id", workspaceId).order("created_at", { ascending: false }),
+    supabase.from("smart_links").select("id,release_id,slug,mode,is_active,updated_at").eq("workspace_id", workspaceId).order("updated_at", { ascending: false }),
   ]);
 
   const artistRows = artists ?? [];
@@ -29,12 +31,15 @@ export default async function ReleasesPage() {
   const taskRows = tasks ?? [];
   const assetRows = assets ?? [];
   const campaignRows = campaigns ?? [];
+  const smartLinkRows = smartLinks ?? [];
   const artistById = new Map(artistRows.map((artist) => [artist.id, artist]));
 
-  return <main className="shell">
-    <header className="topbar">
-      <div><div className="eyebrow">Release operations</div><h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Releases</h1><p className="muted">Metadata, readiness, assets, campaign creation, and launch status in one command center.</p></div>
-      <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/campaigns">Campaigns</Link><Link className="button ghost" href="/targets">Targets</Link><Link className="button ghost" href="/audience">Audience</Link></nav>
+  return <>
+    <AppHeader active="releases" />
+    <main className="shell">
+    <header className="app-page-heading">
+      <div><div className="eyebrow">Everything belonging to the music</div><h1>Releases</h1><p>Keep metadata, assets, music links, creator work and campaign launch readiness together for every release.</p></div>
+      <nav className="section-tabs" aria-label="Release tools"><Link className="active" href="/releases">Releases</Link><Link href="/links">Music links</Link><Link href="/studio">Creator tools</Link></nav>
     </header>
 
     <section className="card" style={{ marginBottom: 16 }}>
@@ -55,6 +60,7 @@ export default async function ReleasesPage() {
         const releaseTasks = taskRows.filter((task) => task.release_id === release.id);
         const releaseAssets = assetRows.filter((asset) => asset.release_id === release.id);
         const releaseCampaigns = campaignRows.filter((campaign) => campaign.release_id === release.id);
+        const releaseSmartLink = smartLinkRows.find((link) => link.release_id === release.id);
         const completed = releaseTasks.filter((task) => task.status === "done").length;
         const blocked = releaseTasks.filter((task) => task.blocked_by && !task.blocker_cleared && task.status !== "done").length;
         const readiness = releaseTasks.length ? Math.round((completed / releaseTasks.length) * 100) : 0;
@@ -65,6 +71,12 @@ export default async function ReleasesPage() {
             <div className="tag-row"><span className="pill">{readiness}% ready</span><span className={`pill ${blocked ? "blocked" : ""}`}>{blocked} blocked</span><span className="pill">{releaseAssets.length} assets</span><span className="pill">{releaseCampaigns.length} campaigns</span></div>
           </div>
           <div className="progress"><span style={{ width: `${readiness}%` }} /></div>
+
+          <div className="release-tools-strip">
+            <div><span>Music link</span><strong>{releaseSmartLink ? "/" + releaseSmartLink.slug : "Not created"}</strong><Link href={"/links#release-" + release.id}>{releaseSmartLink ? "Manage link" : "Create free link"} →</Link></div>
+            <div><span>Creator tools</span><strong>Ideas, hooks and publishing</strong><Link href={"/studio?releaseId=" + release.id}>Open creator tools →</Link></div>
+            <div><span>Campaign</span><strong>{releaseCampaigns[0]?.name ?? "No active campaign"}</strong><Link href="/campaigns">{releaseCampaigns.length ? "Open campaign" : "Start campaign"} →</Link></div>
+          </div>
 
           <div className="grid two-col release-panels">
             <details open>
@@ -99,5 +111,6 @@ export default async function ReleasesPage() {
         </article>;
       }) : <section className="card"><h2>No releases yet</h2><p className="muted">Create the first release workspace above.</p></section>}
     </section>
-  </main>;
+    </main>
+  </>;
 }

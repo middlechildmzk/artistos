@@ -8,21 +8,21 @@ const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const tour = read("app/tour/page.tsx");
 const login = read("app/login/page.tsx");
 
-test("public product tour is explicitly read-only sample data", () => {
-  assert.match(tour, /Guided product tour/);
-  assert.match(tour, /Representative data only/);
-  assert.match(tour, /No live records or actions/);
+test("public product tour is clearly a sample experience", () => {
+  assert.match(tour, /Sample release/);
+  assert.match(tour, /Never Alone/);
+  assert.doesNotMatch(tour, /createSupabaseServerClient|invokeCapability|action=/);
 });
 
 test("product tour demonstrates the connected ArtistOS workflow", () => {
-  for (const label of ["Opportunity Intelligence", "Artist Brain", "Campaign Intelligence", "AI Manager"]) {
+  for (const label of ["Start with the release", "Find where it belongs", "Run the campaign", "Record what happened", "Make the next release smarter"]) {
     assert.match(tour, new RegExp(label));
   }
-  assert.match(tour, /Plan → review → execute → measure → learn/);
-  assert.match(tour, /Never Alone/);
+  assert.match(tour, /ArtistOS Network/);
+  assert.match(tour, /Best next move/);
 });
 
-test("login exposes the guided tour without weakening authentication", () => {
+test("login exposes the product tour without weakening authentication", () => {
   assert.match(login, /href="\/tour"/);
   assert.match(login, /signInWithPassword/);
   assert.match(login, /signInWithOtp/);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { addMetric } from "../intelligence/actions";
 
@@ -8,7 +9,7 @@ function formatNumber(value: number) {
 }
 
 function formatPercent(value: number | null) {
-  return value === null ? "—" : `${value.toFixed(1)}%`;
+  return value === null ? "Not enough data" : `${value.toFixed(1)}%`;
 }
 
 function formatDate(value: string | null | undefined) {
@@ -169,18 +170,19 @@ export default async function AnalyticsPage() {
   const acceptedTargets = campaignTargets.filter((target) => ["accepted", "placed"].includes(target.status)).length;
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader active="insights" />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Connected performance, audience, promotion, and attribution</div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Music Intelligence</h1>
-          <p className="muted">One source-visible view of platform metrics, smart-link behavior, owned audience, campaign execution, playlist activity, and verified outcomes.</p>
+          <div className="eyebrow">What ArtistOS has learned</div>
+          <h1>Insights</h1>
+          <p>Understand performance, audience growth, campaign outcomes and the patterns that should shape your next release.</p>
         </div>
-        <nav className="nav-links">
-          <Link className="button ghost" href="/dashboard">Today</Link>
-          <Link className="button primary" href="/connections">Sources</Link>
-          <Link className="button ghost" href="/campaigns">Campaign Intelligence</Link>
-          <Link className="button ghost" href="/proof">Proof</Link>
+        <nav className="section-tabs" aria-label="Insight views">
+          <Link className="active" href="/analytics">Performance</Link>
+          <Link href="/audience">Audience</Link>
+          <Link href="/brain">Learning</Link>
         </nav>
       </header>
 
@@ -193,7 +195,7 @@ export default async function AnalyticsPage() {
 
       <section className="grid two-col" style={{ marginBottom: 16 }}>
         <section className="card">
-          <div className="section-heading"><div><h2>Source health</h2><p className="muted">What is connected, mapped, imported, and fresh enough to trust.</p></div><Link className="next-action" href="/connections">Manage sources →</Link></div>
+          <div className="section-heading"><div><h2>Connected data</h2><p className="muted">See which services are contributing current performance signals.</p></div><Link className="next-action" href="/connections">Manage connections →</Link></div>
           {oauthConnections.map((connection) => <div className="row" key={connection.provider}><div><strong>{connection.provider} OAuth</strong><p className="muted">{connection.account_email ?? "Connected account"} · Last success {formatDate(connection.last_success_at)}</p>{connection.last_error ? <p className="muted">Needs attention: {connection.last_error}</p> : null}</div><span className={`pill ${connection.last_error ? "blocked" : ""}`}>{connection.last_error ? "attention" : "connected"}</span></div>)}
           {sourceHealth.map(({ platform, profileCount, snapshots, latest, status }) => <div className="row" key={platform.id}><div><strong>{platform.name}</strong><p className="muted">{profileCount} profiles · {snapshots} snapshots · Latest {latest ?? "none"}</p></div><span className={`pill ${status === "not connected" ? "blocked" : ""}`}>{status}</span></div>)}
           {!oauthConnections.length && !profiles.length && !metrics.length ? <div className="empty">No external sources are connected yet. Open Sources to connect YouTube or import your first dashboard export.</div> : null}
@@ -242,7 +244,7 @@ export default async function AnalyticsPage() {
             <div className="row"><span>Active playlist placements</span><strong>{activePlacements.length}</strong></div>
           </section>
           <section className="card">
-            <div className="section-heading"><div><h2>Attention queue</h2><p className="muted">Gaps that should influence Artist Brain recommendations.</p></div></div>
+            <div className="section-heading"><div><h2>What needs attention</h2><p className="muted">Gaps that may limit the quality of your next recommendation.</p></div></div>
             <div className="row"><span>Declining signals</span><strong>{decliningSignals.length}</strong></div>
             <div className="row"><span>Outcomes needing stronger proof</span><strong>{outcomes.length - verifiedOutcomes.length}</strong></div>
             <div className="row"><span>Unverified active placements</span><strong>{activePlacements.length - verifiedPlacements.length}</strong></div>
@@ -266,7 +268,7 @@ export default async function AnalyticsPage() {
 
       <section className="grid two-col" style={{ marginBottom: 16 }}>
         <section className="card">
-          <div className="section-heading"><div><h2>Recent campaign impact</h2><p className="muted">Latest outcomes with campaign and release context.</p></div><Link className="next-action" href="/proof">Open Proof →</Link></div>
+          <div className="section-heading"><div><h2>Recent campaign impact</h2><p className="muted">Latest outcomes with campaign and release context.</p></div><Link className="next-action" href="/proof">View campaign proof →</Link></div>
           {outcomes.length ? outcomes.slice(0, 10).map((outcome) => {
             const campaign = outcome.campaign_id ? campaignById.get(outcome.campaign_id) : null;
             const release = outcome.release_id ? releaseById.get(outcome.release_id) : null;
@@ -306,6 +308,7 @@ export default async function AnalyticsPage() {
           <Link className="button ghost" href="/connections">Connect or import a source instead</Link>
         </form>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

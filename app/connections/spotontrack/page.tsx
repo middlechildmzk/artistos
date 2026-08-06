@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isCurrentTokenEnvelope } from "@/lib/integrations/token-crypto";
 import { connectSpotOnTrack, syncSpotOnTrack } from "./actions";
@@ -36,10 +37,12 @@ export default async function SpotOnTrackPage({ searchParams }: PageProps) {
   const connectedNotice = params.connected === "1";
   const syncedNotice = params.synced === "1";
 
-  return <main className="shell">
-    <header className="topbar">
-      <div><div className="eyebrow">Sources · Release intelligence</div><h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Spotontrack</h1><p className="muted">Exact-ISRC streams, Shazams, playlist movement, reach, and current chart observations inside ArtistOS.</p></div>
-      <nav className="nav-links"><Link className="button ghost" href="/connections">All sources</Link><Link className="button primary" href="/analytics">Music Intelligence</Link><Link className="button ghost" href="/proof">Proof</Link></nav>
+  return <>
+    <AppHeader />
+    <main className="shell">
+    <header className="app-page-heading">
+      <div><div className="eyebrow">Connection details</div><h1>Spotontrack</h1><p>Bring exact-ISRC streams, Shazams, playlist movement, reach and current chart observations into ArtistOS.</p></div>
+      <Link className="button ghost" href="/connections">Back to connections</Link>
     </header>
 
     {error ? <div className="notice" style={{ marginBottom: 16 }}><strong>Spotontrack needs attention.</strong><p className="muted">{error}</p></div> : null}
@@ -80,5 +83,6 @@ export default async function SpotOnTrackPage({ searchParams }: PageProps) {
       <section className="card stack"><div className="section-heading"><h2>Latest observations</h2><span className="pill">{metrics.length}</span></div>{metrics.length ? metrics.slice(0, 20).map((metric, index) => <div className="row" key={`${metric.release_id}:${metric.metric}:${metric.captured_on}:${index}`}><div><strong>{metric.metric.replace(/_/g, " ")}</strong><p className="muted">{metric.captured_on}</p></div><strong>{Number(metric.value).toLocaleString()}</strong></div>) : <div className="empty">No Spotontrack observations yet.</div>}</section>
       <section className="card stack"><div className="section-heading"><h2>Proof receipts</h2><span className="pill">{evidence.length}</span></div>{evidence.length ? evidence.map((record) => <div className="notice" key={record.id}><strong>{record.verification_status}</strong><p>{record.summary}</p><p className="muted">{formatDate(record.observed_at)}</p></div>) : <div className="empty">The first verified sync will create a receipt.</div>}</section>
     </section>
-  </main>;
+    </main>
+  </>;
 }

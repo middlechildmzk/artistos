@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function AudiencePage() {
@@ -33,14 +34,16 @@ export default async function AudiencePage() {
   const verified = contactable.filter((fan) => String(fan.verification_status ?? "").toLowerCase() === "verified").length;
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader active="insights" />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Audience Intelligence</div>
+          <div className="eyebrow">People choosing to stay connected</div>
           <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Audience</h1>
-          <p className="muted">Suppression-safe fan records, consent signals, segments, and import lineage.</p>
+          <p>Understand the artist-owned audience built through releases, smart links and campaigns.</p>
         </div>
-        <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/targets">Targets</Link></nav>
+        <nav className="section-tabs" aria-label="Insight views"><Link href="/analytics">Performance</Link><Link className="active" href="/audience">Audience</Link><Link href="/brain">Learning</Link></nav>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -79,6 +82,7 @@ export default async function AudiencePage() {
           </div>
         </aside>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

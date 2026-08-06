@@ -70,5 +70,5 @@ test("the public page preserves attribution without exposing direct destination 
   assert.match(page, /utm_campaign/);
   assert.match(page, /artist-owned list/);
   assert.match(page, /not sold to advertisers/);
-  assert.match(page, /Privacy-minimized attribution/);
+  assert.match(page, /Artist-owned fan connection/);
 });

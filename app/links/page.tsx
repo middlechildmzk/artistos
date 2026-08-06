@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
+import { LinkCampaignBuilder } from "@/components/link-campaign-builder";
+import { MUSIC_SERVICES } from "@/lib/smart-links/services";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { saveSmartLink, saveSmartLinkDestination } from "./actions";
+import { saveSmartLink, saveSmartLinkDestination, saveSmartLinkDestinations } from "./actions";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return "No release date";
@@ -65,21 +68,21 @@ export default async function LinksPage() {
   const activeLinks = linkRows.filter((item) => item.is_active).length;
   const views = eventRows.filter((event) => event.event_type === "page_view").length;
   const clicks = eventRows.filter((event) => event.event_type === "destination_click").length;
+  const publicOrigin = process.env.VERCEL_URL
+    ? "https://" + process.env.VERCEL_URL
+    : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader active="releases" />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Release to fan connection layer</div>
-          <h1>ArtistOS Links</h1>
-          <p className="muted">Create the canonical smart link for each release, manage streaming destinations, preserve consent, and connect every visit back to the release graph.</p>
+          <div className="eyebrow">Music smart links</div>
+          <h1>Release links</h1>
+          <p>Create one fast, fan-friendly destination for every release and learn which channels drive listeners, clicks and signups.</p>
         </div>
-        <nav className="nav-links">
-          <Link className="button ghost" href="/dashboard">Today</Link>
-          <Link className="button ghost" href="/releases">Releases</Link>
-          <Link className="button ghost" href="/campaigns">Campaign Intelligence</Link>
-          <Link className="button ghost" href="/analytics">Music Intelligence</Link>
-        </nav>
+        <nav className="section-tabs" aria-label="Release tools"><Link href="/releases">Releases</Link><Link className="active" href="/links">Music links</Link><Link href="/studio">Creator tools</Link></nav>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -90,10 +93,10 @@ export default async function LinksPage() {
       </section>
 
       <section className="card release-card" style={{ marginBottom: 16 }}>
-        <div className="eyebrow">Connected product graph</div>
-        <h2>Release → Link → Campaign → Proof → Fan → Intelligence</h2>
-        <p className="muted">Links are not a standalone utility. Each one belongs to a release, carries campaign attribution, records privacy-minimized consent evidence, and becomes a measurable input for Artist Brain.</p>
-        <div className="tag-row"><span className="pill">One link per release</span><span className="pill">Workspace protected</span><span className="pill">No fingerprint hashes</span><span className="pill">Human-controlled activation</span></div>
+        <div className="eyebrow">Free with every release</div>
+        <h2>One music link that makes every campaign easier to measure.</h2>
+        <p className="muted">Send fans to the service they already use, carry campaign attribution through the click and optionally grow your artist-owned email list.</p>
+        <div className="tag-row"><span className="pill">Unlimited destinations</span><span className="pill">Campaign tracking</span><span className="pill">Fan signup</span><span className="pill">Search-friendly pages</span></div>
       </section>
 
       <section className="stack">
@@ -105,9 +108,10 @@ export default async function LinksPage() {
           const releaseEvents = smartLink ? eventRows.filter((item) => item.smart_link_id === smartLink.id) : [];
           const releaseFans = smartLink ? fanRows.filter((item) => item.source_smart_link_id === smartLink.id) : [];
           const title = `${release.title}${release.featured_artist ? ` (feat. ${release.featured_artist})` : ""}`;
+          const publicUrl = smartLink ? publicOrigin + "/l/" + smartLink.slug : null;
 
           return (
-            <article className="card" key={release.id}>
+            <article className="card" id={"release-" + release.id} key={release.id}>
               <div className="section-heading release-heading">
                 <div>
                   <div className="eyebrow">{artistName} · {formatDate(release.release_date)}</div>
@@ -120,6 +124,7 @@ export default async function LinksPage() {
                   <span className="pill">{releaseDestinations.length} destinations</span>
                   <span className="pill">{releaseEvents.length} events</span>
                   <span className="pill">{releaseFans.length} fans</span>
+                  {publicUrl ? <a className="button primary compact" href={publicUrl} rel="noreferrer" target="_blank">View public page</a> : null}
                 </div>
               </div>
 
@@ -138,6 +143,7 @@ export default async function LinksPage() {
                     <span className="pill">Consent {smartLink?.consent_copy_version ?? "2026-07-v1"}</span>
                   </div>
                   <button className="button primary" type="submit">{smartLink ? "Save link settings" : "Create release link"}</button>
+                  {publicUrl ? <LinkCampaignBuilder publicUrl={publicUrl} /> : null}
                 </form>
 
                 <div className="stack">
@@ -152,12 +158,22 @@ export default async function LinksPage() {
                   </div>
 
                   {smartLink ? (
+                    <>
+                    <details open={!releaseDestinations.length}>
+                      <summary>Paste all streaming links</summary>
+                      <form action={saveSmartLinkDestinations} className="stack mini-form">
+                        <input type="hidden" name="smartLinkId" value={smartLink.id} />
+                        <label className="field"><span>One URL per line</span><textarea className="input textarea" name="urls" placeholder={"https://open.spotify.com/...\nhttps://music.apple.com/...\nhttps://music.youtube.com/..."} required /></label>
+                        <p className="muted" style={{ fontSize: ".76rem" }}>ArtistOS recognizes Spotify, Apple Music, YouTube Music, Amazon Music, Deezer, TIDAL, SoundCloud, Bandcamp and more.</p>
+                        <button className="button primary" type="submit">Add streaming services</button>
+                      </form>
+                    </details>
                     <details>
-                      <summary>Add or update destination</summary>
+                      <summary>Add or update one destination</summary>
                       <form action={saveSmartLinkDestination} className="stack mini-form">
                         <input type="hidden" name="smartLinkId" value={smartLink.id} />
                         <div className="form-grid two">
-                          <label className="field"><span>Service</span><select className="input" name="service" defaultValue="spotify"><option value="spotify">Spotify</option><option value="apple_music">Apple Music</option><option value="youtube_music">YouTube Music</option><option value="soundcloud">SoundCloud</option><option value="bandcamp">Bandcamp</option><option value="hyperfollow">HyperFollow</option><option value="other">Other</option></select></label>
+                          <label className="field"><span>Service</span><select className="input" name="service" defaultValue="spotify">{MUSIC_SERVICES.map((service) => <option key={service.id} value={service.id}>{service.label}</option>)}<option value="other">Other</option></select></label>
                           <label className="field"><span>Position</span><input className="input" name="position" type="number" min="0" max="100" defaultValue={releaseDestinations.length} /></label>
                           <label className="field full"><span>Destination URL</span><input className="input" name="url" type="url" placeholder="https://..." required /></label>
                         </div>
@@ -165,6 +181,7 @@ export default async function LinksPage() {
                         <button className="button" type="submit">Save destination</button>
                       </form>
                     </details>
+                    </>
                   ) : <p className="muted">Create the release link before adding destinations.</p>}
                 </div>
               </div>
@@ -172,6 +189,7 @@ export default async function LinksPage() {
           );
         }) : <section className="card"><h2>No releases yet</h2><p className="muted">Create a release workspace first, then ArtistOS will attach its smart link, campaigns, proof, fans, and analytics to that release.</p><Link className="button primary" href="/releases">Create release</Link></section>}
       </section>
-    </main>
+      </main>
+    </>
   );
 }

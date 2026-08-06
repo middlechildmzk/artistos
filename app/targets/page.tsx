@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   categoryMatches,
@@ -63,6 +64,7 @@ type TargetSearchParams = Promise<{
   contact?: string;
   verification?: string;
   page?: string;
+  view?: string;
 }>;
 
 type OrganizationSummary = {
@@ -158,6 +160,7 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
   const platformFilter = safeSearchValue(filters.platform);
   const contactFilter = safeSearchValue(filters.contact);
   const verificationFilter = safeSearchValue(filters.verification);
+  const relationshipOnly = filters.view === "relationships";
   const page = Math.max(1, Number.parseInt(String(filters.page ?? "1"), 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -175,6 +178,7 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
   if (platformFilter) propertyQuery = propertyQuery.ilike("platform", platformFilter);
   if (contactFilter === "email") propertyQuery = propertyQuery.not("contact_emails", "is", null).neq("contact_emails", "");
   if (verificationFilter) propertyQuery = propertyQuery.eq("verification_status", verificationFilter);
+  if (relationshipOnly) propertyQuery = propertyQuery.neq("relationship_stage", "identified");
 
   let peopleQuery = supabase
     .from("people")
@@ -190,6 +194,7 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
   if (platformFilter) peopleQuery = peopleQuery.eq("id", "00000000-0000-0000-0000-000000000000");
   if (contactFilter === "email") peopleQuery = peopleQuery.not("email", "is", null).neq("email", "");
   if (verificationFilter) peopleQuery = peopleQuery.eq("verification_status", verificationFilter);
+  if (relationshipOnly) peopleQuery = peopleQuery.neq("relationship_stage", "identified");
 
   const [
     propertyResult,
@@ -261,19 +266,22 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
   if (platformFilter) queryString.set("platform", platformFilter);
   if (contactFilter) queryString.set("contact", contactFilter);
   if (verificationFilter) queryString.set("verification", verificationFilter);
+  if (relationshipOnly) queryString.set("view", "relationships");
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader active="network" />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Music industry sourcing</div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Network Intelligence</h1>
-          <p className="muted">Search properties and people directly. Organization resolution is enrichment, not a requirement for visibility.</p>
+          <div className="eyebrow">ArtistOS Network</div>
+          <h1>Saved & relationships</h1>
+          <p>Review the people and organizations you have saved, keep contact context together and pick up every relationship where you left it.</p>
         </div>
-        <nav className="nav-links">
-          <Link className="button ghost" href="/dashboard">Today</Link>
-          <Link className="button ghost" href="/campaigns">Campaigns</Link>
-          <Link className="button ghost" href="/proof">Proof</Link>
+        <nav className="section-tabs" aria-label="Network views">
+          <Link href="/network">Discover</Link>
+          <Link className={filters.view === "relationships" ? undefined : "active"} href="/targets">Saved</Link>
+          <Link className={filters.view === "relationships" ? "active" : undefined} href="/targets?view=relationships">Relationships</Link>
         </nav>
       </header>
 
@@ -287,7 +295,7 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
       <form className="card stack" method="get" style={{ marginBottom: 16 }}>
         <div className="section-heading">
           <div><h2>Find evidence-backed targets</h2><p className="muted">No direct sending from search. Review identity, source, suppression, and route state before campaign assignment.</p></div>
-          {queryText || activeFilterCount ? <Link className="button ghost" href="/targets">Clear search</Link> : null}
+          {queryText || activeFilterCount ? <Link className="button ghost" href={relationshipOnly ? "/targets?view=relationships" : "/targets"}>Clear search</Link> : null}
         </div>
         <div className="form-grid two">
           <label className="field"><span>Keywords</span><input className="input" name="q" defaultValue={queryText} placeholder="Future bass, radio, playlist, Minneapolis" /></label>
@@ -390,6 +398,7 @@ export default async function TargetsPage({ searchParams }: { searchParams: Targ
           {hasNextPage ? <Link className="button" href={`/targets?${new URLSearchParams([...queryString.entries(), ["page", String(page + 1)]]).toString()}`}>Next page</Link> : null}
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

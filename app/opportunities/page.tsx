@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import OpportunityDirectory, { type DirectoryCampaign, type DirectoryItem, type DirectoryMatch } from "./opportunity-directory";
 import { executeOpportunitySearch, searchOpportunityDirectory } from "./actions";
@@ -398,16 +399,19 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   }
 
   return (
-    <main className="shell opportunity-shell">
-      <header className="opportunity-header">
+    <>
+      <AppHeader active="network" />
+      <main className="shell opportunity-shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Network Intelligence</div>
+          <div className="eyebrow">ArtistOS Network</div>
           <h1>Discover</h1>
-          <p>Find playlists, channels, influencers, blogs, radio, podcasts, labels and more.</p>
+          <p>Find the playlists, radio, media, labels, sync opportunities, creators and industry contacts that fit your release.</p>
         </div>
-        <nav className="nav-links opportunity-nav">
-          <Link className="button ghost" href="/targets">Saved network</Link>
-          <Link className="button ghost" href="/campaigns">Campaigns</Link>
+        <nav className="section-tabs" aria-label="Network views">
+          <Link className="active" href="/network">Discover</Link>
+          <Link href="/targets">Saved</Link>
+          <Link href="/targets?view=relationships">Relationships</Link>
         </nav>
       </header>
 
@@ -442,6 +446,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
       {releaseHeader ? <ReleaseFitPanel release={releaseHeader} items={releaseFitItems} campaigns={campaigns} directoryItems={items} /> : <OpportunityDirectory items={items} campaigns={campaigns} />}
 
       {searches.length ? <details className="search-history-panel"><summary>Previous research searches</summary><div className="search-history-list">{searches.map((search) => <div key={search.id}><div><strong>{search.title}</strong><span>{(search.last_run_status ?? "Not run").replaceAll("_", " ")}</span></div><form action={executeOpportunitySearch}><input type="hidden" name="searchId" value={search.id} /><input type="hidden" name="submissionNonce" value={randomUUID()} /><input type="hidden" name="maxResultsPerLane" value="10" /><button className="button ghost compact-button" type="submit">Run again</button></form></div>)}</div></details> : null}
-    </main>
+      </main>
+    </>
   );
 }

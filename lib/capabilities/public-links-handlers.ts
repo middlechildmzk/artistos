@@ -192,6 +192,7 @@ registerCapabilityHandler(capturePublicLinkFanCapability, async ({ ctx, input, i
     featuredArtist: null,
     releaseDate: null,
     releaseStatus: "",
+    artworkUrl: null,
     destinations: [],
   };
   await recordPublicLinkEvent({

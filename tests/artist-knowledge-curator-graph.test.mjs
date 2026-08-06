@@ -7,7 +7,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const migration = read("supabase/migrations/20260727203000_artist_knowledge_curator_graph.sql");
 const page = read("app/opportunities/page.tsx");
-const dashboard = read("app/dashboard/page.tsx");
+const appHeader = read("components/app-header.tsx");
 
 test("knowledge graph schema exists", () => {
   assert.match(migration, /knowledge_entities/);
@@ -47,7 +47,7 @@ test("all graph tables use workspace row level security", () => {
 });
 
 test("opportunity intelligence is visible in product navigation", () => {
-  assert.match(dashboard, /href="\/opportunities"/);
-  assert.match(page, /Network Intelligence/);
+  assert.match(appHeader, /label: "Network", href: "\/network"/);
+  assert.match(page, /ArtistOS Network/);
   assert.match(page, /<h1>Discover<\/h1>/);
 });

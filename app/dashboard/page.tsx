@@ -1,34 +1,42 @@
+import { ArrowRight, CalendarClock, Check, CircleDot, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { completeFollowUp, signOut, toggleTask } from "./actions";
+import { completeFollowUp, toggleTask } from "./actions";
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return "No date set";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
+  if (!value) return "Date not set";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(value));
 }
 
 function daysUntil(value: string | null | undefined) {
   if (!value) return null;
-  return Math.ceil((new Date(value).getTime() - Date.now()) / 86_400_000);
+  return Math.ceil((new Date(value + "T00:00:00Z").getTime() - Date.now()) / 86_400_000);
 }
 
-function formatNumber(value: number | null | undefined) {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value ?? 0);
+function formatNumber(value: number | string | null | undefined) {
+  const number = Number(value ?? 0);
+  return new Intl.NumberFormat("en-US", { notation: number >= 10_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(number);
 }
 
-function sourceTone(status: string) {
-  return status === "verified" || status === "current" ? "success" : status === "blocked" || status === "needs attention" ? "blocked" : "";
+function readable(value: string | null | undefined) {
+  return (value || "Other").replaceAll("_", " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ releaseId?: string }>;
+}) {
+  const requestedReleaseId = (await searchParams).releaseId ?? null;
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) redirect("/login");
 
   const { data: membership } = await supabase
     .from("workspace_members")
-    .select("workspace_id, role")
+    .select("workspace_id,role")
     .eq("user_id", userData.user.id)
     .limit(1)
     .maybeSingle();
@@ -36,7 +44,17 @@ export default async function DashboardPage() {
   if (!membership) {
     const { error } = await supabase.rpc("ensure_artistos_workspace");
     if (error) {
-      return <main className="login-page"><section className="card stack"><div className="eyebrow">Workspace setup</div><h1>We could not finish onboarding</h1><p className="muted">Your account is authenticated, but ArtistOS could not create your workspace.</p><div className="notice">{error.message}</div><Link className="button primary" href="/dashboard">Try again</Link></section></main>;
+      return (
+        <main className="login-page">
+          <section className="card stack">
+            <div className="eyebrow">Workspace setup</div>
+            <h1>We could not finish onboarding</h1>
+            <p className="muted">Your account is ready, but ArtistOS could not create the workspace.</p>
+            <div className="notice">{error.message}</div>
+            <Link className="button primary" href="/dashboard">Try again</Link>
+          </section>
+        </main>
+      );
     }
     redirect("/dashboard");
   }
@@ -49,141 +67,217 @@ export default async function DashboardPage() {
     releasesResult,
     tasksResult,
     followUpsResult,
-    peopleCountResult,
-    organizationsCountResult,
-    fansCountResult,
-    verifiedFansCountResult,
-    suppressionsCountResult,
     recommendationResult,
     metricsResult,
-    oauthResult,
-    profilesResult,
-    platformsResult,
-    campaignsCountResult,
-    outcomesCountResult,
-    smartLinksCountResult,
-    linkEventsCountResult,
-    evidenceCountResult,
-    brainMemoriesCountResult,
+    opportunitiesResult,
   ] = await Promise.all([
-    supabase.from("workspaces").select("id, name").eq("id", workspaceId).single(),
-    supabase.from("artists").select("id,name,genre_tags,spotify_url").eq("workspace_id", workspaceId).order("created_at", { ascending: true }),
-    supabase.from("releases").select("id,artist_id,title,featured_artist,release_date,status,spotify_url,upc,isrc").eq("workspace_id", workspaceId).order("release_date", { ascending: false, nullsFirst: false }),
-    supabase.from("tasks").select("*").eq("workspace_id", workspaceId).order("sort_order", { ascending: true }),
-    supabase.from("interactions").select("id, subject, channel, follow_up_due, follow_up_done").eq("workspace_id", workspaceId).lte("follow_up_due", today).eq("follow_up_done", false).order("follow_up_due", { ascending: true }).limit(20),
-    supabase.from("people").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("organizations").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("fans").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).is("archived_at", null),
-    supabase.from("fans").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("verification_status", "Deliverable").is("archived_at", null),
-    supabase.from("suppressions").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("recommendations").select("id,title,priority,rationale,action_path").eq("workspace_id", workspaceId).in("status", ["open", "accepted"]).order("created_at", { ascending: false }).limit(4),
-    supabase.from("metric_snapshots").select("platform,metric,value,captured_on,source_url,release_id").eq("workspace_id", workspaceId).order("captured_on", { ascending: false }).limit(250),
-    supabase.from("oauth_connections").select("provider,account_email,last_success_at,last_error,expires_at,metadata").eq("workspace_id", workspaceId).eq("user_id", userData.user.id),
-    supabase.from("artist_platform_profiles").select("platform_id,artist_name,connection_state,source_type,last_synced_at,last_verified_at,freshness_status,profile_url").eq("workspace_id", workspaceId),
-    supabase.from("music_platforms").select("id,slug,name,priority").eq("active", true),
-    supabase.from("campaigns").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("outcomes").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("smart_links").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("link_events").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("evidence_records").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
-    supabase.from("brain_memories").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
+    supabase.from("workspaces").select("id,name").eq("id", workspaceId).single(),
+    supabase.from("artists").select("id,name").eq("workspace_id", workspaceId).order("created_at", { ascending: true }),
+    supabase.from("releases").select("id,artist_id,title,featured_artist,release_date,status,subgenre_tags,mood_tags,spotify_url").eq("workspace_id", workspaceId).order("release_date", { ascending: false, nullsFirst: false }),
+    supabase.from("tasks").select("id,release_id,title,detail,status,due_date,blocked_by,blocker_cleared,sort_order").eq("workspace_id", workspaceId).order("sort_order", { ascending: true }),
+    supabase.from("interactions").select("id,subject,channel,follow_up_due,follow_up_done").eq("workspace_id", workspaceId).lte("follow_up_due", today).eq("follow_up_done", false).order("follow_up_due", { ascending: true }).limit(5),
+    supabase.from("recommendations").select("id,release_id,title,priority,rationale,action_path,due_date").eq("workspace_id", workspaceId).in("status", ["open", "accepted"]).order("created_at", { ascending: false }).limit(8),
+    supabase.from("metric_snapshots").select("platform,metric,value,captured_on,release_id").eq("workspace_id", workspaceId).order("captured_on", { ascending: false }).limit(100),
+    supabase.from("opportunities").select("id,title,opportunity_type,fit_score,summary,source_url,confidence").eq("workspace_id", workspaceId).neq("status", "rejected").order("fit_score", { ascending: false, nullsFirst: false }).limit(3),
   ]);
 
   const workspace = workspaceResult.data;
   const artists = artistsResult.data ?? [];
   const releases = releasesResult.data ?? [];
-  const release = releases[0] ?? null;
-  const activeArtist = artists.find((artist) => artist.id === release?.artist_id) ?? artists.find((artist) => artist.name === "Middle Child") ?? artists[0] ?? null;
-  const tasks = tasksResult.data ?? [];
+  const activeRelease = releases.find((item) => item.id === requestedReleaseId) ?? releases[0] ?? null;
+  const activeArtist = artists.find((artist) => artist.id === activeRelease?.artist_id) ?? artists[0] ?? null;
+  const releaseTasks = (tasksResult.data ?? []).filter((task) => !activeRelease || task.release_id === activeRelease.id);
+  const openTasks = releaseTasks.filter((task) => !["done", "skipped"].includes(task.status));
+  const actionableTasks = openTasks.filter((task) => !task.blocked_by || task.blocker_cleared);
+  const completedTasks = releaseTasks.filter((task) => task.status === "done").length;
+  const readiness = releaseTasks.length ? Math.round((completedTasks / releaseTasks.length) * 100) : 0;
+  const countdown = daysUntil(activeRelease?.release_date);
+  const recommendations = (recommendationResult.data ?? []).filter((item) => !item.release_id || !activeRelease || item.release_id === activeRelease.id);
   const followUps = followUpsResult.data ?? [];
-  const recommendations = recommendationResult.data ?? [];
-  const metrics = metricsResult.data ?? [];
-  const oauthConnections = oauthResult.data ?? [];
-  const profiles = profilesResult.data ?? [];
-  const platforms = platformsResult.data ?? [];
+  const opportunities = opportunitiesResult.data ?? [];
 
-  const openTasks = tasks.filter((task) => task.status !== "done" && task.status !== "skipped");
-  const doneTasks = tasks.filter((task) => task.status === "done");
-  const blockedTasks = openTasks.filter((task) => task.blocked_by && !task.blocker_cleared);
-  const actionableTasks = openTasks.filter((task) => !task.blocked_by || task.blocker_cleared).slice(0, 6);
-  const releaseCountdown = daysUntil(release?.release_date);
-  const platformById = new Map(platforms.map((platform) => [platform.id, platform]));
-  const profileBySlug = new Map(profiles.map((profile) => [platformById.get(profile.platform_id)?.slug ?? profile.platform_id, profile]));
-  const oauthByProvider = new Map(oauthConnections.map((connection) => [connection.provider, connection]));
+  const campaignResult = activeRelease
+    ? await supabase.from("campaigns").select("id,name,status").eq("workspace_id", workspaceId).eq("release_id", activeRelease.id)
+    : { data: [] };
+  const campaigns = campaignResult.data ?? [];
+  const campaignIds = campaigns.map((campaign) => campaign.id);
+  const campaignTargets = campaignIds.length
+    ? (await supabase.from("campaign_targets").select("id,status").in("campaign_id", campaignIds)).data ?? []
+    : [];
 
-  const latestMetric = (platform: string, metric: string) => metrics.find((item) => item.platform === platform && item.metric === metric) ?? null;
-  const monthlyListeners = latestMetric("spotify", "monthly_listeners");
-  const publicStreams = latestMetric("spotify", "public_streams");
-  const shazams = latestMetric("shazam", "shazams");
-  const google = oauthByProvider.get("google") ?? null;
-  const youtubeError = typeof google?.metadata?.youtube_error === "string" ? google.metadata.youtube_error : null;
-  const spotifyProfile = profileBySlug.get("spotify") ?? null;
-  const youtubeVerified = Boolean(google?.last_success_at && !youtubeError && typeof google?.metadata?.youtube_channel_id === "string");
-  const kit = oauthByProvider.get("kit") ?? null;
-  const soundcharts = oauthByProvider.get("soundcharts") ?? null;
+  const priorities = [
+    ...recommendations.map((item) => ({
+      id: "recommendation-" + item.id,
+      title: item.title,
+      detail: item.rationale || "ArtistOS identified this as a useful next step.",
+      href: item.action_path || "/network",
+      priority: item.priority,
+      taskId: null,
+      taskStatus: null,
+    })),
+    ...actionableTasks.map((task) => ({
+      id: "task-" + task.id,
+      title: task.title,
+      detail: task.detail || (task.due_date ? "Due " + formatDate(task.due_date) : "Ready to complete"),
+      href: null,
+      priority: task.due_date && task.due_date <= today ? "high" : "medium",
+      taskId: task.id,
+      taskStatus: task.status,
+    })),
+  ].slice(0, 5);
 
-  const sourceCards = [
-    {
-      name: "Google + YouTube",
-      status: google ? (youtubeError ? "needs attention" : youtubeVerified ? "verified" : "authorized") : "not connected",
-      detail: google ? (youtubeError ? "Google is authorized, but YouTube APIs still need to be enabled and synced." : youtubeVerified ? `YouTube provider request verified ${formatDate(google.last_success_at)}.` : "Google is authorized. A successful YouTube request is still required.") : "Connect the owned Google account and run a verified YouTube sync.",
-    },
-    {
-      name: "Spotify",
-      status: spotifyProfile ? "identified" : "not connected",
-      detail: spotifyProfile ? `Public artist identity confirmed${monthlyListeners ? ` · ${formatNumber(Number(monthlyListeners.value))} monthly listeners as of ${formatDate(monthlyListeners.captured_on)}` : ""}. Private Spotify for Artists analytics still require exports.` : "Confirm the canonical Middle Child Spotify artist identity.",
-    },
-    {
-      name: "Kit",
-      status: kit?.last_success_at ? "verified" : kit ? "configured" : "not connected",
-      detail: kit?.last_success_at ? `Aggregate audience metrics last synced ${formatDate(kit.last_success_at)}.` : "The connector is built. Add and validate the Kit v4 API key.",
-    },
-    {
-      name: "Soundcharts",
-      status: soundcharts?.last_success_at ? "verified" : soundcharts ? "configured" : "not connected",
-      detail: soundcharts?.last_success_at ? `Market intelligence last synced ${formatDate(soundcharts.last_success_at)}.` : "The connector is built. Credentials and a verified request are still required.",
-    },
-  ];
+  const primaryAction = priorities[0] ?? (activeRelease
+    ? { title: "Review the best new opportunity matches", detail: "Start with the strongest routes for " + activeRelease.title + ".", href: "/network?releaseId=" + activeRelease.id }
+    : { title: "Create your first release", detail: "ArtistOS builds its recommendations and workflow around a release.", href: "/releases" });
 
-  return <main className="shell">
-    <header className="topbar">
-      <div className="brand"><div className="logo">A</div><div><div className="eyebrow">Private artist workspace</div><strong>{workspace?.name ?? "ArtistOS"}</strong></div></div>
-      <div className="nav-links"><Link className="button primary" href="/command-center">Command Center</Link><Link className="button ghost" href="/releases">Releases</Link><Link className="button ghost" href="/connections">Sources</Link><form action={signOut}><button className="button ghost" type="submit">Sign out</button></form></div>
-    </header>
+  const relevantMetric = (metricsResult.data ?? []).find((metric) => metric.release_id === activeRelease?.id)
+    ?? (metricsResult.data ?? [])[0]
+    ?? null;
+  const metricInsight = relevantMetric
+    ? readable(relevantMetric.platform) + " " + readable(relevantMetric.metric).toLowerCase() + " is " + formatNumber(relevantMetric.value) + " as of " + formatDate(relevantMetric.captured_on) + "."
+    : "Publish a release link to start learning which channels bring listeners and fans back to your music.";
 
-    <section className="card release-card" style={{ marginBottom: 16 }}>
-      <div className="section-heading tight"><div><div className="eyebrow">{activeArtist?.name ?? "Current artist"}</div><h1>{release?.title ?? "Create your first release"}</h1><p className="muted">{release ? `${formatDate(release.release_date)}${releaseCountdown === null ? "" : releaseCountdown > 0 ? ` · ${releaseCountdown} days remaining` : releaseCountdown === 0 ? " · Release day" : ` · Released ${Math.abs(releaseCountdown)} days ago`}` : "ArtistOS will organize releases, sources, campaigns, relationships, evidence, and learning here."}</p></div>{release?.status ? <span className="pill">{release.status}</span> : null}</div>
-      <div className="tag-row"><Link className="button primary" href="/releases">Open release workspace</Link><Link className="button ghost" href="/analytics">Music Intelligence</Link><Link className="button ghost" href="/campaigns">Campaign Intelligence</Link><Link className="button ghost" href="/targets">Network</Link><Link className="button ghost" href="/opportunities">Opportunities</Link><Link className="button ghost" href="/links">ArtistOS Links</Link><Link className="button ghost" href="/proof">Proof</Link><Link className="button ghost" href="/brain">Artist Brain</Link>{release?.spotify_url ? <a className="button ghost" href={release.spotify_url} target="_blank" rel="noreferrer">Open on Spotify</a> : null}</div>
-    </section>
+  const campaignPulse = {
+    queued: campaignTargets.filter((target) => target.status === "queued").length,
+    pitched: campaignTargets.filter((target) => target.status === "pitched").length,
+    replies: campaignTargets.filter((target) => target.status === "replied").length,
+    results: campaignTargets.filter((target) => ["accepted", "placed"].includes(target.status)).length,
+  };
 
-    <section className="grid stats" style={{ marginBottom: 16 }}>
-      <div className="card"><div className="eyebrow">Spotify listeners</div><div className="stat-value">{monthlyListeners ? formatNumber(Number(monthlyListeners.value)) : "No current snapshot"}</div><p className="muted">{monthlyListeners ? `Public snapshot · ${formatDate(monthlyListeners.captured_on)}` : "Import or sync a source"}</p></div>
-      <div className="card"><div className="eyebrow">Mercy streams</div><div className="stat-value">{publicStreams ? formatNumber(Number(publicStreams.value)) : "No snapshot"}</div><p className="muted">{publicStreams ? `Public Spotify count · ${formatDate(publicStreams.captured_on)}` : "No public count loaded"}</p></div>
-      <div className="card"><div className="eyebrow">Imported fan records</div><div className="stat-value">{formatNumber(fansCountResult.count)}</div><p className="muted">{formatNumber(verifiedFansCountResult.count)} marked deliverable; suppression and consent must still be checked before sending.</p></div>
-      <div className="card"><div className="eyebrow">Industry contacts</div><div className="stat-value">{formatNumber(peopleCountResult.count)}</div><p className="muted">Across {formatNumber(organizationsCountResult.count)} organizations</p></div>
-    </section>
+  const releaseContext = [
+    ...(activeRelease?.subgenre_tags ?? []),
+    ...(activeRelease?.mood_tags ?? []),
+  ].slice(0, 5);
 
-    <section className="grid two-col" style={{ marginBottom: 16 }}>
-      <div className="stack">
-        <div className="card">
-          <div className="section-heading"><div><h2>Source health</h2><p className="muted">What is identified, configured, authorized, and provider-verified.</p></div><Link className="next-action" href="/connections">Manage sources →</Link></div>
-          <div className="grid two-col" style={{ marginTop: 12 }}>{sourceCards.map((source) => <div className="card" key={source.name}><div className="section-heading tight"><strong>{source.name}</strong><span className={`pill ${sourceTone(source.status)}`}>{source.status}</span></div><p className="muted">{source.detail}</p></div>)}</div>
-          {google && youtubeError ? <div className="notice" style={{ marginTop: 12 }}><strong>YouTube needs one owner action.</strong><p className="muted">Enable YouTube Data API v3 and YouTube Analytics API in the connected Google Cloud project, then reconnect and sync.</p></div> : null}
+  return (
+    <>
+      <AppHeader active="today" workspaceName={workspace?.name} />
+      <main className="shell today-shell">
+        <header className="app-page-heading">
+          <div>
+            <div className="eyebrow">Your artist workspace</div>
+            <h1>Today</h1>
+            <p>The few things that matter most for the release you are moving right now.</p>
+          </div>
+          {releases.length ? (
+            <form className="release-context-picker" method="get">
+              <label htmlFor="today-release">Current release</label>
+              <div>
+                <select id="today-release" name="releaseId" defaultValue={activeRelease?.id}>
+                  {releases.map((release) => <option key={release.id} value={release.id}>{release.title}</option>)}
+                </select>
+                <button type="submit">Switch</button>
+              </div>
+            </form>
+          ) : null}
+        </header>
+
+        <section className="today-release-hero">
+          <div className="today-release-copy">
+            <div className="today-artwork" aria-hidden="true">{activeRelease?.title.slice(0, 1).toUpperCase() || "A"}</div>
+            <div>
+              <span className="eyebrow">{activeArtist?.name || "Current artist"}</span>
+              <h2>{activeRelease?.title || "Create your first release"}</h2>
+              <p>
+                {activeRelease
+                  ? formatDate(activeRelease.release_date) + (countdown === null ? "" : countdown > 0 ? " · " + countdown + " days to release" : countdown === 0 ? " · Release day" : " · Released " + Math.abs(countdown) + " days ago")
+                  : "ArtistOS will organize the people, campaigns and performance around it."}
+              </p>
+              {releaseContext.length ? <div className="tag-row">{releaseContext.map((tag) => <span className="pill" key={tag}>{tag}</span>)}</div> : null}
+            </div>
+          </div>
+          <div className="today-readiness">
+            <span>{readiness}% ready</span>
+            <div className="progress"><i style={{ width: readiness + "%" }} /></div>
+            <small>{completedTasks} of {releaseTasks.length} release tasks complete</small>
+          </div>
+        </section>
+
+        <section className="today-primary-action">
+          <div className="today-primary-icon"><Sparkles aria-hidden="true" size={20} /></div>
+          <div>
+            <span>Best next move</span>
+            <h2>{primaryAction.title}</h2>
+            <p>{primaryAction.detail}</p>
+          </div>
+          {"href" in primaryAction && primaryAction.href ? <Link href={primaryAction.href}>Open <ArrowRight aria-hidden="true" size={15} /></Link> : null}
+        </section>
+
+        <div className="today-grid">
+          <section className="card today-priorities">
+            <div className="section-heading tight">
+              <div><span className="eyebrow">Priority actions</span><h2>Move the release forward</h2></div>
+              <span className="pill">{priorities.length} today</span>
+            </div>
+            {priorities.length ? priorities.map((item, index) => (
+              <div className="today-action-row" key={item.id}>
+                <span className="today-action-number">{index + 1}</span>
+                <div><strong>{item.title}</strong><p>{item.detail}</p></div>
+                {item.href ? <Link className="button ghost compact" href={item.href}>Open</Link> : item.taskId ? (
+                  <form action={toggleTask}>
+                    <input type="hidden" name="taskId" value={item.taskId} />
+                    <input type="hidden" name="currentStatus" value={item.taskStatus || "open"} />
+                    <button className="button ghost compact" type="submit"><Check aria-hidden="true" size={14} /> Done</button>
+                  </form>
+                ) : null}
+              </div>
+            )) : <div className="empty">No urgent actions. Review Network for new release opportunities.</div>}
+          </section>
+
+          <aside className="card today-followups">
+            <div className="section-heading tight">
+              <div><span className="eyebrow">Relationships</span><h2>Follow-ups due</h2></div>
+              <CalendarClock aria-hidden="true" className="muted" size={18} />
+            </div>
+            {followUps.length ? followUps.map((interaction) => (
+              <div className="today-followup-row" key={interaction.id}>
+                <div><strong>{interaction.subject || readable(interaction.channel) || "Industry outreach"}</strong><span>{formatDate(interaction.follow_up_due)}</span></div>
+                <form action={completeFollowUp}>
+                  <input type="hidden" name="interactionId" value={interaction.id} />
+                  <button aria-label="Complete follow-up" type="submit"><Check aria-hidden="true" size={14} /></button>
+                </form>
+              </div>
+            )) : <div className="empty">Nothing overdue.</div>}
+            <Link className="next-action" href="/targets?view=relationships">Open relationships →</Link>
+          </aside>
         </div>
 
-        {recommendations.length ? <div className="card"><div className="section-heading"><h2>ArtistOS recommends</h2><Link className="next-action" href="/command-center">View all →</Link></div>{recommendations.map((item) => <div className="row" key={item.id}><div><span className="pill">{item.priority}</span><strong style={{ display: "block", marginTop: 8 }}>{item.title}</strong>{item.rationale ? <p className="muted">{item.rationale}</p> : null}</div>{item.action_path ? <Link className="button" href={item.action_path}>Open</Link> : null}</div>)}</div> : null}
+        <section className="card today-matches">
+          <div className="section-heading">
+            <div><span className="eyebrow">ArtistOS Network</span><h2>Strong opportunities to review</h2><p className="muted">Start with the most relevant routes, then inspect the fit evidence before saving.</p></div>
+            <Link className="button primary" href={activeRelease ? "/network?releaseId=" + activeRelease.id : "/network"}>Explore Network</Link>
+          </div>
+          <div className="today-match-grid">
+            {opportunities.map((opportunity) => (
+              <article key={opportunity.id}>
+                <div><span className="today-match-type">{readable(opportunity.opportunity_type)}</span><span className="today-match-score">{opportunity.fit_score == null ? "Review" : Math.round(Number(opportunity.fit_score)) + "% fit"}</span></div>
+                <h3>{opportunity.title}</h3>
+                <p>{opportunity.summary || "Open the opportunity to review its route, evidence and release fit."}</p>
+                <Link href={"/network?releaseId=" + (activeRelease?.id || "")}>View fit <ArrowRight aria-hidden="true" size={13} /></Link>
+              </article>
+            ))}
+          </div>
+        </section>
 
-        <div className="card"><h2>Do next</h2>{actionableTasks.length ? actionableTasks.map((task) => <div className="row" key={task.id}><div><strong>{task.title}</strong>{task.detail ? <p className="muted">{task.detail}</p> : null}</div><form action={toggleTask}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="currentStatus" value={task.status ?? "open"}/><button className="button" type="submit">Complete</button></form></div>) : <div className="empty">No actionable tasks.</div>}</div>
-        {blockedTasks.length ? <div className="card"><h2>Blocked</h2>{blockedTasks.map((task) => <div className="row" key={task.id}><div><strong>{task.title}</strong><p className="muted">{task.blocked_by}</p></div><span className="pill blocked">Blocked</span></div>)}</div> : null}
-      </div>
+        <div className="today-grid">
+          <section className="card today-campaign-pulse">
+            <div className="section-heading tight"><div><span className="eyebrow">Campaign pulse</span><h2>{campaigns.length ? campaigns[0].name : "No campaign started"}</h2></div><Link className="next-action" href="/campaigns">Open campaigns →</Link></div>
+            <div className="today-pulse-grid">
+              <div><strong>{campaignPulse.queued}</strong><span>Queued</span></div>
+              <div><strong>{campaignPulse.pitched}</strong><span>Pitched</span></div>
+              <div><strong>{campaignPulse.replies}</strong><span>Replies</span></div>
+              <div><strong>{campaignPulse.results}</strong><span>Results</span></div>
+            </div>
+          </section>
 
-      <aside className="stack">
-        <div className="card"><h2>Workspace data</h2><div className="row"><span>Releases</span><strong>{releases.length}</strong></div><div className="row"><span>Campaigns</span><strong>{campaignsCountResult.count ?? 0}</strong></div><div className="row"><span>Recorded outcomes</span><strong>{outcomesCountResult.count ?? 0}</strong></div><div className="row"><span>Smart links</span><strong>{smartLinksCountResult.count ?? 0}</strong></div><div className="row"><span>Link events</span><strong>{linkEventsCountResult.count ?? 0}</strong></div><div className="row"><span>Proof records</span><strong>{evidenceCountResult.count ?? 0}</strong></div><div className="row"><span>Artist Brain memories</span><strong>{brainMemoriesCountResult.count ?? 0}</strong></div><div className="row"><span>Suppression records</span><strong>{suppressionsCountResult.count ?? 0}</strong></div>{shazams ? <div className="row"><span>Mercy Shazams</span><strong>{formatNumber(Number(shazams.value))}</strong></div> : null}</div>
-
-        <div className="card"><h2>Follow-ups due</h2>{followUps.length ? followUps.map((interaction) => <div className="row" key={interaction.id}><div><strong>{interaction.subject || interaction.channel || "Outreach"}</strong><p className="muted">{formatDate(interaction.follow_up_due)}</p></div><form action={completeFollowUp}><input type="hidden" name="interactionId" value={interaction.id}/><button className="button" type="submit">Done</button></form></div>) : <div className="empty">No overdue follow-ups.</div>}</div>
-
-        <div className="card"><h2>Workspace health</h2><div className="row"><span>Membership</span><span className="pill">{membership.role}</span></div><div className="row"><span>Release tasks</span><span>{doneTasks.length}/{tasks.length}</span></div><div className="row"><span>Blocked items</span><span>{blockedTasks.length}</span></div><div className="notice" style={{ marginTop: 12 }}><strong>Execution remains human-controlled.</strong><p className="muted">ArtistOS can organize, prepare, and verify work. Sending, publishing, spending, deletion, access changes, and production rollout still require explicit approval.</p></div></div>
-      </aside>
-    </section>
-  </main>;
+          <aside className="card today-insight">
+            <span className="eyebrow">One useful signal</span>
+            <div className="today-insight-icon"><CircleDot aria-hidden="true" size={18} /></div>
+            <p>{metricInsight}</p>
+            <Link className="next-action" href="/analytics">See insights →</Link>
+          </aside>
+        </div>
+      </main>
+    </>
+  );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isCurrentTokenEnvelope } from "@/lib/integrations/token-crypto";
 import { SOURCE_COVERAGE, SOURCE_COVERAGE_BY_SLUG } from "@/lib/integrations/source-catalog";
@@ -94,18 +95,16 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
   const synced = typeof params.synced === "string" ? params.synced : null;
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Identity, authentication, imports, and freshness</div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Sources</h1>
-          <p className="muted">Connect what exposes a legitimate API, import what requires artist-dashboard exports, and keep every metric tied to its source and retrieval date.</p>
+          <div className="eyebrow">Workspace settings</div>
+          <h1>Connections</h1>
+          <p>Connect the music, audience and performance sources you want ArtistOS to use.</p>
         </div>
-        <nav className="nav-links">
-          <Link className="button ghost" href="/dashboard">Today</Link>
-          <Link className="button primary" href="/analytics">View all stats</Link>
-          <Link className="button ghost" href="/proof">Proof</Link>
-        </nav>
+        <Link className="button ghost" href="/settings">Back to settings</Link>
       </header>
 
       {error ? <div className="notice" style={{ marginBottom: 16 }}><strong>Source action needs attention.</strong><div className="muted">{error}</div></div> : null}
@@ -236,6 +235,7 @@ export default async function ConnectionsPage({ searchParams }: PageProps) {
         <div className="section-heading"><div><h2>Free and paid connector roadmap</h2><p className="muted">Coverage is classified by what the provider actually permits, not by what a dashboard mockup implies.</p></div></div>
         {SOURCE_COVERAGE.filter((source) => !platforms.some((platform) => platform.slug === source.slug) && !["soundcharts", "kit", "lastfm", "listenbrainz", "musicbrainz", "ticketmaster"].includes(source.slug)).map((source) => <div className="row" key={source.slug}><div><strong>{source.label}</strong><p className="muted">{source.summary}{source.limitation ? ` ${source.limitation}` : ""}</p></div><div className="tag-row"><span className="pill">{statusLabel(source.connection)}</span><span className={`pill ${source.status !== "available" ? "blocked" : ""}`}>{statusLabel(source.status)}</span></div></div>)}
       </section>
-    </main>
+      </main>
+    </>
   );
 }

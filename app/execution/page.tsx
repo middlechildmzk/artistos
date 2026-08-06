@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { approveAgentRun, createAgentRun, materializeAgentRun, reviewArtifact } from "./actions";
 
@@ -29,10 +30,12 @@ export default async function ExecutionPage() {
   const steps = stepsResult.data ?? [];
   const artifacts = artifactsResult.data ?? [];
 
-  return <main className="shell">
-    <header className="topbar">
-      <div className="brand"><div className="logo">A</div><div><div className="eyebrow">{workspaceResult.data?.name ?? "ArtistOS"}</div><strong>Agent Control Plane</strong></div></div>
-      <div className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/operating-center">AI Manager</Link><Link className="button ghost" href="/automations">Automations</Link></div>
+  return <>
+    <AppHeader workspaceName={workspaceResult.data?.name} />
+    <main className="shell">
+    <header className="app-page-heading">
+      <div><div className="eyebrow">Workspace settings</div><h1>Automation activity</h1><p>Review prepared actions, completed work and anything that still needs your approval.</p></div>
+      <Link className="button ghost" href="/settings">Back to settings</Link>
     </header>
 
     <section className="card release-card stack" style={{ marginBottom: 16 }}>
@@ -80,5 +83,6 @@ export default async function ExecutionPage() {
         </div>
       </aside>
     </section>
-  </main>;
+    </main>
+  </>;
 }

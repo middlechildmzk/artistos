@@ -19,17 +19,24 @@
   text-align: center;
 }
 
-.mark {
-  width: 54px;
-  height: 54px;
+.artwork {
+  width: min(340px, 80%);
+  aspect-ratio: 1;
   margin: 0 auto 28px;
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #7c63ff, #4da3ff);
-  box-shadow: 0 18px 48px rgba(92, 75, 232, .32);
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 22px;
+  background: linear-gradient(145deg, #6c55ef, #28416e 58%, #171924);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .42);
   font-weight: 900;
-  font-size: 1.15rem;
+  font-size: 3rem;
+}
+
+.artwork img {
+  object-fit: cover;
 }
 
 .eyebrow {
@@ -99,6 +106,26 @@
   font-size: .82rem;
 }
 
+.destinationIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 680;
+}
+
+.destinationIdentity i {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(124, 99, 255, .14);
+  color: #b0a6ff;
+  font-size: .68rem;
+  font-style: normal;
+  font-weight: 820;
+}
+
 .empty {
   padding: 20px;
   border: 1px dashed rgba(255, 255, 255, .15);
@@ -146,8 +173,7 @@
   font-weight: 500;
 }
 
-.form input[type="text"],
-.form input[type="email"] {
+.form input:not([type="checkbox"]) {
   width: 100%;
   min-height: 48px;
   padding: 12px 13px;
@@ -212,7 +238,9 @@
   letter-spacing: .09em;
 }
 
-.footer span + span::before {
+.footer a { color: #9184e8; }
+
+.footer span::before {
   content: "·";
   margin-right: 12px;
 }
@@ -221,5 +249,5 @@
   .shell { padding: 10px; place-items: start center; }
   .card { border-radius: 20px; padding: 28px 18px; }
   .footer { display: grid; gap: 5px; text-align: center; }
-  .footer span + span::before { content: none; }
+  .footer span::before { content: none; }
 }

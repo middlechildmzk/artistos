@@ -46,7 +46,7 @@ test("approval center performs approve-and-execute rather than status-only appro
   assert.match(actions, /decideApproval/);
   assert.match(actions, /executeApprovedCapability/);
   assert.ok(actions.indexOf("decideApproval") < actions.indexOf("executeApprovedCapability"));
-  assert.match(page, /Approve and execute/);
-  assert.match(page, /verifies its hash/);
-  assert.match(page, /marks the request consumed or failed/);
+  assert.match(page, /Approve and run/);
+  assert.match(page, /Review sensitive actions before ArtistOS carries them out/);
+  assert.match(page, /clear history of your decisions/);
 });

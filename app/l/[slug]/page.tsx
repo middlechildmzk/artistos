@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicLinkTracker } from "@/components/public-link-tracker";
 import { cleanPublicText, loadPublicLink } from "@/lib/public-links";
+import { musicServiceLabel } from "@/lib/smart-links/services";
 import { capturePublicLinkFan } from "./actions";
 import styles from "./public-link.module.css";
 
@@ -17,10 +20,14 @@ function releaseDateLabel(value: string | null) {
   }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function serviceLabel(service: string) {
-  return service
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+function validArtworkUrl(value: string | null) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }
 
 function trackedDestinationHref(args: {
@@ -43,9 +50,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const link = await loadPublicLink(slug);
   if (!link) return { title: "Release not found · ArtistOS" };
   const title = `${link.artistName} · ${link.releaseTitle}`;
+  const description = link.description ?? `Listen to ${link.releaseTitle} by ${link.artistName}.`;
+  const artworkUrl = validArtworkUrl(link.artworkUrl);
   return {
     title,
-    description: link.description ?? `Listen to ${link.releaseTitle} by ${link.artistName}.`,
+    description,
+    alternates: { canonical: "/l/" + link.slug },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: "/l/" + link.slug,
+      images: artworkUrl ? [{ url: artworkUrl, alt: title }] : [{ url: "/l/" + link.slug + "/opengraph-image", alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: artworkUrl ? [artworkUrl] : ["/l/" + link.slug + "/opengraph-image"],
+    },
     robots: { index: true, follow: true },
   };
 }
@@ -67,12 +90,25 @@ export default async function PublicLinkPage({
   const signup = cleanPublicText(query.signup, 20);
   const releaseDate = releaseDateLabel(link.releaseDate);
   const title = `${link.releaseTitle}${link.featuredArtist ? ` (feat. ${link.featuredArtist})` : ""}`;
+  const artworkUrl = validArtworkUrl(link.artworkUrl);
+  const recordingJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "MusicRecording",
+    name: link.releaseTitle,
+    byArtist: { "@type": "MusicGroup", name: link.artistName },
+    datePublished: link.releaseDate || undefined,
+    image: artworkUrl || undefined,
+    url: "/l/" + link.slug,
+  };
 
   return (
     <main className={styles.shell}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(recordingJsonLd) }} />
       <PublicLinkTracker slug={link.slug} />
       <section className={styles.card} aria-labelledby="release-title">
-        <div className={styles.mark} aria-hidden="true">A</div>
+        <div className={styles.artwork}>
+          {artworkUrl ? <Image alt={title + " cover artwork"} fill priority sizes="(max-width: 620px) 76vw, 340px" src={artworkUrl} /> : <span aria-hidden="true">{link.releaseTitle.slice(0, 1).toUpperCase()}</span>}
+        </div>
         <p className={styles.eyebrow}>{link.mode === "presave" ? "Upcoming release" : "Out now"}</p>
         <h1 id="release-title">{link.headline || title}</h1>
         <p className={styles.artist}>{link.artistName}</p>
@@ -93,8 +129,8 @@ export default async function PublicLinkPage({
               key={destination.id}
               rel="nofollow"
             >
-              <span>{serviceLabel(destination.service)}</span>
-              <strong>{link.mode === "presave" ? "Continue" : "Listen"}</strong>
+              <span className={styles.destinationIdentity}><i aria-hidden="true">{musicServiceLabel(destination.service).slice(0, 1)}</i>{musicServiceLabel(destination.service)}</span>
+              <strong>{link.mode === "presave" ? "Choose service" : "Listen"}</strong>
             </a>
           )) : <div className={styles.empty}>Streaming destinations are being added.</div>}
         </div>
@@ -138,8 +174,8 @@ export default async function PublicLinkPage({
         ) : null}
 
         <footer className={styles.footer}>
-          <span>Powered by ArtistOS</span>
-          <span>Privacy-minimized attribution</span>
+          <Link href="/free-music-smart-link">Powered by ArtistOS</Link>
+          <span>Artist-owned fan connection</span>
         </footer>
       </section>
     </main>

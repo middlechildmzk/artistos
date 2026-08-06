@@ -12,7 +12,7 @@ test("Integration Hub preserves truthful provider states", () => {
 });
 
 test("Integration Hub covers the artist operating system lanes", () => {
-  for (const lane of ["Connected intelligence and owned data", "Licensed and partner integrations", "Submission and pitching desk", "Creator Studio and publishing"]) assert.match(page, new RegExp(lane));
+  for (const lane of ["Connected insights and artist-owned data", "Licensed and partner integrations", "Submission services", "Creation and publishing"]) assert.match(page, new RegExp(lane));
   for (const provider of ["Soundcharts", "Spotontrack", "Chartmetric", "Viberate", "Songstats", "LANDR", "SubmitHub", "Groover", "One Submit", "PlaylistPitch", "Spotify editorial pitch"]) assert.match(page, new RegExp(provider));
 });
 
@@ -20,5 +20,5 @@ test("Integration Hub keeps consequential execution human controlled", () => {
   assert.match(page, /Final portal submission stays human-controlled/);
   assert.match(page, /Publishing always requires human approval/);
   assert.match(page, /must not claim these channels connected beforehand/);
-  assert.match(page, /One graph, no duplicate products/);
+  assert.match(page, /Keep every service tied to the release/);
 });

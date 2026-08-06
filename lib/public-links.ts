@@ -24,6 +24,7 @@ export type PublicLinkRecord = {
   featuredArtist: string | null;
   releaseDate: string | null;
   releaseStatus: string;
+  artworkUrl: string | null;
   destinations: PublicLinkDestination[];
 };
 
@@ -47,7 +48,7 @@ export async function loadPublicLink(slug: string): Promise<PublicLinkRecord | n
   if (smartLinkError) throw smartLinkError;
   if (!smartLink || (smartLink.mode !== "presave" && smartLink.mode !== "live")) return null;
 
-  const [{ data: release, error: releaseError }, { data: destinations, error: destinationError }] = await Promise.all([
+  const [{ data: release, error: releaseError }, { data: destinations, error: destinationError }, { data: artwork, error: artworkError }] = await Promise.all([
     supabase
       .from("releases")
       .select("id,artist_id,title,featured_artist,release_date,status")
@@ -61,10 +62,20 @@ export async function loadPublicLink(slug: string): Promise<PublicLinkRecord | n
       .eq("smart_link_id", smartLink.id)
       .eq("is_active", true)
       .order("position", { ascending: true }),
+    supabase
+      .from("assets")
+      .select("url,asset_type,created_at")
+      .eq("workspace_id", smartLink.workspace_id)
+      .eq("release_id", smartLink.release_id)
+      .in("asset_type", ["cover_art", "artwork", "cover"])
+      .not("url", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1),
   ]);
 
   if (releaseError) throw releaseError;
   if (destinationError) throw destinationError;
+  if (artworkError) throw artworkError;
   if (!release) return null;
 
   const { data: artist, error: artistError } = await supabase
@@ -91,6 +102,7 @@ export async function loadPublicLink(slug: string): Promise<PublicLinkRecord | n
     featuredArtist: release.featured_artist,
     releaseDate: release.release_date,
     releaseStatus: release.status,
+    artworkUrl: artwork?.[0]?.url ?? null,
     destinations: (destinations ?? []).map((destination) => ({
       id: destination.id,
       service: destination.service,

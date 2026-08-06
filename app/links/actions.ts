@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { invokeCapability } from "@/lib/capabilities/invoke";
 import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
+import { parseMusicDestinationUrls } from "@/lib/smart-links/services";
 
 function normalizeSlug(value: string) {
   return value
@@ -66,4 +67,25 @@ export async function saveSmartLinkDestination(formData: FormData) {
   });
 
   revalidatePath("/links");
+  revalidatePath("/releases");
+}
+
+export async function saveSmartLinkDestinations(formData: FormData) {
+  const smartLinkId = String(formData.get("smartLinkId") ?? "");
+  const destinations = parseMusicDestinationUrls(String(formData.get("urls") ?? ""));
+  if (!smartLinkId || !destinations.length) return;
+
+  const onePerService = Array.from(new Map(destinations.map((destination) => [destination.service, destination])).values());
+  await Promise.all(onePerService.map((destination, index) => invoke("links.save_destination", {
+    smartLinkId,
+    service: destination.service,
+    url: destination.url,
+    position: index,
+    isActive: true,
+    idempotencyKey: "links-destination-bulk:" + smartLinkId + ":" + destination.service + ":" + randomUUID(),
+  })));
+
+  revalidatePath("/links");
+  revalidatePath("/releases");
+  revalidatePath("/dashboard");
 }
