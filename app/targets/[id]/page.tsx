@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   deriveContactRouteState,
@@ -97,14 +98,16 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
   const submissionNonce = randomUUID();
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader active="network" />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Target intelligence workspace</div>
+          <div className="eyebrow">Network relationship</div>
           <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>{organization.display_name || organization.canonical_name}</h1>
           <p className="muted">{display(organization.org_type, "Industry target")}{organization.location ? ` · ${organization.location}` : ""}</p>
         </div>
-        <nav className="nav-links"><Link className="button ghost" href="/targets">All targets</Link><Link className="button ghost" href="/campaigns">Campaigns</Link><Link className="button ghost" href="/dashboard">Today</Link></nav>
+        <Link className="button ghost" href="/targets">Back to saved network</Link>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -226,6 +229,7 @@ export default async function TargetDetailPage({ params }: { params: Promise<{ i
           <section className="card"><div className="section-heading"><h2>Risk evidence</h2><span className={`pill ${risks.length ? "blocked" : ""}`}>{risks.length}</span></div>{risks.length ? risks.map((risk) => <div className="row" key={risk.id}><div><strong>{display(risk.risk_classification, risk.event_type || "Risk signal")}</strong><p className="muted">{display(risk.evidence, risk.measured_outcome || "Evidence recorded")}</p></div>{risk.url ? <a className="button ghost" href={risk.url} target="_blank" rel="noreferrer">Source</a> : null}</div>) : <div className="empty">No risk events recorded.</div>}</section>
         </aside>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

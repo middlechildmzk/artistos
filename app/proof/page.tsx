@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function formatDate(value: string | null | undefined) {
@@ -78,19 +79,16 @@ export default async function ProofPage() {
   const completedSubmissions = submissions.filter((item) => ["accepted", "promotion_committed", "completed"].includes(item.status ?? ""));
 
   return (
-    <main className="shell">
-      <header className="topbar">
+    <>
+      <AppHeader active="campaigns" />
+      <main className="shell">
+      <header className="app-page-heading">
         <div>
-          <div className="eyebrow">Trust and verification layer</div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>ArtistOS Proof</h1>
-          <p className="muted">A source-visible ledger connecting submissions, deliverables, outcomes, and verified evidence back to each release and campaign.</p>
+          <div className="eyebrow">Campaign results</div>
+          <h1>Proof & outcomes</h1>
+          <p>Keep placements, coverage, deliverables and evidence connected to the campaign and release that produced them.</p>
         </div>
-        <nav className="nav-links">
-          <Link className="button ghost" href="/dashboard">Today</Link>
-          <Link className="button ghost" href="/campaigns">Campaign Intelligence</Link>
-          <Link className="button ghost" href="/targets">Network</Link>
-          <Link className="button ghost" href="/analytics">Music Intelligence</Link>
-        </nav>
+        <nav className="section-tabs" aria-label="Campaign views"><Link href="/campaigns">Pipeline</Link><Link className="active" href="/proof">Proof & outcomes</Link></nav>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -148,6 +146,7 @@ export default async function ProofPage() {
           </section>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

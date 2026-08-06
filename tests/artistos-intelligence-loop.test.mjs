@@ -5,11 +5,13 @@ import test from "node:test";
 const read = (path) => fs.readFileSync(path, "utf8");
 
 test("ArtistOS exposes the connected intelligence surfaces", () => {
-  const dashboard = read("app/dashboard/page.tsx");
-  assert.match(dashboard, /href="\/campaigns"/);
-  assert.match(dashboard, /href="\/targets"/);
-  assert.match(dashboard, /href="\/proof"/);
-  assert.match(dashboard, /href="\/analytics"/);
+  const header = read("components/app-header.tsx");
+  const releases = read("app/releases/page.tsx");
+  const campaigns = read("app/campaigns/page.tsx");
+  for (const destination of ["Today", "Network", "Releases", "Campaigns", "Insights"]) assert.match(header, new RegExp("label: \"" + destination + "\""));
+  assert.match(releases, /href="\/links"/);
+  assert.match(releases, /href="\/studio"/);
+  assert.match(campaigns, /href="\/proof"/);
 });
 
 test("campaign outcomes preserve release, campaign, target, and verification lineage", () => {

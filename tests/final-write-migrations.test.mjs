@@ -29,10 +29,10 @@ test("CRM detail actions no longer directly mutate interactions, targets, or org
   for (const table of ["interactions", "campaign_targets", "organizations"]) assert.doesNotMatch(targetActions, new RegExp(`from\\(\"${table}\"\\)`));
 });
 
-test("Approval Center exposes source-level evidence provenance", () => {
-  assert.match(approvals, /Evidence provenance/);
+test("Approval Center preserves source-level evidence without internal UI clutter", () => {
+  assert.match(approvals, /Supporting sources/);
   assert.match(approvals, /evidence_records/);
   assert.match(approvals, /Open source/);
-  assert.match(approvals, /Corrects prior evidence/);
-  assert.match(approvals, /Evidence IDs/);
+  assert.match(approvals, /replaces_evidence_id/);
+  assert.match(approvals, /evidence_ids/);
 });

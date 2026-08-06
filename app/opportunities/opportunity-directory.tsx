@@ -202,7 +202,7 @@ function normalizeCountry(value: string | null) {
 }
 
 function score(value: number | null) {
-  return value == null ? "—" : Math.round(value).toString();
+  return value == null ? "Not available" : Math.round(value).toString();
 }
 
 function effectiveFit(item: DirectoryItem) {
@@ -278,8 +278,8 @@ function ResultCard({ item, onOpen }: { item: DirectoryItem; onOpen: () => void 
       </button>
 
       <div className="opportunity-metrics">
-        <div><strong>{item.popularityLabel ?? "—"}</strong><span>Audience</span></div>
-        <div><strong>{fit == null ? "—" : `${Math.round(fit)}%`}</strong><span>Match</span></div>
+        <div><strong>{item.popularityLabel ?? "Not available"}</strong><span>Audience</span></div>
+        <div><strong>{fit == null ? "Not assessed" : `${Math.round(fit)}%`}</strong><span>Match</span></div>
         <div><strong>{feeLabel(item)}</strong><span>Cost</span></div>
       </div>
 
@@ -314,8 +314,8 @@ function DetailDrawer({ item, campaigns, onClose }: { item: DirectoryItem; campa
 
         <div className="drawer-body">
           <section className="drawer-score-grid">
-            <div><strong>{item.popularityLabel ?? "—"}</strong><span>Audience</span></div>
-            <div><strong>{fit == null ? "—" : `${Math.round(fit)}%`}</strong><span>Match</span></div>
+            <div><strong>{item.popularityLabel ?? "Not available"}</strong><span>Audience</span></div>
+            <div><strong>{fit == null ? "Not assessed" : `${Math.round(fit)}%`}</strong><span>Match</span></div>
             <div><strong>{feeLabel(item)}</strong><span>Cost</span></div>
             <div><strong>{item.activityLabel ?? cleanLabel(item.freshness)}</strong><span>Last checked</span></div>
           </section>

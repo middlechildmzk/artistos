@@ -46,7 +46,7 @@
 .directory-quick-stats strong { font-size: .82rem; }
 .directory-quick-stats span { color: var(--muted); font-size: .62rem; }
 
-.category-tabs { position: sticky; top: 0; z-index: 8; display: flex; overflow-x: auto; border-bottom: 1px solid var(--line); background: rgba(10,11,18,.96); backdrop-filter: blur(16px); scrollbar-width: none; }
+.category-tabs { position: sticky; top: 96px; z-index: 8; display: flex; overflow-x: auto; border-bottom: 1px solid var(--line); background: rgba(10,11,18,.96); backdrop-filter: blur(16px); scrollbar-width: none; }
 .category-tabs::-webkit-scrollbar { display: none; }
 .category-tabs button { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; min-height: 46px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: .76rem; }
 .category-tabs button span { min-width: 20px; padding: 2px 5px; border-radius: 999px; background: rgba(155,163,189,.1); font-size: .62rem; text-align: center; }
@@ -54,7 +54,7 @@
 .category-tabs button.active { color: #fff; border-bottom-color: var(--accent-2); background: rgba(77,163,255,.06); }
 
 .directory-layout { display: grid; grid-template-columns: 248px minmax(0,1fr); align-items: start; min-height: 560px; }
-.directory-sidebar { position: sticky; top: 47px; align-self: start; max-height: calc(100vh - 60px); overflow-y: auto; padding: 15px; border-right: 1px solid var(--line); background: rgba(8,9,14,.5); scrollbar-width: thin; }
+.directory-sidebar { position: sticky; top: 143px; align-self: start; max-height: calc(100vh - 155px); overflow-y: auto; padding: 15px; border-right: 1px solid var(--line); background: rgba(8,9,14,.5); scrollbar-width: thin; }
 .sidebar-heading { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 15px; }
 .sidebar-heading > div { display: grid; gap: 2px; }
 .sidebar-heading strong { font-size: .86rem; }
@@ -66,7 +66,7 @@
 .mobile-filter-done, .mobile-filter-button, .filter-backdrop { display: none; }
 
 .directory-results { min-width: 0; }
-.directory-toolbar { position: sticky; top: 47px; z-index: 7; display: grid; grid-template-columns: minmax(240px,1fr) auto; gap: 9px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: rgba(14,16,25,.96); backdrop-filter: blur(16px); }
+.directory-toolbar { position: sticky; top: 143px; z-index: 7; display: grid; grid-template-columns: minmax(240px,1fr) auto; gap: 9px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: rgba(14,16,25,.96); backdrop-filter: blur(16px); }
 .directory-search input { width: 100%; }
 .directory-sort { display: flex; align-items: center; gap: 7px; }
 .directory-sort > span { color: var(--muted); font-size: .67rem; }
@@ -198,7 +198,8 @@
   .browse-heading { margin-top: 12px; }
   .directory-overview { padding: 12px; }
   .category-tabs button { min-height: 43px; padding-inline: 11px; }
-  .directory-toolbar { top: 44px; grid-template-columns: 1fr auto; }
+  .category-tabs { top: 68px; }
+  .directory-toolbar { top: 111px; grid-template-columns: 1fr auto; }
   .directory-sort { grid-column: 1 / -1; }
   .directory-sort select { flex: 1; }
   .opportunity-card { padding: 12px; }

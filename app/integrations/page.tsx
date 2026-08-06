@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isCurrentTokenEnvelope } from "@/lib/integrations/token-crypto";
 
@@ -161,7 +162,7 @@ export default async function IntegrationsPage() {
     { name: "Chartmetric", status: "partner", detail: "Optional licensed adapter for catalog, playlist, radio, social, and market data when Soundcharts and Spotontrack leave a documented gap.", href: "/analytics", action: "Review intelligence gaps" },
     { name: "Viberate", status: "partner", detail: "Optional licensed adapter. Add only when its data materially improves a decision that current sources cannot support.", href: "/analytics", action: "Review intelligence coverage" },
     { name: "Songstats", status: "partner", detail: "Developer access is not configured. Treat as a future partner feed, not as connected analytics.", href: "/analytics", action: "Review source roadmap" },
-    { name: "LANDR", status: "partner", detail: "Mastering API access requires a commercial partnership. Creator Studio can prepare approved masters and hand off while partnership access is pursued.", href: "/studio", action: "Open Creator Studio" },
+    { name: "LANDR", status: "partner", detail: "Mastering API access requires a commercial partnership. Release tools can prepare approved masters and hand off while partnership access is pursued.", href: "/studio", action: "Open release tools" },
   ];
 
   const submissions: IntegrationCard[] = [
@@ -173,16 +174,18 @@ export default async function IntegrationsPage() {
   ];
 
   const creation: IntegrationCard[] = [
-    { name: "Creator Studio", status: "configured", detail: "Release-grounded positioning, pitches, content concepts, originality review, asset approval, and reusable creative memory.", href: "/studio", action: "Create release content" },
+    { name: "Release creator tools", status: "configured", detail: "Release-grounded positioning, pitches, content concepts, originality review, asset approval, and reusable creative context.", href: "/studio", action: "Create release content" },
     { name: "Content scheduler", status: "configured", detail: "Plan approved content against releases and campaigns. Publishing remains gated until each platform app is authorized and provider-verified.", href: "/automations", action: "Open scheduling" },
     { name: "YouTube publishing", status: youtubeVerified ? "authorized" : "blocked", detail: "Upload execution can be enabled only after the owned channel and developer project are verified. Publishing always requires human approval.", href: "/connections", action: "Review YouTube state" },
     { name: "TikTok + Meta publishing", status: "partner", detail: "Developer applications, permissions, account authorization, review, and real posting verification are still required. ArtistOS must not claim these channels connected beforehand.", href: "/studio", action: "Prepare approved content" },
   ];
 
-  return <main className="shell">
-    <header className="topbar">
-      <div><div className="eyebrow">One artist operating system</div><h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Integration Hub</h1><p className="muted">Intelligence, audience, mastering, submissions, content, publishing, evidence, and learning connected to the same artist and release graph.</p></div>
-      <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button primary" href="/connections">Sources</Link><Link className="button ghost" href="/proof">Proof</Link></nav>
+  return <>
+    <AppHeader />
+    <main className="shell">
+    <header className="app-page-heading">
+      <div><div className="eyebrow">Workspace settings</div><h1>Integrations</h1><p>Manage the services that support your release, pitching, content and measurement workflows.</p></div>
+      <Link className="button ghost" href="/settings">Back to settings</Link>
     </header>
 
     <section className="grid stats" style={{ marginBottom: 16 }}>
@@ -192,15 +195,16 @@ export default async function IntegrationsPage() {
       <div className="card"><div className="eyebrow">ISRC-ready releases</div><div className="stat-value">{releasesWithIsrc}</div></div>
     </section>
 
-    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Lane 01</div><h2>Connected intelligence and owned data</h2><p className="muted">Use legitimate APIs where available and source-visible exports where private artist analytics are not exposed.</p></div></div><Cards items={intelligence} /></section>
-    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Lane 02</div><h2>Licensed and partner integrations</h2><p className="muted">These are optional adapters, not prerequisites. Add them only when they close a proven evidence gap.</p></div></div><Cards items={licensed} /></section>
-    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Lane 03</div><h2>Submission and pitching desk</h2><p className="muted">ArtistOS owns preparation, approval, tracking, evidence, outcomes, and learning. External portals retain the final human action when no supported API exists.</p></div></div><Cards items={submissions} /></section>
-    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Lane 04</div><h2>Creator Studio and publishing</h2><p className="muted">Create once from release truth, approve deliberately, schedule calmly, publish only through authorized provider paths, and measure every outcome.</p></div></div><Cards items={creation} /></section>
+    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Performance</div><h2>Connected insights and artist-owned data</h2><p className="muted">Bring trusted performance signals into ArtistOS while keeping their source visible.</p></div></div><Cards items={intelligence} /></section>
+    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Specialist services</div><h2>Licensed and partner integrations</h2><p className="muted">Add specialist services when they support a specific release or measurement goal.</p></div></div><Cards items={licensed} /></section>
+    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Pitching</div><h2>Submission services</h2><p className="muted">Prepare and track each submission in ArtistOS, then complete any required final step on the connected service.</p></div></div><Cards items={submissions} /></section>
+    <section style={{ marginBottom: 24 }}><div className="section-heading"><div><div className="eyebrow">Content</div><h2>Creation and publishing</h2><p className="muted">Create from your release workspace, approve deliberately and publish through authorized services.</p></div></div><Cards items={creation} /></section>
 
     <section className="card stack">
-      <div className="section-heading"><div><div className="eyebrow">Operating rule</div><h2>One graph, no duplicate products</h2></div><span className="pill">ArtistOS</span></div>
-      <p className="muted">Artist → Release → Link → Campaign → Target → Submission → Deliverable → Proof → Outcome → Fan or Relationship → Intelligence → Artist Brain → Next Release.</p>
-      <div className="tag-row"><Link className="button primary" href="/command-center">Open Command Center</Link><Link className="button" href="/campaigns">Campaign Intelligence</Link><Link className="button" href="/studio">Creator Studio</Link><Link className="button" href="/analytics">Music Intelligence</Link></div>
+      <div className="section-heading"><div><div className="eyebrow">Connected by design</div><h2>Keep every service tied to the release</h2></div><span className="pill">ArtistOS</span></div>
+      <p className="muted">Connections should make Today, Network, Releases, Campaigns and Insights more useful without creating another workflow to manage.</p>
+      <div className="tag-row"><Link className="button primary" href="/dashboard">Open Today</Link><Link className="button" href="/campaigns">Campaigns</Link><Link className="button" href="/releases">Releases</Link><Link className="button" href="/analytics">Insights</Link></div>
     </section>
-  </main>;
+    </main>
+  </>;
 }

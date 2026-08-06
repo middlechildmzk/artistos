@@ -35,10 +35,12 @@ test("link handlers constrain release and destination writes to the active works
   assert.match(handlers, /capability_idempotency/);
 });
 
-test("the Links workspace preserves the connected product graph", () => {
-  assert.match(page, /Release → Link → Campaign → Proof → Fan → Intelligence/);
-  assert.match(page, /One link per release/);
-  assert.match(page, /Human-controlled activation/);
+test("the Links workspace is release-centered and artist-facing", () => {
+  assert.match(page, /One music link that makes every campaign easier to measure/);
+  assert.match(page, /Unlimited destinations/);
+  assert.match(page, /Campaign tracking/);
+  assert.match(page, /Fan signup/);
+  assert.match(page, /Paste all streaming links/);
   assert.match(page, /Consent/);
 });
 

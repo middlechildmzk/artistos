@@ -55,7 +55,7 @@ export async function searchOpportunityDirectory(formData: FormData) {
     maxResultsPerLane,
     idempotencyKey: semanticIdempotencyKey("opportunity-execute", [created.searchId, maxResultsPerLane, submissionNonce]),
   }));
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function createOpportunitySearch(formData: FormData) {
@@ -81,7 +81,7 @@ export async function createOpportunitySearch(formData: FormData) {
     idempotencyKey: semanticIdempotencyKey("opportunity-search", [title, query, objective, fitContext, releaseId, effectiveLanes, effectiveSources, submissionNonce]),
   });
   assertCompleted(result);
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function executeOpportunitySearch(formData: FormData) {
@@ -95,7 +95,7 @@ export async function executeOpportunitySearch(formData: FormData) {
     idempotencyKey: semanticIdempotencyKey("opportunity-execute", [searchId, maxResultsPerLane, submissionNonce]),
   });
   assertCompleted(result);
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function reviewOpportunity(formData: FormData) {
@@ -116,7 +116,7 @@ export async function reviewOpportunity(formData: FormData) {
     idempotencyKey: semanticIdempotencyKey("opportunity-review", [opportunityId, disposition, matchValue, note, submissionNonce]),
   });
   assertCompleted(result);
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function requestOpportunityPromotion(formData: FormData) {
@@ -130,7 +130,7 @@ export async function requestOpportunityPromotion(formData: FormData) {
     idempotencyKey: semanticIdempotencyKey("opportunity-promote", [opportunityId, campaignId, submissionNonce]),
   });
   const output = assertCompleted(result) as { approvalId?: string };
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
   revalidatePath("/approvals");
   if (output.approvalId) redirect("/approvals");
 }

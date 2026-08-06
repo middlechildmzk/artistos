@@ -4,23 +4,22 @@ import test from "node:test";
 
 const dashboard = readFileSync("app/dashboard/page.tsx", "utf8");
 
-test("private dashboard unifies releases, metrics, sources, audience, network, and proof", () => {
-  assert.match(dashboard, /Private artist workspace/);
-  assert.match(dashboard, /Source health/);
-  assert.match(dashboard, /Imported fan records/);
-  assert.match(dashboard, /metric_snapshots/);
-  assert.match(dashboard, /oauth_connections/);
-  assert.match(dashboard, /artist_platform_profiles/);
-  assert.match(dashboard, /href="\/releases"/);
-  assert.match(dashboard, /href="\/connections"/);
-  assert.match(dashboard, /href="\/analytics"/);
-  assert.match(dashboard, /href="\/campaigns"/);
-  assert.match(dashboard, /href="\/links"/);
-  assert.match(dashboard, /href="\/proof"/);
-  assert.match(dashboard, /href="\/brain"/);
+test("Today is focused on the current release and highest-value actions", () => {
+  assert.match(dashboard, /<h1>Today<\/h1>/);
+  assert.match(dashboard, /Current release/);
+  assert.match(dashboard, /Best next move/);
+  assert.match(dashboard, /Priority actions/);
+  assert.match(dashboard, /Strong opportunities to review/);
+  assert.match(dashboard, /Follow-ups due/);
+  assert.match(dashboard, /Campaign pulse/);
+  assert.match(dashboard, /One useful signal/);
 });
 
-test("dashboard does not overstate imported fans as contactable", () => {
-  assert.doesNotMatch(dashboard, /<div className="eyebrow">Contactable fans<\/div>/);
-  assert.match(dashboard, /suppression and consent must still be checked before sending/);
+test("Today does not expose workspace diagnostics as artist priorities", () => {
+  assert.doesNotMatch(dashboard, /Source health/);
+  assert.doesNotMatch(dashboard, /Workspace data/);
+  assert.doesNotMatch(dashboard, /Workspace health/);
+  assert.doesNotMatch(dashboard, /oauth_connections/);
+  assert.doesNotMatch(dashboard, /artist_platform_profiles/);
+  assert.doesNotMatch(dashboard, /Imported fan records/);
 });

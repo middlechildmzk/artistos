@@ -12,7 +12,7 @@ const handlers = read("lib/capabilities/brain-handlers.ts");
 const runtime = read("lib/capabilities/server-runtime.ts");
 const actions = read("app/brain/actions.ts");
 const page = read("app/brain/page.tsx");
-const dashboard = read("app/dashboard/page.tsx");
+const appHeader = read("components/app-header.tsx");
 
 test("Artist Brain schema separates memory, claims, evidence, and observations", () => {
   for (const table of ["brain_memories", "brain_claims", "brain_claim_evidence", "brain_learning_observations"]) assert.match(migration, new RegExp(`create table if not exists public\\.${table}`));
@@ -35,13 +35,14 @@ test("Brain writes are typed capabilities loaded by the runtime", () => {
 });
 
 test("Artist Brain UI preserves fact versus inference and review visibility", () => {
-  assert.match(page, /Semantic fact/);
-  assert.match(page, /Episodic event/);
-  assert.match(page, /Learned insight/);
-  assert.match(page, /Claim review/);
+  assert.match(page, /value="semantic">Artist fact/);
+  assert.match(page, /value="episodic">Career event/);
+  assert.match(page, /value="learned">Campaign insight/);
+  assert.match(page, /Suggested facts/);
   assert.match(page, /contradiction_state/);
-  assert.match(page, /Learning observations/);
-  assert.match(page, /Nothing becomes trusted memory without visible provenance and review state/);
+  assert.match(page, /Measured patterns/);
+  assert.match(page, /What ArtistOS remembers/);
+  assert.match(page, /make better recommendations/);
 });
 
 test("Brain actions cannot bypass the capability runtime", () => {
@@ -52,7 +53,9 @@ test("Brain actions cannot bypass the capability runtime", () => {
   assert.doesNotMatch(actions, /from\("brain_claims"\).*update/s);
 });
 
-test("Artist Brain is visible in primary navigation", () => {
-  assert.match(dashboard, /href="\/brain"/);
-  assert.match(dashboard, /Artist Brain/);
+test("Artist Brain is presented as learning inside Insights", () => {
+  assert.match(appHeader, /label: "Insights"/);
+  assert.doesNotMatch(appHeader, /label: "Artist Brain"/);
+  assert.match(page, /href="\/brain"/);
+  assert.match(page, />Learning</);
 });

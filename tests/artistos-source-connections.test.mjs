@@ -4,16 +4,17 @@ import test from "node:test";
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Sources is a primary ArtistOS surface", () => {
-  const dashboard = read("app/dashboard/page.tsx");
+test("Connections remains in workspace settings without crowding primary navigation", () => {
+  const header = read("components/app-header.tsx");
   const sources = read("app/connections/page.tsx");
   const analytics = read("app/analytics/page.tsx");
-  assert.match(dashboard, /href="\/connections"/);
+  assert.match(header, /label: "Connections", href: "\/connections"/);
+  assert.doesNotMatch(header, /key: "connections"/);
   assert.match(sources, /Google \+ YouTube/);
   assert.match(sources, /Import artist-dashboard exports/);
   assert.match(sources, /Soundcharts/);
   assert.match(sources, /Kit/);
-  assert.match(analytics, /Source health/);
+  assert.match(analytics, /Connected data/);
   assert.match(analytics, /Owned audience and link conversion/);
   assert.match(analytics, /Campaign and placement impact/);
 });
