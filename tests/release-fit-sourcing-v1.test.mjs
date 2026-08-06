@@ -291,22 +291,22 @@ test("release metadata columns are nullable so unknown stays unknown", () => {
   assert.match(migration, /Null means not recorded/);
 });
 
-test("the release context persists and the shortlist cannot act", () => {
+test("the release context stays compact and the shortlist cannot act", () => {
   assert.match(panel, /rfs-context/, "release context bar must exist");
-  assert.match(panel, /position: sticky|rfs-context/);
-  assert.match(styles, /\.rfs-context\s*\{[^}]*position:\s*sticky/);
-  assert.match(panel, /Recommended for \{release\.title\}/);
-  assert.match(panel, /Browse &amp; filter/);
+  assert.match(styles, /\.rfs-context\s*\{[^}]*position:\s*relative/);
+  assert.match(panel, /Best matches for \{release\.title\}/);
+  assert.match(panel, /All opportunities/);
+  assert.match(panel, /Improve release matching/);
   // The shortlist proposes; it does not act.
   assert.doesNotMatch(panel, /Submit to|Send pitch|Buy credits|Pay|Purchase/i);
-  assert.match(panel, /records intent only/i);
-  assert.match(panel, /Public contact information is evidence, not permission/);
+  assert.match(panel, /does not submit or charge anything/i);
+  assert.match(panel, /Confirm the current route and terms before submitting/);
 });
 
 test("recommendations always show coverage and never a bare score", () => {
   assert.match(panel, /coverageLabel/);
-  assert.match(panel, /dimensions evidenced/);
-  assert.match(panel, /Fit unknown/);
+  assert.match(panel, /match signal/);
+  assert.match(panel, /Match unknown/);
 });
 
 test("mobile layout is single column with no horizontal scrolling", () => {
@@ -323,7 +323,7 @@ test("the pending migration is probed before enriched release tables are queried
   assert.match(page, /releaseFitProbe/);
   assert.match(page, /releaseFitReady/);
   assert.match(page, /baseReleasesResult/);
-  assert.match(page, /pending migration is not applied/);
+  assert.match(page, /Release matching is temporarily unavailable/);
 });
 
 test("release choice persists through an explicit releaseId query parameter", () => {
@@ -343,14 +343,14 @@ test("recommended and advanced modes share one result surface instead of renderi
 
 test("the left-filter directory is primary and release intelligence enriches it", () => {
   assert.match(panel, /useState<Mode>\("advanced"\)/, "browse and filter must be the default mode");
-  assert.ok(panel.indexOf("Browse &amp; filter") < panel.indexOf("Recommended for {release.title}"), "browse belongs before recommendations");
+  assert.ok(panel.indexOf("All opportunities") < panel.indexOf("Best matches for {release.title}"), "browse belongs before recommendations");
   assert.match(panel, /directoryItemsWithFit/);
   assert.match(panel, /releaseFit:\s*\{/);
   assert.match(panel, /<OpportunityDirectory items=\{directoryItemsWithFit\}/);
-  assert.match(directory, /Release fit/);
-  assert.match(directory, /Explainable matches/);
+  assert.match(directory, /Release match/);
+  assert.match(directory, /Recommended for this release/);
   assert.match(directory, /Fit for \{item\.releaseFit\.releaseTitle\}/);
-  assert.match(directory, /release-fit-filter/);
+  assert.match(directory, /setReleaseFit/);
 });
 
 test("form-render nonces collapse double clicks but permit later intentional updates", () => {

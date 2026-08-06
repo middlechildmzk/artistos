@@ -1,21 +1,16 @@
-/* Release Fit Sourcing.
-   Mobile-first. Single column to 780px, no horizontal scrolling at 390px. */
+/* Release-aware opportunity browsing. */
 
 .rfs-root {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
 }
 
-/* Persistent release context. Sticks to the top so it survives scrolling
-   through search, filters, review, and the shortlist. */
 .rfs-context {
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -49,15 +44,6 @@
 
 .rfs-hint { opacity: 0.6; }
 
-.rfs-missing {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  background: var(--surface-warning, #241d10);
-  border: 1px solid var(--border-warning, #4a3a18);
-}
-
 .rfs-modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -67,7 +53,7 @@
 .rfs-mode,
 .rfs-chip,
 .rfs-btn {
-  min-height: 40px;
+  min-height: 38px;
   padding: 8px 12px;
   border-radius: 8px;
   border: 1px solid var(--border, #2a2a35);
@@ -81,21 +67,6 @@
 .rfs-chip-on { border-color: var(--accent, #7c6cf5); }
 
 .rfs-btn-primary { border-color: var(--accent, #7c6cf5); }
-
-.rfs-directory-intelligence {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid rgba(124, 108, 245, .28);
-  border-radius: 10px;
-  background: rgba(124, 108, 245, .065);
-}
-.rfs-directory-intelligence > div { display: grid; gap: 2px; }
-.rfs-directory-intelligence strong { font-size: .84rem; }
-.rfs-directory-intelligence span { color: var(--muted, #9aa0b5); font-size: .72rem; }
 
 .rfs-filters { border: 1px solid var(--border, #2a2a35); border-radius: 8px; padding: 8px 10px; }
 .rfs-filters summary { cursor: pointer; font-size: 0.85rem; min-height: 32px; }
@@ -235,15 +206,17 @@
 .rfs-profile-editor {
   border: 1px solid var(--border, #2a2a35);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 0;
+  overflow: hidden;
 }
-.rfs-profile-editor summary { cursor: pointer; font-weight: 650; min-height: 32px; }
+.rfs-profile-editor summary { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 40px; padding: 9px 12px; cursor: pointer; font-weight: 650; }
+.rfs-profile-editor summary small { color: var(--muted, #9aa0b5); font-size: .67rem; font-weight: 400; }
 .rfs-profile-grid,
 .rfs-similar-form {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  margin-top: 12px;
+  margin: 12px;
 }
 .rfs-profile-grid label,
 .rfs-similar-form label { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; }
@@ -260,10 +233,9 @@
   .rfs-recommendation-filters { display: grid; grid-template-columns: minmax(260px, 1fr) auto auto; align-items: end; }
 }
 @media (max-width: 520px) {
-  .rfs-context { top: 0; }
   .rfs-context-actions, .rfs-release-switcher { width: 100%; }
   .rfs-release-switcher label { flex: 1; min-width: 0; }
   .rfs-release-switcher select { width: 100%; max-width: none; }
   .rfs-context-actions > .rfs-chip { flex: 1 1 100%; }
-  .rfs-directory-intelligence > .rfs-btn { width: 100%; }
+  .rfs-profile-editor summary { align-items: flex-start; flex-direction: column; gap: 2px; }
 }

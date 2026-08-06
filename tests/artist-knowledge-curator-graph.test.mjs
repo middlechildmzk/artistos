@@ -33,9 +33,9 @@ test("quality scoring is multidimensional and explainable", () => {
     assert.match(migration, new RegExp(dimension));
   }
   assert.match(migration, /risk_flags/);
-  assert.match(page, /Follower count alone never determines quality/);
-  assert.match(page, /Identity and duplicate resolution/);
-  assert.match(page, /Feature-level fit scoring/);
+  assert.match(page, /legitimacyScore: item\.legitimacy_score/);
+  assert.match(page, /riskScore: item\.risk_score/);
+  assert.match(page, /corroborationCount:/);
 });
 
 test("all graph tables use workspace row level security", () => {
@@ -48,6 +48,6 @@ test("all graph tables use workspace row level security", () => {
 
 test("opportunity intelligence is visible in product navigation", () => {
   assert.match(dashboard, /href="\/opportunities"/);
-  assert.match(page, /SourcingOS for music/);
-  assert.match(page, /Opportunity Intelligence/);
+  assert.match(page, /Network Intelligence/);
+  assert.match(page, /<h1>Discover<\/h1>/);
 });

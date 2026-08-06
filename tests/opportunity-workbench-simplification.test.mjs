@@ -9,19 +9,23 @@ const css = fs.readFileSync("app/opportunities/opportunities.css", "utf8");
 
 test("discovery workbench uses one-click external search and a compact browse surface", () => {
   assert.match(page, /action=\{searchOpportunityDirectory\}/);
-  assert.match(page, /Search new sources/);
-  assert.match(page, /Browse everything collected/);
+  assert.match(page, /Research more opportunities/);
+  assert.match(page, /Browse opportunities/);
+  assert.match(page, /<details className="search-command-card">/);
   assert.doesNotMatch(page, /Source advantage/);
   assert.doesNotMatch(page, /Clustered discoveries/);
   assert.match(actions, /opportunity\.create_search/);
   assert.match(actions, /opportunity\.execute_search/);
 });
 
-test("directory offers category, genre, geography, language, source, status, activity and popularity filters", () => {
-  for (const term of ["All genres", "All countries", "All languages", "All sources", "Most popular", "Best fit", "Most active", "Popularity signal", "Online now"]) assert.match(directory, new RegExp(term));
+test("directory offers clean artist-facing filters and useful sort choices", () => {
+  for (const term of ["Genre or mood", "All countries", "All languages", "Submission route", "Release match", "Last checked", "Minimum audience", "Best match", "Submission-ready", "Largest audience", "Recently checked"]) assert.match(directory, new RegExp(term));
   assert.match(page, /clickcount/);
   assert.match(page, /votes/);
   assert.match(directory, /minimumPopularity/);
+  assert.match(directory, /opportunity-genres/);
+  assert.doesNotMatch(directory, />All sources</);
+  assert.doesNotMatch(directory, />Review status</);
 });
 
 test("large research intakes are fully paged, quality-ranked, and follower-aware", () => {
@@ -35,34 +39,50 @@ test("large research intakes are fully paged, quality-ranked, and follower-aware
 });
 
 test("the directory summarizes every active category without rendering the entire dataset at once", () => {
-  assert.match(directory, /Dataset at a glance/);
-  assert.match(directory, /Routes captured/);
-  assert.match(directory, /Other research/);
-  assert.match(directory, /resultPageSize = 120/);
+  assert.match(directory, /Opportunity directory/);
+  assert.match(directory, /Submission routes/);
+  assert.match(directory, /activeTypes/);
+  assert.match(directory, /resultPageSize = 60/);
   assert.match(directory, /filtered\.slice\(0, visibleCount\)/);
   assert.match(directory, /Show \{Math\.min/);
+  assert.doesNotMatch(directory, /Dataset at a glance/);
+  assert.doesNotMatch(directory, /Private research workspace/);
 });
 
-test("source-reported routes stay visibly distinct from permission or independent verification", () => {
-  assert.match(directory, /Source-reported intake data/);
-  assert.match(directory, /Verify before contact/);
+test("submission routes stay clear without exposing pipeline review language", () => {
+  assert.match(directory, /Free submission/);
+  assert.match(directory, /Paid submission/);
   assert.match(directory, /submissionRouteUrl/);
-  assert.match(directory, /No usable submission route has been captured yet/);
+  assert.match(directory, /A direct submission route has not been confirmed yet/);
+  assert.match(directory, /Submission details can change/);
+  assert.doesNotMatch(directory, />Needs verification</);
 });
 
 test("release-aware builds keep the persistent left filters as the primary browse surface", () => {
   assert.match(directory, /directory-sidebar/);
-  assert.match(directory, /Release fit/);
-  assert.match(directory, /Explainable matches/);
+  assert.match(directory, /Release match/);
+  assert.match(directory, /Recommended for this release/);
   assert.match(directory, /releaseFit === "shortlisted"/);
 });
 
-test("trust and review detail move into a dedicated slide-over drawer", () => {
+test("details and record management move into a dedicated slide-over drawer", () => {
   assert.match(directory, /opportunity-drawer/);
-  assert.match(directory, /Identity evidence/);
+  assert.match(directory, /Research details/);
+  assert.match(directory, /Manage record/);
+  assert.match(directory, /event\.key === "Escape"/);
   assert.match(directory, /reviewOpportunity/);
   assert.match(directory, /requestOpportunityPromotion/);
   assert.match(css, /opportunity-drawer-layer/);
   assert.match(css, /directory-sidebar/);
   assert.match(css, /filter-backdrop/);
+});
+
+test("messy intake values are normalized before they reach user controls or cards", () => {
+  assert.match(directory, /tagAliases/);
+  assert.match(directory, /internalLabelPattern/);
+  assert.match(directory, /normalizeLanguage/);
+  assert.match(directory, /\["en", "eng", "english", "english uk"/);
+  assert.match(directory, /return mapped\.length > 1 \? "Multilingual"/);
+  assert.match(directory, /browsableItems/);
+  assert.doesNotMatch(directory, /source-info-panel/);
 });

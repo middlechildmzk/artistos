@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { listSourceAdapters } from "@/lib/network-intelligence/source-runtime/registry";
 import OpportunityDirectory, { type DirectoryCampaign, type DirectoryItem, type DirectoryMatch } from "./opportunity-directory";
 import { executeOpportunitySearch, searchOpportunityDirectory } from "./actions";
 import ReleaseFitPanel, { type ReleaseFitItem, type ReleaseHeader } from "./release-fit-panel";
@@ -10,13 +9,6 @@ import { buildFeaturedArtistEvidence, buildReleaseContext, buildTargetContext, m
 import { describeAudienceSignal, scoreReleaseFit } from "@/lib/release-fit/scoring";
 import "./release-fit.css";
 import "./opportunities.css";
-
-// Product lineage: SourcingOS for music and Opportunity Intelligence.
-// Scoring invariant: Follower count alone never determines quality.
-// Identity and duplicate resolution remain reviewable; Cross-source matches strengthen identity only.
-// Unassessed legitimacy stays explicit even when the compact default view hides audit detail.
-// Feature-level fit scoring remains source-visible inside review detail.
-// Legacy evidence labels retained for regression coverage: Est. {plan?.estimatedRequestCount and sources corroborate identity.
 
 function objectValue(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -91,15 +83,29 @@ type MatchRow = {
 const laneOptions = [
   ["playlist", "Playlists"],
   ["youtube_channel", "YouTube"],
-  ["creator", "Influencers"],
-  ["publication", "Blogs & media"],
+  ["creator", "Creators"],
+  ["publication", "Press & blogs"],
   ["radio", "Radio"],
   ["podcast", "Podcasts"],
   ["label", "Labels"],
   ["sync", "Sync"],
   ["music_library", "Libraries"],
-  ["booking", "Live"],
+  ["booking", "Live & booking"],
 ] as const;
+
+const platformByType: Record<string, string> = {
+  playlist: "Playlist",
+  youtube_channel: "YouTube",
+  creator: "Social",
+  publication: "Website",
+  radio: "Radio",
+  podcast: "Podcast",
+  label: "Label",
+  sync: "Sync",
+  music_library: "Music library",
+  booking: "Live",
+  other: "Industry",
+};
 
 type ReleaseSourcingRow = {
   id: string;
@@ -269,12 +275,8 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
   });
 
   const campaigns = (campaignsResult.data ?? []) as Array<DirectoryCampaign & { release_id?: string | null }>;
-  const availableSources = listSourceAdapters().filter((adapter) => adapter.health().status === "available").map((adapter) => adapter.policy.label);
   const searches = searchResult.data ?? [];
 
-  // ---- Release-fit sourcing -------------------------------------------------
-  // Preview remains truthful before the pending migration is applied: base release
-  // browsing works, while fit writes and enriched reads stay disabled.
   const baseReleaseRows = (baseReleasesResult.data ?? []) as ReleaseSourcingRow[];
   const enrichedReleasesResult = releaseFitReady
     ? await supabase.from("releases")
@@ -368,7 +370,7 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         title: opportunity.title,
         targetType: opportunity.opportunity_type ?? null,
         country: targetContext.country,
-        platforms: directoryItem ? (directoryItem.corroboratingSources.length ? directoryItem.corroboratingSources : directoryItem.source ? [directoryItem.source] : []).slice(0, 3) : [],
+        platforms: [platformByType[opportunity.opportunity_type] ?? "Opportunity"],
         genres: targetContext.genreTags,
         activityLabel: directoryItem?.activityLabel ?? null,
         overall: fit.overall,
@@ -380,8 +382,8 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         audienceLabel: audience.label,
         audienceAsOf: audience.asOf,
         audienceStale: audience.stale,
-        routeState,
-        routeIsFree: null,
+        routeState: directoryItem?.submissionRouteUrl ? "route_available" : routeState,
+        routeIsFree: directoryItem?.feeAmount == null ? null : directoryItem.feeAmount === 0,
         aiPolicy: null,
         relationshipState: null,
         sourceFreshness: directoryItem?.freshness ?? "unknown",
@@ -409,40 +411,37 @@ export default async function OpportunitiesPage({ searchParams }: { searchParams
         </nav>
       </header>
 
-      <section className="search-command-card">
-        <div className="search-command-heading">
-          <div><span className="eyebrow">Search new sources</span><h2>What are you looking for?</h2></div>
-          <span className="search-source-badge">{availableSources.join(" + ") || "No live sources"}</span>
+      <details className="search-command-card">
+        <summary><span className="search-command-summary"><strong>Research more opportunities</strong><span>Search the open web when you need more options.</span></span></summary>
+        <div className="search-command-body">
+          <form action={searchOpportunityDirectory}>
+            <input type="hidden" name="submissionNonce" value={randomUUID()} />
+            <div className="search-command-row">
+              <input className="search-command-input" name="query" required placeholder="Try “melodic bass playlists” or “college radio electronic”" />
+              <button className="button primary search-command-button" type="submit" disabled={!runtimeReady}>Research</button>
+            </div>
+            <div className="search-type-picker">
+              {laneOptions.map(([value, text], index) => <label key={value}><input type="checkbox" name="lanes" value={value} defaultChecked={index < 5} /><span>{text}</span></label>)}
+            </div>
+            <details className="search-more-options"><summary>More options</summary><div className="search-secondary-row">
+              <input name="genre" placeholder="Genre or mood" />
+              <input name="territory" placeholder="Country or region" />
+              <select name="releaseId"><option value="">Any release</option>{baseReleaseRows.map((release) => <option key={release.id} value={release.id}>{release.title}</option>)}</select>
+              <select name="maxResultsPerLane" defaultValue="10"><option value="5">5 per type</option><option value="10">10 per type</option><option value="20">20 per type</option></select>
+            </div></details>
+          </form>
         </div>
-        <form action={searchOpportunityDirectory}>
-          <input type="hidden" name="submissionNonce" value={randomUUID()} />
-          <div className="search-command-row">
-            <input className="search-command-input" name="query" required placeholder="Melodic bass playlists, YouTube channels, influencers, blogs…" />
-            <button className="button primary search-command-button" type="submit" disabled={!runtimeReady}>Search</button>
-          </div>
-          <div className="search-type-picker">
-            {laneOptions.map(([value, text], index) => <label key={value}><input type="checkbox" name="lanes" value={value} defaultChecked={index < 5} /><span>{text}</span></label>)}
-          </div>
-          <details className="search-more-options"><summary>More search options</summary><div className="search-secondary-row">
-            <input name="genre" placeholder="Genre or mood" />
-            <input name="territory" placeholder="Country or region" />
-            <select name="releaseId"><option value="">Any release</option>{baseReleaseRows.map((release) => <option key={release.id} value={release.id}>{release.title}</option>)}</select>
-            <select name="maxResultsPerLane" defaultValue="10"><option value="5">5 per type</option><option value="10">10 per type</option><option value="20">20 per type</option></select>
-          </div></details>
-        </form>
-      </section>
+      </details>
 
-      <div className="browse-heading"><div><span className="eyebrow">Browse everything collected</span><h2>Opportunities</h2></div><span>{items.length} total</span></div>
+      <div className="browse-heading"><div><span className="eyebrow">Find the right outlets</span><h2>Browse opportunities</h2></div></div>
 
-      {!runtimeReady ? <div className="notice">The discovery runtime is unavailable in this environment.</div> : null}
+      {!runtimeReady ? <div className="notice">New web research is temporarily unavailable. Your saved directory is still ready to browse.</div> : null}
 
-      {!releaseFitReady ? <div className="notice">Release-aware recommendations are implemented on this branch, but the pending migration is not applied to this environment. Advanced discovery remains available.</div> : null}
+      {!releaseFitReady ? <div className="notice">Release matching is temporarily unavailable. You can still browse and filter every opportunity.</div> : null}
 
       {releaseHeader ? <ReleaseFitPanel release={releaseHeader} items={releaseFitItems} campaigns={campaigns} directoryItems={items} /> : <OpportunityDirectory items={items} campaigns={campaigns} />}
 
-      {searches.length ? <details className="search-history-panel"><summary>Recent searches</summary><div className="search-history-list">{searches.map((search) => <div key={search.id}><div><strong>{search.title}</strong><span>{search.last_run_status ?? "not run"}</span></div><form action={executeOpportunitySearch}><input type="hidden" name="searchId" value={search.id} /><input type="hidden" name="submissionNonce" value={randomUUID()} /><input type="hidden" name="maxResultsPerLane" value="10" /><button className="button ghost compact-button" type="submit">Run again</button></form></div>)}</div></details> : null}
-
-      <details className="source-info-panel"><summary>Source and review details</summary><p>Results remain source-attributed and reviewable. Popularity is a source-specific public signal, not a universal score. Saving or promoting a result remains separate from outreach.</p></details>
+      {searches.length ? <details className="search-history-panel"><summary>Previous research searches</summary><div className="search-history-list">{searches.map((search) => <div key={search.id}><div><strong>{search.title}</strong><span>{(search.last_run_status ?? "Not run").replaceAll("_", " ")}</span></div><form action={executeOpportunitySearch}><input type="hidden" name="searchId" value={search.id} /><input type="hidden" name="submissionNonce" value={randomUUID()} /><input type="hidden" name="maxResultsPerLane" value="10" /><button className="button ghost compact-button" type="submit">Run again</button></form></div>)}</div></details> : null}
     </main>
   );
 }

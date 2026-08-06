@@ -117,7 +117,8 @@ test("discovery facts remain reviewable and do not overstate legitimacy or fresh
   assert.match(wikidata, /confidence = officialWebsites\.length \|\| instanceOf\.length \? "supported" as const : "weak" as const/);
   assert.match(wikidata, /legitimacyStatus: "unreviewed"/);
   assert.doesNotMatch(wikidata, /legitimacyStatus: "credible"/);
-  assert.match(page, /Unassessed legitimacy/);
+  assert.match(page, /legitimacyScore: item\.legitimacy_score/);
+  assert.match(page, /freshness: item\.freshness_status/);
 });
 
 test("UI actions use semantic keys and form-render nonces", () => {
