@@ -38,6 +38,9 @@ test("legacy product routes consolidate into the new information architecture", 
 test("Network is the canonical home for discovery, saved targets, and relationships", () => {
   const network = read("app/network/page.tsx");
   const config = read("next.config.ts");
+  const opportunityActions = read("app/opportunities/actions.ts");
+  const releaseFitActions = read("app/opportunities/release-fit-actions.ts");
+  const targetActions = read("app/targets/[id]/actions.ts");
   assert.doesNotMatch(network, /export \{ default \}/);
   assert.match(network, /OpportunitiesPage/);
   assert.match(network, /TargetsPage/);
@@ -46,6 +49,11 @@ test("Network is the canonical home for discovery, saved targets, and relationsh
   assert.match(network, /reviewStatus !== "quarantined"/);
   assert.match(config, /source: "\/opportunities"[\s\S]*destination: "\/network"[\s\S]*permanent: true/);
   assert.match(config, /source: "\/targets"[\s\S]*destination: "\/network\?view=saved"/);
+  assert.doesNotMatch(opportunityActions, /revalidatePath\("\/opportunities"\)/);
+  assert.doesNotMatch(releaseFitActions, /revalidatePath\("\/opportunities"\)/);
+  assert.match(opportunityActions, /revalidatePath\("\/network"\)/);
+  assert.match(releaseFitActions, /revalidatePath\("\/network"\)/);
+  assert.match(targetActions, /revalidatePath\("\/network"\)/);
 });
 
 test("music smart links infer major services and reject malformed input", () => {
