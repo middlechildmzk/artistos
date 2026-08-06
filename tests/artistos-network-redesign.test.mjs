@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { inferMusicService, parseMusicDestinationUrls } from "../lib/smart-links/services.ts";
+import { normalizePublicSiteUrl } from "../lib/site-url.ts";
 
 const root = path.resolve(import.meta.dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -61,4 +62,12 @@ test("public music links have search and social discovery support", () => {
   assert.match(page, /next\/image/);
   assert.match(read("app/sitemap.ts"), /smart_links/);
   assert.match(read("app/robots.ts"), /free-music-smart-link/);
+});
+
+test("public discovery metadata rejects placeholder site URLs", () => {
+  assert.equal(normalizePublicSiteUrl("https://your-preview-domain.vercel.app"), null);
+  assert.equal(normalizePublicSiteUrl("localhost:3000"), null);
+  assert.equal(normalizePublicSiteUrl("artistos-next.vercel.app/path"), "https://artistos-next.vercel.app");
+  assert.match(read("app/sitemap.ts"), /getPublicSiteUrl/);
+  assert.match(read("app/robots.ts"), /getPublicSiteUrl/);
 });

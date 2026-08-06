@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { getPublicSiteUrl } from "@/lib/site-url";
 import { LinkCampaignBuilder } from "@/components/link-campaign-builder";
 import { MUSIC_SERVICES } from "@/lib/smart-links/services";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -70,7 +71,7 @@ export default async function LinksPage() {
   const clicks = eventRows.filter((event) => event.event_type === "destination_click").length;
   const publicOrigin = process.env.VERCEL_URL
     ? "https://" + process.env.VERCEL_URL
-    : process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    : getPublicSiteUrl();
 
   return (
     <>

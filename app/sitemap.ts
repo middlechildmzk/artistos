@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getPublicSiteUrl } from "@/lib/site-url";
 
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://artistos-next.vercel.app";
+  const baseUrl = getPublicSiteUrl();
   const pages: MetadataRoute.Sitemap = [
     { url: baseUrl, changeFrequency: "weekly", priority: 1 },
     { url: baseUrl + "/free-music-smart-link", changeFrequency: "monthly", priority: .9 },
