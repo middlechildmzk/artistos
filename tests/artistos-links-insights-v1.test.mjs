@@ -34,10 +34,14 @@ test("source-state logic never collapses identity, authorization, import and ver
 test("public smart links support native sharing without weakening consent or tracked redirects", () => {
   const page = read("app/l/[slug]/page.tsx");
   const share = read("components/public-link-share-actions.tsx");
+  const admin = read("lib/supabase/admin.ts");
   assert.match(page, /PublicLinkShareActions/);
   assert.match(page, /trackedDestinationHref/);
   assert.match(page, /emailConsent/);
   assert.match(page, /privacyAcknowledged/);
+  assert.match(page, /hasSupabaseAdminConfig/);
+  assert.match(page, /Release link temporarily unavailable/);
+  assert.match(admin, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(share, /navigator\.share/);
   assert.match(share, /navigator\.clipboard\.writeText/);
 });
