@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PublicLinkShareActions } from "@/components/public-link-share-actions";
 import { PublicLinkTracker } from "@/components/public-link-tracker";
 import { cleanPublicText, loadPublicLink } from "@/lib/public-links";
 import { musicServiceLabel } from "@/lib/smart-links/services";
@@ -114,6 +115,16 @@ export default async function PublicLinkPage({
         <p className={styles.artist}>{link.artistName}</p>
         {releaseDate ? <p className={styles.date}>{releaseDate}</p> : null}
         {link.description ? <p className={styles.description}>{link.description}</p> : null}
+
+        <PublicLinkShareActions artistName={link.artistName} title={title} />
+
+        <div className={styles.destinationHeading}>
+          <div>
+            <p className={styles.eyebrow}>Choose where you listen</p>
+            <h2>{link.mode === "presave" ? "Save the release" : "Play the release"}</h2>
+          </div>
+          <span>{link.destinations.length} {link.destinations.length === 1 ? "service" : "services"}</span>
+        </div>
 
         <div className={styles.destinations} aria-label="Choose a music service">
           {link.destinations.length ? link.destinations.map((destination) => (
