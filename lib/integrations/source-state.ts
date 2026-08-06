@@ -78,11 +78,11 @@ export function deriveIntegrationSourceState(input: IntegrationSourceStateInput)
     };
   }
 
-  if ((input.connectedProfileCount ?? 0) > 0) {
+  if ((input.connectedProfileCount ?? 0) > 0 || input.authorized) {
     return {
       state: "authorized",
       label: "Authorized",
-      detail: "A provider identity is connected, but no successful data request is recorded yet.",
+      detail: "Consent or a connected identity exists, but no successful source-specific data request is recorded yet.",
       asOf: null,
     };
   }
@@ -92,15 +92,6 @@ export function deriveIntegrationSourceState(input: IntegrationSourceStateInput)
       state: "public_identity",
       label: "Public identity only",
       detail: "The artist profile is mapped, but private analytics are not connected.",
-      asOf: null,
-    };
-  }
-
-  if (input.authorized) {
-    return {
-      state: "authorized",
-      label: "Authorized",
-      detail: "Consent exists, but ArtistOS has not recorded a successful provider request.",
       asOf: null,
     };
   }
