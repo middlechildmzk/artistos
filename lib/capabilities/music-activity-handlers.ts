@@ -59,7 +59,7 @@ registerCapabilityHandler(verifySoundchartsSandboxCapability, async ({ ctx, inpu
     release_id: null,
     evidence_type: "soundcharts_sandbox_probe",
     source_type: "api_response",
-    source_url: "https://customer.api.soundcharts.com/api/v2/artist/search/Billie%20Eilish?limit=1",
+    source_uri: "https://customer.api.soundcharts.com/api/v2/artist/search/Billie%20Eilish?limit=1",
     summary: `Soundcharts sandbox accepted a read-only request and returned ${observation.resultCount} sandbox result entries. This does not establish production access or Middle Child coverage.`,
     confidence: "verified",
     confidence_score: 1,
