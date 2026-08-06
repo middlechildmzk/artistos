@@ -27,7 +27,7 @@ export async function addOrganizationToCampaign(formData: FormData) {
     idempotencyKey: idempotencyKey("crm-campaign", [organizationId, campaignId]),
   });
   revalidatePath(`/targets/${organizationId}`);
-  revalidatePath("/targets");
+  revalidatePath("/network");
   revalidatePath("/campaigns");
 }
 
@@ -53,6 +53,7 @@ export async function logOutreach(formData: FormData) {
     idempotencyKey: idempotencyKey("crm-outreach", [organizationId, campaignId, endpointId, submissionNonce]),
   });
   revalidatePath(`/targets/${organizationId}`);
+  revalidatePath("/network");
   revalidatePath("/dashboard");
   revalidatePath("/campaigns");
 }
@@ -72,5 +73,5 @@ export async function updateRelationship(formData: FormData) {
     idempotencyKey: idempotencyKey("crm-relationship", [organizationId, relationshipStage, nextAction, nextActionDue]),
   });
   revalidatePath(`/targets/${organizationId}`);
-  revalidatePath("/targets");
+  revalidatePath("/network");
 }
