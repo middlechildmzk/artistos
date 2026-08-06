@@ -75,10 +75,39 @@
   line-height: 1.65;
 }
 
+.destinationHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 32px;
+  text-align: left;
+}
+
+.destinationHeading h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  letter-spacing: -.025em;
+}
+
+.destinationHeading .eyebrow {
+  margin-bottom: 7px;
+}
+
+.destinationHeading > span {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 999px;
+  color: #a9b0c6;
+  font-size: .7rem;
+  font-weight: 700;
+}
+
 .destinations {
   display: grid;
   gap: 10px;
-  margin-top: 30px;
+  margin-top: 14px;
 }
 
 .destination {
@@ -248,6 +277,7 @@
 @media (max-width: 540px) {
   .shell { padding: 10px; place-items: start center; }
   .card { border-radius: 20px; padding: 28px 18px; }
+  .destinationHeading { align-items: center; }
   .footer { display: grid; gap: 5px; text-align: center; }
   .footer span::before { content: none; }
 }

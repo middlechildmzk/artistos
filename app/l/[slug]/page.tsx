@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PublicLinkShareActions } from "@/components/public-link-share-actions";
 import { PublicLinkTracker } from "@/components/public-link-tracker";
 import { cleanPublicText, loadPublicLink } from "@/lib/public-links";
 import { musicServiceLabel } from "@/lib/smart-links/services";
+import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { capturePublicLinkFan } from "./actions";
 import styles from "./public-link.module.css";
 
@@ -45,7 +47,32 @@ function trackedDestinationHref(args: {
   return `/l/${args.slug}/go/${args.destinationId}${query ? `?${query}` : ""}`;
 }
 
+function PublicLinkUnavailable() {
+  return (
+    <main className={styles.shell}>
+      <section className={styles.card} aria-labelledby="release-link-unavailable">
+        <div className={styles.artwork}><span aria-hidden="true">A</span></div>
+        <p className={styles.eyebrow}>ArtistOS Link</p>
+        <h1 id="release-link-unavailable">Release link temporarily unavailable</h1>
+        <p className={styles.description}>This artist-owned release page is not connected to its secure data service yet. No listening destination or fan information has been exposed.</p>
+        <footer className={styles.footer}>
+          <Link href="/free-music-smart-link">Powered by ArtistOS</Link>
+          <span>Try again later</span>
+        </footer>
+      </section>
+    </main>
+  );
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  if (!hasSupabaseAdminConfig()) {
+    return {
+      title: "Release link temporarily unavailable · ArtistOS",
+      description: "This ArtistOS release link is temporarily unavailable.",
+      robots: { index: false, follow: false },
+    };
+  }
+
   const { slug } = await params;
   const link = await loadPublicLink(slug);
   if (!link) return { title: "Release not found · ArtistOS" };
@@ -80,6 +107,8 @@ export default async function PublicLinkPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  if (!hasSupabaseAdminConfig()) return <PublicLinkUnavailable />;
+
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const link = await loadPublicLink(slug);
   if (!link) notFound();
@@ -114,6 +143,16 @@ export default async function PublicLinkPage({
         <p className={styles.artist}>{link.artistName}</p>
         {releaseDate ? <p className={styles.date}>{releaseDate}</p> : null}
         {link.description ? <p className={styles.description}>{link.description}</p> : null}
+
+        <PublicLinkShareActions artistName={link.artistName} title={title} />
+
+        <div className={styles.destinationHeading}>
+          <div>
+            <p className={styles.eyebrow}>Choose where you listen</p>
+            <h2>{link.mode === "presave" ? "Save the release" : "Play the release"}</h2>
+          </div>
+          <span>{link.destinations.length} {link.destinations.length === 1 ? "service" : "services"}</span>
+        </div>
 
         <div className={styles.destinations} aria-label="Choose a music service">
           {link.destinations.length ? link.destinations.map((destination) => (
