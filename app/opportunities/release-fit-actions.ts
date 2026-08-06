@@ -89,7 +89,7 @@ export async function saveReleaseSourcingProfile(formData: FormData) {
       ]),
     }),
   );
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function confirmSimilarArtist(formData: FormData) {
@@ -124,7 +124,7 @@ export async function confirmSimilarArtist(formData: FormData) {
       ]),
     }),
   );
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function recordTargetDecision(formData: FormData) {
@@ -143,7 +143,7 @@ export async function recordTargetDecision(formData: FormData) {
       idempotencyKey: semanticIdempotencyKey("release-decision", [releaseId, opportunityId, decision, note, submissionNonce(formData)]),
     }),
   );
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
 
 export async function updateShortlistItem(formData: FormData) {
@@ -172,5 +172,5 @@ export async function updateShortlistItem(formData: FormData) {
       ]),
     }),
   );
-  revalidatePath("/opportunities");
+  revalidatePath("/network");
 }
