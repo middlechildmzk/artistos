@@ -17,11 +17,14 @@ test("Insights is the canonical product route", () => {
   assert.match(page, /Evidence-first music intelligence/);
   assert.match(page, /Configured, authorized and provider verified are separate states/);
   assert.match(page, /One snapshot cannot create a trend/);
+  assert.match(page, /youtube_channel_id/);
+  assert.match(page, /youtube_error/);
 });
 
 test("source-state logic never collapses identity, authorization, import and verification", () => {
   assert.equal(deriveIntegrationSourceState({ publicIdentityCount: 1, now }).state, "public_identity");
   assert.equal(deriveIntegrationSourceState({ authorized: true, now }).state, "authorized");
+  assert.equal(deriveIntegrationSourceState({ authorized: true, publicIdentityCount: 1, now }).state, "authorized");
   assert.equal(deriveIntegrationSourceState({ snapshotCount: 2, latestSnapshotOn: "2026-08-03", now }).state, "imported");
   assert.equal(deriveIntegrationSourceState({ lastSuccessAt: "2026-08-03T20:00:00Z", now }).state, "verified");
   assert.equal(deriveIntegrationSourceState({ lastSuccessAt: "2026-07-01T20:00:00Z", now }).state, "stale");
