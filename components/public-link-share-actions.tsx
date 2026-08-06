@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./public-link-share-actions.module.css";
 
 type PublicLinkShareActionsProps = {
   title: string;
@@ -40,13 +41,13 @@ export function PublicLinkShareActions({ title, artistName }: PublicLinkShareAct
 
   return (
     <div aria-live="polite">
-      <div className="public-link-share-actions">
+      <div className={styles.actions}>
         <button onClick={shareLink} type="button">Share release</button>
         <button onClick={copyLink} type="button">Copy link</button>
       </div>
-      {status === "copied" ? <p className="public-link-share-status">Link copied.</p> : null}
-      {status === "shared" ? <p className="public-link-share-status">Share sheet opened.</p> : null}
-      {status === "error" ? <p className="public-link-share-status">Could not copy automatically. Copy the address from your browser.</p> : null}
+      {status === "copied" ? <p className={styles.status}>Link copied.</p> : null}
+      {status === "shared" ? <p className={styles.status}>Share sheet opened.</p> : null}
+      {status === "error" ? <p className={styles.status}>Could not copy automatically. Copy the address from your browser.</p> : null}
     </div>
   );
 }
