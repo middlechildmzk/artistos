@@ -12,13 +12,8 @@ const MAX_ROWS = 100;
 const CHART_PLATFORMS = ["spotify", "apple-music", "shazam", "youtube"] as const;
 
 type JsonObject = Record<string, unknown>;
-
-type EndpointDefinition = {
-  name: string;
-  path: string;
-  kind: "metadata" | "metrics" | "playlists" | "radio" | "chart" | "usage";
-  platform?: string;
-};
+type EndpointKind = "metadata" | "metrics" | "playlists" | "playlist_reach" | "radio" | "chart" | "usage";
+type EndpointDefinition = { name: string; path: string; kind: EndpointKind; platform?: string };
 
 export type SoundchartsEndpointResult = {
   name: string;
@@ -124,18 +119,6 @@ function childObject(object: JsonObject, keys: string[]): JsonObject {
   return {};
 }
 
-function walkObjects(value: unknown, output: JsonObject[] = []): JsonObject[] {
-  if (Array.isArray(value)) {
-    for (const item of value) walkObjects(item, output);
-    return output;
-  }
-  const object = objectValue(value);
-  if (!Object.keys(object).length) return output;
-  output.push(object);
-  for (const child of Object.values(object)) walkObjects(child, output);
-  return output;
-}
-
 function deepString(object: JsonObject, keys: string[]): string | null {
   const direct = stringValue(object, keys);
   if (direct) return direct;
@@ -143,11 +126,11 @@ function deepString(object: JsonObject, keys: string[]): string | null {
     if (!child || typeof child !== "object") continue;
     if (Array.isArray(child)) {
       for (const item of child) {
-        const found: string | null = deepString(objectValue(item), keys);
+        const found = deepString(objectValue(item), keys);
         if (found) return found;
       }
     } else {
-      const found: string | null = deepString(objectValue(child), keys);
+      const found = deepString(objectValue(child), keys);
       if (found) return found;
     }
   }
@@ -167,10 +150,27 @@ function stringsForKeys(value: unknown, keys: Set<string>, output: string[] = []
   return output;
 }
 
+function walkObjects(value: unknown, output: JsonObject[] = []): JsonObject[] {
+  if (Array.isArray(value)) {
+    for (const item of value) walkObjects(item, output);
+    return output;
+  }
+  const object = objectValue(value);
+  if (!Object.keys(object).length) return output;
+  output.push(object);
+  for (const child of Object.values(object)) walkObjects(child, output);
+  return output;
+}
+
 function isoDate(value: string | null): string | null {
   if (!value) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function dateOnly(value: string | null, fallback: string): string {
+  const normalized = isoDate(value);
+  return normalized ? normalized.slice(0, 10) : fallback;
 }
 
 function safeUrl(value: string | null): string | null {
@@ -187,7 +187,7 @@ function hashId(parts: Array<string | number | null | undefined>): string {
   return createHash("sha256").update(parts.map((part) => String(part ?? "")).join("|")).digest("hex");
 }
 
-function apiUrl(path: string): string {
+function apiUrl(path: string) {
   return `${ORIGIN}${path}`;
 }
 
@@ -204,6 +204,7 @@ function collectNumbers(value: unknown, prefix = "", output: Map<string, number>
   if (Array.isArray(value)) return output;
   const object = objectValue(value);
   for (const [key, child] of Object.entries(object)) {
+    if (["page", "pagination", "offset", "limit", "next", "previous", "total"].includes(key)) continue;
     const path = prefix ? `${prefix}_${key}` : key;
     if (typeof child === "number" && Number.isFinite(child)) {
       const normalized = metricName(path);
@@ -217,9 +218,7 @@ function collectNumbers(value: unknown, prefix = "", output: Map<string, number>
 }
 
 function markedRows(payload: unknown, markers: string[]): JsonObject[] {
-  return walkObjects(payload)
-    .filter((row) => markers.some((marker) => marker in row))
-    .slice(0, MAX_ROWS);
+  return walkObjects(payload).filter((row) => markers.some((marker) => marker in row)).slice(0, MAX_ROWS);
 }
 
 function songUuid(payload: unknown, requestedIsrc: string): string {
@@ -246,18 +245,15 @@ function playlistRows(payload: unknown, path: string): SoundchartsPlaylistObserv
   const output = new Map<string, SoundchartsPlaylistObservation>();
   for (const row of markedRows(payload, ["position", "entryDate", "positionDate", "subscriberCount", "playlistName"])) {
     const playlist = childObject(row, ["playlist", "resource", "object"]);
-    const name = stringValue(playlist, ["name", "title", "playlistName"])
-      ?? stringValue(row, ["playlistName", "name", "title"]);
+    const name = stringValue(playlist, ["name", "title", "playlistName"]) ?? stringValue(row, ["playlistName", "name", "title"]);
     if (!name) continue;
     const externalId = stringValue(playlist, ["uuid", "id", "slug", "identifier", "playlistId"])
       ?? stringValue(row, ["playlistUuid", "playlistId", "playlist_id"]);
-    const url = safeUrl(stringValue(playlist, ["url", "externalUrl", "spotifyUrl"])
-      ?? stringValue(row, ["playlistUrl", "url"]));
+    const url = safeUrl(stringValue(playlist, ["url", "externalUrl", "spotifyUrl"]) ?? stringValue(row, ["playlistUrl", "url"]));
     const entryDate = isoDate(stringValue(row, ["entryDate", "entry_date", "addedAt", "added_at"]));
     const positionDate = isoDate(stringValue(row, ["positionDate", "position_date", "rankDate", "updatedAt"]));
     const position = numberValue(row, ["position", "rank"]);
-    const removedAt = isoDate(stringValue(row, ["exitDate", "exit_date", "removedAt", "removed_at"]))
-      ?? (position === 0 ? positionDate : null);
+    const removedAt = isoDate(stringValue(row, ["exitDate", "exit_date", "removedAt", "removed_at"])) ?? (position === 0 ? positionDate : null);
     const providerRecordId = stringValue(row, ["id", "uuid", "entryId", "positionId"])
       ?? hashId([externalId, url, name, entryDate, positionDate, position]);
     const owner = childObject(playlist, ["owner", "curator"]);
@@ -268,8 +264,8 @@ function playlistRows(payload: unknown, path: string): SoundchartsPlaylistObserv
       playlistUrl: url,
       ownerName: stringValue(owner, ["name", "displayName"]) ?? stringValue(row, ["ownerName", "curatorName"]),
       ownerUrl: safeUrl(stringValue(owner, ["url", "externalUrl"]) ?? stringValue(row, ["ownerUrl"])),
-      followers: numberValue(row, ["subscriberCount", "followers", "followerCount"])
-        ?? numberValue(playlist, ["subscriberCount", "followers", "followerCount"]),
+      followers: numberValue(row, ["subscriberCount", "followers", "followerCount", "latestSubscriberCount"])
+        ?? numberValue(playlist, ["subscriberCount", "followers", "followerCount", "latestSubscriberCount"]),
       position,
       entryDate,
       positionDate,
@@ -282,28 +278,45 @@ function playlistRows(payload: unknown, path: string): SoundchartsPlaylistObserv
   return [...output.values()].slice(0, MAX_ROWS);
 }
 
+function playlistReachMetrics(payload: unknown, path: string, fallbackDate: string): SoundchartsMetricObservation[] {
+  const root = objectValue(payload);
+  const items = Array.isArray(root.items) ? root.items.map(objectValue) : [];
+  const fields = [
+    ["spotify_playlist_count", "playlistCount"],
+    ["spotify_playlist_reach", "playlistReach"],
+    ["spotify_playlist_editorial_count", "playlistEditorialCount"],
+    ["spotify_playlist_editorial_reach", "playlistEditorialReach"],
+    ["spotify_playlist_user_count", "playlistUserCount"],
+    ["spotify_playlist_user_reach", "playlistUserReach"],
+  ] as const;
+  const observations: SoundchartsMetricObservation[] = [];
+  for (const item of items) {
+    const observedOn = dateOnly(stringValue(item, ["date"]), fallbackDate);
+    for (const [metric, field] of fields) {
+      const value = numberValue(item, [field]);
+      if (value === null) continue;
+      observations.push({ metric, value, observedOn, sourceUrl: apiUrl(path) });
+    }
+  }
+  return observations.slice(0, MAX_ROWS);
+}
+
 function radioRows(payload: unknown, path: string): SoundchartsRadioObservation[] {
   const output = new Map<string, SoundchartsRadioObservation>();
   for (const row of markedRows(payload, ["airedAt", "aired_at", "broadcastAt", "radioSlug"])) {
     const airedAt = isoDate(stringValue(row, ["airedAt", "aired_at", "broadcastAt", "timestamp", "date"]));
     if (!airedAt) continue;
     const radio = childObject(row, ["radio", "station", "resource"]);
-    const slug = stringValue(radio, ["slug", "id", "uuid"])
-      ?? stringValue(row, ["radioSlug", "stationSlug", "radioId"]);
-    const name = stringValue(radio, ["name", "title"])
-      ?? stringValue(row, ["radioName", "stationName", "name"])
-      ?? slug
-      ?? "Unknown station";
-    const providerRecordId = stringValue(row, ["id", "uuid", "broadcastId"])
-      ?? hashId([slug, name, airedAt]);
+    const slug = stringValue(radio, ["slug", "id", "uuid"]) ?? stringValue(row, ["radioSlug", "stationSlug", "radioId"]);
+    const name = stringValue(radio, ["name", "title"]) ?? stringValue(row, ["radioName", "stationName", "name"]) ?? slug ?? "Unknown station";
+    const providerRecordId = stringValue(row, ["id", "uuid", "broadcastId"]) ?? hashId([slug, name, airedAt]);
     output.set(providerRecordId, {
       providerRecordId,
       stationSlug: slug,
       stationName: name,
       stationUrl: safeUrl(stringValue(radio, ["url", "website", "externalUrl"]) ?? stringValue(row, ["radioUrl", "stationUrl"])),
       airedAt,
-      territory: stringValue(row, ["countryCode", "country_code", "country"])
-        ?? stringValue(radio, ["countryCode", "country_code", "country"]),
+      territory: stringValue(row, ["countryCode", "country_code", "country"]) ?? stringValue(radio, ["countryCode", "country_code", "country"]),
       sourceUrl: apiUrl(path),
     });
   }
@@ -316,16 +329,11 @@ function chartRows(payload: unknown, path: string, platform: string): Soundchart
     const position = numberValue(row, ["position", "rank"]);
     if (position === null) continue;
     const chart = childObject(row, ["chart", "resource", "object"]);
-    const slug = stringValue(chart, ["slug", "id", "uuid"])
-      ?? stringValue(row, ["chartSlug", "chartId", "chart_id"]);
-    const name = stringValue(chart, ["name", "title"])
-      ?? stringValue(row, ["chartName", "name", "title"])
-      ?? slug
-      ?? `${platform} chart`;
+    const slug = stringValue(chart, ["slug", "id", "uuid"]) ?? stringValue(row, ["chartSlug", "chartId", "chart_id"]);
+    const name = stringValue(chart, ["name", "title"]) ?? stringValue(row, ["chartName", "name", "title"]) ?? slug ?? `${platform} chart`;
     const rankDate = isoDate(stringValue(row, ["rankDate", "rank_date", "positionDate", "date"]));
     const entryDate = isoDate(stringValue(row, ["entryDate", "entry_date"]));
-    const providerRecordId = stringValue(row, ["id", "uuid", "rankId"])
-      ?? hashId([platform, slug, name, entryDate, rankDate, position]);
+    const providerRecordId = stringValue(row, ["id", "uuid", "rankId"]) ?? hashId([platform, slug, name, entryDate, rankDate, position]);
     output.set(providerRecordId, {
       providerRecordId,
       chartSlug: slug,
@@ -336,8 +344,7 @@ function chartRows(payload: unknown, path: string, platform: string): Soundchart
       previousPosition: numberValue(row, ["oldPosition", "previousPosition", "previous_position"]),
       entryDate,
       rankDate,
-      territory: stringValue(row, ["countryCode", "country_code", "country"])
-        ?? stringValue(chart, ["countryCode", "country_code", "country"]),
+      territory: stringValue(row, ["countryCode", "country_code", "country"]) ?? stringValue(chart, ["countryCode", "country_code", "country"]),
       sourceUrl: apiUrl(path),
     });
   }
@@ -373,11 +380,7 @@ export async function runSoundchartsReleasePilot(args: {
   const isrc = args.isrc.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
   if (!/^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$/.test(isrc)) throw new Error("release_isrc_invalid");
 
-  const token = await requestSoundchartsAccessToken({
-    clientId: args.clientId,
-    clientSecret: args.clientSecret,
-    teamId: args.teamId,
-  });
+  const token = await requestSoundchartsAccessToken({ clientId: args.clientId, clientSecret: args.clientSecret, teamId: args.teamId });
   const resolutionPath = `/api/v2.25/song/by-isrc/${encodeURIComponent(isrc)}`;
   const resolution = await soundchartsGet(resolutionPath, token.accessToken);
   const uuid = songUuid(resolution, isrc);
@@ -387,35 +390,20 @@ export async function runSoundchartsReleasePilot(args: {
     { name: "identifiers", path: `/api/v2/song/${uuid}/identifiers`, kind: "metadata" },
     { name: "current_stats", path: `/api/v2/song/${uuid}/current/stats`, kind: "metrics" },
     { name: "spotify_playlist_entries", path: `/api/v2.20/song/${uuid}/playlist/current/spotify?currentOnly=0&limit=100&sortBy=entryDate&sortOrder=desc`, kind: "playlists" },
-    { name: "spotify_playlist_reach", path: `/api/v2/song/${uuid}/playlist/reach/spotify`, kind: "metrics" },
+    { name: "spotify_playlist_reach", path: `/api/v2/song/${uuid}/playlist/reach/spotify`, kind: "playlist_reach" },
     { name: "radio_spins", path: `/api/v2/song/${uuid}/broadcasts?${new URLSearchParams({ ...(releaseStart ? { startDate: releaseStart } : {}), limit: "100", sort: "desc" })}`, kind: "radio" },
     { name: "radio_spin_counts", path: `/api/v2/song/${uuid}/broadcast-groups?${new URLSearchParams({ ...(releaseStart ? { startDate: releaseStart } : {}), limit: "100" })}`, kind: "metrics" },
-    ...CHART_PLATFORMS.map((platform): EndpointDefinition => ({
-      name: `chart_${platform}`,
-      path: `/api/v2/song/${uuid}/charts/ranks/${platform}?currentOnly=0&limit=100&sortBy=rankDate&sortOrder=desc`,
-      kind: "chart",
-      platform,
-    })),
+    ...CHART_PLATFORMS.map((platform): EndpointDefinition => ({ name: `chart_${platform}`, path: `/api/v2/song/${uuid}/charts/ranks/${platform}?currentOnly=0&limit=100&sortBy=rankDate&sortOrder=desc`, kind: "chart", platform })),
     { name: "team_usage", path: "/api/v2/team/usage", kind: "usage" },
   ];
 
-  const responses = await Promise.allSettled(endpoints.map(async (endpoint) => ({
-    endpoint,
-    payload: await soundchartsGet(endpoint.path, token.accessToken),
-  })));
+  const responses = await Promise.allSettled(endpoints.map(async (endpoint) => ({ endpoint, payload: await soundchartsGet(endpoint.path, token.accessToken) })));
   const playlistObservations: SoundchartsPlaylistObservation[] = [];
   const radioObservations: SoundchartsRadioObservation[] = [];
   const chartObservations: SoundchartsChartObservation[] = [];
   const metricObservations: SoundchartsMetricObservation[] = [];
   const usage: Record<string, number> = {};
-  const endpointResults: SoundchartsEndpointResult[] = [{
-    name: "resolve_by_isrc",
-    path: resolutionPath,
-    status: "available",
-    responseCount: 1,
-    errorCode: null,
-    httpStatus: 200,
-  }];
+  const endpointResults: SoundchartsEndpointResult[] = [{ name: "resolve_by_isrc", path: resolutionPath, status: "available", responseCount: 1, errorCode: null, httpStatus: 200 }];
   const observedOn = new Date().toISOString().slice(0, 10);
 
   for (let index = 0; index < responses.length; index += 1) {
@@ -431,6 +419,10 @@ export async function runSoundchartsReleasePilot(args: {
       const rows = playlistRows(response.value.payload, endpoint.path);
       playlistObservations.push(...rows);
       responseCount = rows.length;
+    } else if (endpoint.kind === "playlist_reach") {
+      const rows = playlistReachMetrics(response.value.payload, endpoint.path, observedOn);
+      metricObservations.push(...rows);
+      responseCount = rows.length;
     } else if (endpoint.kind === "radio") {
       const rows = radioRows(response.value.payload, endpoint.path);
       radioObservations.push(...rows);
@@ -442,12 +434,7 @@ export async function runSoundchartsReleasePilot(args: {
     } else if (endpoint.kind === "metrics") {
       const values = collectNumbers(response.value.payload);
       for (const [name, value] of values) {
-        metricObservations.push({
-          metric: `${metricName(endpoint.name)}_${name}`.slice(0, 120),
-          value,
-          observedOn,
-          sourceUrl: apiUrl(endpoint.path),
-        });
+        metricObservations.push({ metric: `${metricName(endpoint.name)}_${name}`.slice(0, 120), value, observedOn, sourceUrl: apiUrl(endpoint.path) });
       }
       responseCount = values.size;
     } else if (endpoint.kind === "usage") {
@@ -458,14 +445,7 @@ export async function runSoundchartsReleasePilot(args: {
       responseCount = 1;
     }
 
-    endpointResults.push({
-      name: endpoint.name,
-      path: endpoint.path,
-      status: "available",
-      responseCount,
-      errorCode: null,
-      httpStatus: 200,
-    });
+    endpointResults.push({ name: endpoint.name, path: endpoint.path, status: "available", responseCount, errorCode: null, httpStatus: 200 });
   }
 
   return {
