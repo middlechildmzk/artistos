@@ -27,7 +27,7 @@ export async function syncSoundchartsReleasePilot(formData: FormData) {
     });
     if (result.status === "requires_approval") throw new Error(`approval_required:${result.approvalId}`);
     if (result.status === "denied") throw new Error(`capability_denied:${result.policy}:${result.reason}`);
-    if (result.status === "error") throw new Error(`${result.error.code}:${result.error.message}`);
+    if (result.status === "failed") throw new Error(`${result.error.code}:${result.error.message}`);
 
     const output = result.output as {
       playlistCount?: number;
