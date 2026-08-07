@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { registerCapability } from "./registry";
 import { defaultWriteRetry } from "./types";
+import "./soundcharts-release-pilot-registry";
 
 const idempotencyKey = z.string().min(16);
 
