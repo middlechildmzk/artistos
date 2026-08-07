@@ -31,7 +31,12 @@ async function readJson(response: Response) {
 function providerMessage(payload: unknown, fallback: string) {
   const object = asObject(payload);
   const errors = object.errors;
-  if (Array.isArray(errors) && typeof errors[0] === "string") return errors[0];
+  if (Array.isArray(errors)) {
+    const first = errors[0];
+    if (typeof first === "string") return first;
+    const firstObject = asObject(first);
+    if (typeof firstObject.message === "string") return firstObject.message;
+  }
   if (typeof object.message === "string") return object.message;
   const error = asObject(object.error);
   if (typeof error.message === "string") return error.message;
@@ -51,6 +56,35 @@ async function fetchJson(url: string, init: RequestInit, code: string) {
   return payload;
 }
 
+const SOUNDCHARTS_LEGACY_PREFIX = "artistos-soundcharts-legacy:";
+
+function encodeLegacySoundchartsCredential(appId: string, apiKey: string) {
+  const payload = Buffer.from(JSON.stringify({ appId, apiKey }), "utf8").toString("base64url");
+  return `${SOUNDCHARTS_LEGACY_PREFIX}${payload}`;
+}
+
+function decodeLegacySoundchartsCredential(value: string) {
+  if (!value.startsWith(SOUNDCHARTS_LEGACY_PREFIX)) return null;
+  try {
+    const decoded = JSON.parse(Buffer.from(value.slice(SOUNDCHARTS_LEGACY_PREFIX.length), "base64url").toString("utf8")) as unknown;
+    const object = asObject(decoded);
+    const appId = typeof object.appId === "string" ? object.appId : null;
+    const apiKey = typeof object.apiKey === "string" ? object.apiKey : null;
+    return appId && apiKey ? { appId, apiKey } : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function soundchartsLegacyGet(path: string, appId: string, apiKey: string) {
+  return fetchJson(`https://customer.api.soundcharts.com${path}`, {
+    headers: {
+      "x-app-id": appId,
+      "x-api-key": apiKey,
+    },
+  }, "soundcharts_request_failed");
+}
+
 export async function requestSoundchartsAccessToken(args: {
   clientId: string;
   clientSecret: string;
@@ -59,28 +93,47 @@ export async function requestSoundchartsAccessToken(args: {
   const body = new URLSearchParams({ grant_type: "client_credentials" });
   if (args.teamId?.trim()) body.set("team_id", args.teamId.trim());
   const credentials = Buffer.from(`${args.clientId}:${args.clientSecret}`).toString("base64");
-  const payload = asObject(await fetchJson(
-    "https://account.soundcharts.com/oauth/token",
-    {
-      method: "POST",
-      headers: {
-        authorization: `Basic ${credentials}`,
-        "content-type": "application/x-www-form-urlencoded",
+
+  try {
+    const payload = asObject(await fetchJson(
+      "https://account.soundcharts.com/oauth/token",
+      {
+        method: "POST",
+        headers: {
+          authorization: `Basic ${credentials}`,
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body,
       },
-      body,
-    },
-    "soundcharts_token_failed",
-  ));
-  const accessToken = typeof payload.access_token === "string" ? payload.access_token : null;
-  if (!accessToken) throw new ProviderApiError("Soundcharts returned no access token", { code: "soundcharts_access_token_missing" });
-  return {
-    accessToken,
-    expiresIn: Number(payload.expires_in ?? 3600),
-    tokenType: typeof payload.token_type === "string" ? payload.token_type : "bearer",
-  };
+      "soundcharts_token_failed",
+    ));
+    const accessToken = typeof payload.access_token === "string" ? payload.access_token : null;
+    if (!accessToken) throw new ProviderApiError("Soundcharts returned no access token", { code: "soundcharts_access_token_missing" });
+    return {
+      accessToken,
+      expiresIn: Number(payload.expires_in ?? 3600),
+      tokenType: typeof payload.token_type === "string" ? payload.token_type : "bearer",
+      authMethod: "access_token" as const,
+    };
+  } catch (error) {
+    if (!(error instanceof ProviderApiError) || ![400, 401, 403].includes(error.status)) throw error;
+
+    // Soundcharts' March 2026 free-production help article still documents
+    // x-app-id + x-api-key credentials. Validate that pair against a bounded
+    // read-only endpoint, then carry it only in-process as an opaque pseudo token.
+    await soundchartsLegacyGet("/api/v2/artist/search/Billie%20Eilish?limit=1", args.clientId, args.clientSecret);
+    return {
+      accessToken: encodeLegacySoundchartsCredential(args.clientId, args.clientSecret),
+      expiresIn: 0,
+      tokenType: "legacy_headers",
+      authMethod: "legacy_headers" as const,
+    };
+  }
 }
 
 export async function soundchartsGet(path: string, accessToken: string) {
+  const legacy = decodeLegacySoundchartsCredential(accessToken);
+  if (legacy) return soundchartsLegacyGet(path, legacy.appId, legacy.apiKey);
   return fetchJson(`https://customer.api.soundcharts.com${path}`, {
     headers: { authorization: `Bearer ${accessToken}` },
   }, "soundcharts_request_failed");
