@@ -227,5 +227,5 @@ test("research brief requires rights, technical and evidence review", () => {
   assert.match(prompt, /Multi-tenant use rights/);
   assert.match(prompt, /caching\/retention rights/);
   assert.match(prompt, /Do not create accounts/);
-  assert.match(prompt, /avoid name-only matching/);
+  assert.match(prompt, /avoids? name-only matching/);
 });
