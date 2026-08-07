@@ -3,7 +3,7 @@ import {
   deriveMusicActivityFreshness,
   type MusicActivityFreshness,
   type MusicActivitySourceClass,
-} from "./contract.ts";
+} from "#music-activity-contract";
 
 export type MusicActivityFeedKind =
   | "metric_snapshot"
