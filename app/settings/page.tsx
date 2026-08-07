@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/app-header";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const settings = [
-  [Cable, "Connections", "Connect the accounts and owned data ArtistOS uses.", "/connections"],
+  [Cable, "Data sources", "Connect analytics providers, music accounts, public sources, and imports.", "/connections"],
   [PlugZap, "Integrations", "Manage partner platforms and submission workflows.", "/integrations"],
   [Bot, "Automations", "Choose which repeatable actions ArtistOS can prepare.", "/automations"],
   [ShieldCheck, "Approvals", "Review actions that require your decision.", "/approvals"],
