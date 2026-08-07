@@ -17,10 +17,11 @@ test("Insights is the canonical product route", () => {
   assert.match(config, /source: "\/analytics"[\s\S]*destination: "\/insights"[\s\S]*permanent: true/);
   assert.match(header, /label: "Insights", href: "\/insights"/);
   assert.match(page, /Evidence-first music intelligence/);
-  assert.match(page, /One snapshot cannot create a trend/);
   assert.match(page, /Data source health/);
   assert.match(overview, /Soundcharts verified/);
   assert.match(overview, /Release intelligence/);
+  assert.match(overview, /Number of playlists/);
+  assert.match(overview, /Total playlist followers \/ reach/);
   assert.match(settings, /"Data sources"/);
 });
 
