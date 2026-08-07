@@ -157,13 +157,14 @@ test("YouTube sync writes source-visible channel and analytics metrics", () => {
 
 test("source catalog is explicit about free, export, licensed, and constrained coverage", () => {
   const catalog = read("lib/integrations/source-catalog.ts");
-  assert.match(catalog, /Spotify removed artist follower and popularity fields/);
-  assert.match(catalog, /Streams and monthly listeners are not available from the public API/);
+  assert.match(catalog, /removed fields such as artist followers and popularity/);
+  assert.match(catalog, /Streams and monthly listeners still are not public artist-analytics fields/);
   assert.match(catalog, /DistroKid does not provide a general public analytics API/);
-  assert.match(catalog, /1,000 initial production requests/);
+  assert.match(catalog, /free production allowance of 1,000 requests/);
   assert.match(catalog, /ListenBrainz/);
   assert.match(catalog, /MusicBrainz/);
   assert.match(catalog, /Ticketmaster Discovery/);
-  assert.match(catalog, /EUR 300 per month/);
+  assert.match(catalog, /Commercial product use requires separate terms review/);
+  assert.match(catalog, /active licensed API agreement/);
   assert.match(catalog, /paid_key_required/);
 });
