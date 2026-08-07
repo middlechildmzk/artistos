@@ -61,12 +61,10 @@ export async function MusicActivityFeedLoader() {
 
   if (queryError) {
     return (
-      <div className="shell">
-        <section className="card" style={{ marginBottom: 16 }}>
-          <div className="section-heading"><div><div className="eyebrow">Unified observation stream</div><h2>Music activity</h2></div><span className="pill blocked">Source read failed</span></div>
-          <p className="muted">ArtistOS could not assemble the activity timeline. Existing Insights data remains available, and the failed read is not presented as an empty result.</p>
-        </section>
-      </div>
+      <section className="card" style={{ marginBottom: 16 }}>
+        <div className="section-heading"><div><div className="eyebrow">Unified observation stream</div><h2>Music activity</h2></div><span className="pill blocked">Source read failed</span></div>
+        <p className="muted">ArtistOS could not assemble the activity timeline. Existing Insights data remains available, and the failed read is not presented as an empty result.</p>
+      </section>
     );
   }
 
@@ -79,5 +77,5 @@ export async function MusicActivityFeedLoader() {
     evidence: evidenceResult.data ?? [],
   });
 
-  return <div className="shell"><MusicActivityFeed items={items} /></div>;
+  return <MusicActivityFeed items={items} />;
 }
