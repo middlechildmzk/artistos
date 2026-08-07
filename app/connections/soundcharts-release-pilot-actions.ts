@@ -13,7 +13,7 @@ function safeError(error: unknown) {
 
 export async function syncSoundchartsReleasePilot(formData: FormData) {
   const releaseId = String(formData.get("releaseId") ?? "");
-  if (!releaseId) redirect("/connections?error=release_required");
+  if (!releaseId) redirect("/insights?error=release_required");
 
   let metricCount = 0;
   let playlistCount = 0;
@@ -47,8 +47,8 @@ export async function syncSoundchartsReleasePilot(formData: FormData) {
     revalidatePath("/insights");
     revalidatePath("/proof");
   } catch (error) {
-    redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
+    redirect(`/insights?error=${encodeURIComponent(safeError(error))}`);
   }
 
-  redirect(`/connections?synced=soundcharts-release&metrics=${metricCount}&playlists=${playlistCount}&radio=${radioSpinCount}&charts=${chartCount}`);
+  redirect(`/insights?synced=soundcharts-release&metrics=${metricCount}&playlists=${playlistCount}&radio=${radioSpinCount}&charts=${chartCount}`);
 }
