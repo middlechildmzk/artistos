@@ -15,7 +15,7 @@ test("release pilot resolves only by a strong ISRC identity", () => {
   assert.doesNotMatch(adapter, /artistName.*trackTitle/);
 });
 
-test("release pilot probes the intended entitled source families independently", () => {
+test("release pilot probes source families independently", () => {
   const adapter = read("lib/integrations/soundcharts-release-pilot.ts");
   assert.match(adapter, /playlist\/current\/spotify/);
   assert.match(adapter, /playlist\/reach\/spotify/);
@@ -26,6 +26,21 @@ test("release pilot probes the intended entitled source families independently",
   assert.match(adapter, /team\/usage/);
   assert.match(adapter, /Promise\.allSettled/);
   assert.match(adapter, /status === 403 \|\| status === 404 \? "unavailable" : "failed"/);
+});
+
+test("playlist reach uses Soundcharts analytics fields and excludes pagination", () => {
+  const adapter = read("lib/integrations/soundcharts-release-pilot.ts");
+  assert.match(adapter, /playlistReachMetrics/);
+  assert.match(adapter, /playlistCount/);
+  assert.match(adapter, /playlistReach/);
+  assert.match(adapter, /playlistEditorialCount/);
+  assert.match(adapter, /playlistEditorialReach/);
+  assert.match(adapter, /playlistUserCount/);
+  assert.match(adapter, /playlistUserReach/);
+  assert.match(adapter, /spotify_playlist_count/);
+  assert.match(adapter, /spotify_playlist_reach/);
+  assert.match(adapter, /\["page", "pagination", "offset", "limit", "next", "previous", "total"\]/);
+  assert.doesNotMatch(adapter, /spotify_playlist_reach_page_/);
 });
 
 test("release pilot stores normalized evidence instead of raw provider bodies", () => {
@@ -52,14 +67,25 @@ test("release writes stay release-scoped, idempotent, and evidence-backed", () =
   assert.match(handler, /soundcharts_release_pilot_sync/);
 });
 
-test("Insights exposes an explicit controlled pilot action", () => {
+test("Insights presents music intelligence instead of provider setup", () => {
+  const page = read("app/insights/page.tsx");
   const layout = read("app/insights/layout.tsx");
-  const card = read("components/soundcharts-release-pilot-card.tsx");
+  const overview = read("components/music-intelligence-overview.tsx");
+  const styles = read("components/music-intelligence-overview.module.css");
   const action = read("app/connections/soundcharts-release-pilot-actions.ts");
-  assert.match(layout, /SoundchartsReleasePilotCard/);
-  assert.match(card, /Run controlled release sync/);
-  assert.match(card, /Raw Soundcharts response bodies are not retained/);
-  assert.match(card, /Credentials required/);
+
+  assert.match(page, /MusicIntelligenceOverview/);
+  assert.doesNotMatch(layout, /SoundchartsReleasePilotCard/);
+  assert.match(overview, /Number of playlists/);
+  assert.match(overview, /Total playlist followers \/ reach/);
+  assert.match(overview, /Recent playlist adds/);
+  assert.match(overview, /Cross-platform audience/);
+  assert.match(overview, /Source health/);
+  assert.match(overview, /buildPlacementSeries/);
+  assert.match(overview, /spotify_playlist_reach/);
+  assert.match(styles, /\.chartGrid/);
+  assert.match(styles, /\.placementTable/);
+  assert.match(styles, /@media \(max-width: 480px\)/);
   assert.match(action, /integrations\.sync_soundcharts_release_pilot/);
   assert.match(action, /revalidatePath\("\/insights"\)/);
   assert.match(action, /revalidatePath\("\/proof"\)/);
