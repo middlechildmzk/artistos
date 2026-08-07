@@ -19,6 +19,7 @@ import "./links-registry";
 import "./integrations-registry";
 import "./provider-integrations-registry";
 import "./free-source-registry";
+import "./music-activity-registry";
 import "./opportunity-registry";
 import "./release-fit-registry";
 import "./core-handlers";
@@ -34,6 +35,7 @@ import "./google-connection-handler";
 import "./provider-integrations-handlers";
 import "./spotontrack-handlers";
 import "./free-source-handlers";
+import "./music-activity-handlers";
 import "./opportunity-handlers";
 import "./release-fit-handlers";
 

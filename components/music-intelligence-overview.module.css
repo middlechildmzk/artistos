@@ -1,0 +1,387 @@
+.dashboard {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid rgba(130, 111, 255, .25);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(124, 99, 255, .23), transparent 34%),
+    radial-gradient(circle at 92% 10%, rgba(40, 204, 156, .12), transparent 30%),
+    linear-gradient(145deg, rgba(22, 24, 39, .98), rgba(13, 15, 25, .98));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .22);
+}
+.heroTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.releaseMark {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7c63ff, #4da3ff 70%, #48d6a4);
+  box-shadow: 0 12px 32px rgba(92, 75, 232, .28);
+  font-weight: 900;
+  letter-spacing: -.04em;
+}
+.releaseTitle {
+  margin: 2px 0 2px;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -.03em;
+}
+.subtle {
+  margin: 0;
+  color: var(--muted);
+  font-size: .86rem;
+}
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(94, 217, 147, .24);
+  border-radius: 999px;
+  background: rgba(94, 217, 147, .08);
+  color: #baf4d1;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5ed993;
+  box-shadow: 0 0 0 4px rgba(94, 217, 147, .1);
+}
+.manageLink {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .75rem;
+  border: 1px solid var(--line);
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+}
+.kpi {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid rgba(155, 163, 189, .13);
+  border-radius: 14px;
+  background: rgba(7, 9, 17, .36);
+}
+.kpiLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.25;
+}
+.kpiValue {
+  margin-top: 5px;
+  font-size: clamp(1.35rem, 2.8vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -.045em;
+}
+.kpiNote {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.35;
+}
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(18, 20, 31, .92);
+  box-shadow: 0 18px 65px rgba(0, 0, 0, .15);
+}
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 18px 0;
+}
+.panelTitle {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+.panelMetric {
+  text-align: right;
+  flex-shrink: 0;
+}
+.panelMetric strong {
+  display: block;
+  font-size: 1.1rem;
+}
+.panelMetric span {
+  color: var(--muted);
+  font-size: .7rem;
+}
+.chartWrap {
+  padding: 7px 12px 13px;
+}
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.gridLine {
+  stroke: rgba(155, 163, 189, .10);
+  stroke-width: 1;
+}
+.line {
+  fill: none;
+  stroke: #8a72ff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 4px 8px rgba(124, 99, 255, .2));
+}
+.lineGreen {
+  stroke: #55d7a0;
+}
+.area {
+  fill: url(#playlistArea);
+}
+.areaReach {
+  fill: url(#reachArea);
+}
+.dot {
+  fill: #b4a6ff;
+  stroke: #12141f;
+  stroke-width: 2;
+}
+.dotGreen {
+  fill: #78e4b7;
+}
+.axisLabel {
+  fill: #858da8;
+  font-size: 10px;
+}
+.emptyChart {
+  min-height: 210px;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.55;
+  background: linear-gradient(180deg, transparent, rgba(124, 99, 255, .035));
+}
+.activityGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, .75fr);
+  gap: 16px;
+  align-items: start;
+}
+.tablePanel {
+  overflow: hidden;
+}
+.tableHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.tableHeader h3 {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(124, 99, 255, .14);
+  border: 1px solid rgba(124, 99, 255, .24);
+  color: #c7bdff;
+  font-size: .74rem;
+  font-weight: 750;
+}
+.placementTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+.placementTable th,
+.placementTable td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(42, 46, 66, .75);
+  text-align: left;
+  vertical-align: middle;
+}
+.placementTable th {
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.placementTable td {
+  font-size: .82rem;
+}
+.placementTable tr:last-child td {
+  border-bottom: 0;
+}
+.playlistName {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  font-weight: 700;
+}
+.spotifyDot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: #1ed760;
+  box-shadow: 0 0 0 4px rgba(30, 215, 96, .08);
+}
+.newBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: #baf4d1;
+  background: rgba(94, 217, 147, .08);
+  border: 1px solid rgba(94, 217, 147, .18);
+  font-size: .65rem;
+  white-space: nowrap;
+}
+.position {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+.dateCell {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sideStack {
+  display: grid;
+  gap: 16px;
+}
+.audienceRows {
+  padding: 5px 18px 16px;
+}
+.audienceRow {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.audienceRow:last-child {
+  border-bottom: 0;
+}
+.platformIcon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--panel-soft);
+  color: #c5cae0;
+  font-size: .7rem;
+  font-weight: 800;
+}
+.audienceValue {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.syncBox {
+  padding: 16px 18px 18px;
+}
+.syncRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: .79rem;
+}
+.syncRow:last-of-type {
+  border-bottom: 0;
+}
+.syncRow span {
+  color: var(--muted);
+}
+.syncAction {
+  width: 100%;
+  margin-top: 12px;
+}
+.zeroState {
+  padding: 18px;
+  color: var(--muted);
+  font-size: .82rem;
+  line-height: 1.55;
+}
+@media (max-width: 1000px) {
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .activityGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .hero { padding: 18px; border-radius: 18px; }
+  .heroTop { flex-direction: column; }
+  .statusRow { justify-content: flex-start; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chartGrid { grid-template-columns: 1fr; }
+  .placementTable th:nth-child(4),
+  .placementTable td:nth-child(4) { display: none; }
+}
+@media (max-width: 480px) {
+  .dashboard { gap: 12px; }
+  .hero { padding: 15px; }
+  .releaseMark { width: 42px; height: 42px; flex-basis: 42px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .kpi { padding: 12px; }
+  .kpiLabel { font-size: .68rem; min-height: 30px; }
+  .kpiValue { font-size: 1.35rem; }
+  .panelHeader, .tableHeader { padding: 15px; }
+  .placementTable th, .placementTable td { padding: 11px 12px; }
+  .placementTable th:nth-child(3),
+  .placementTable td:nth-child(3) { display: none; }
+  .playlistName { max-width: 190px; }
+}
