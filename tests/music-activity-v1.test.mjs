@@ -190,11 +190,24 @@ test("sandbox verification uses capability, evidence and audit runtime", () => {
   assert.match(panel, /does not prove Middle Child coverage/);
 });
 
-test("Insights embeds the unified activity read model", () => {
+test("Insights puts live music intelligence and the activity feed before setup", () => {
+  const page = read("app/insights/page.tsx");
   const layout = read("app/insights/layout.tsx");
+  const overview = read("components/music-intelligence-overview.tsx");
   const loader = read("components/music-activity-feed-loader.tsx");
   const component = read("components/music-activity-feed.tsx");
-  assert.match(layout, /MusicActivityFeedLoader/);
+  const settings = read("app/settings/page.tsx");
+
+  assert.match(page, /MusicIntelligenceOverview/);
+  assert.match(page, /MusicActivityFeedLoader/);
+  assert.ok(page.indexOf("<MusicIntelligenceOverview") < page.indexOf("First-party link performance"));
+  assert.ok(page.indexOf("<MusicActivityFeedLoader") < page.indexOf("First-party link performance"));
+  assert.doesNotMatch(layout, /MusicActivityFeedLoader/);
+  assert.doesNotMatch(layout, /SoundchartsReleasePilotCard/);
+  assert.match(overview, /What is happening with your music/);
+  assert.match(overview, /spotify_playlist_entries/);
+  assert.match(overview, /Scan \{neverAlone\.title\} activity/);
+  assert.match(overview, /Settings/);
   assert.match(loader, /buildMusicActivityFeed/);
   assert.match(loader, /playlist_placements/);
   assert.match(loader, /link_events/);
@@ -202,6 +215,8 @@ test("Insights embeds the unified activity read model", () => {
   assert.match(loader, /evidence_records/);
   assert.match(component, /Music activity/);
   assert.match(component, /strong_recording_identity/);
+  assert.match(settings, /"Data sources"/);
+  assert.match(settings, /\/connections/);
 });
 
 test("research brief requires rights, technical and evidence review", () => {
