@@ -53,7 +53,7 @@ test("release pilot stores normalized evidence instead of raw provider bodies", 
   assert.doesNotMatch(handler, /\.delete\(\)/);
 });
 
-test("release writes stay release-scoped, idempotent, and evidence-backed", () => {
+test("release writes stay release-scoped, idempotent, evidence-backed, and batch-safe", () => {
   const registry = read("lib/capabilities/soundcharts-release-pilot-registry.ts");
   const handler = read("lib/capabilities/soundcharts-release-pilot-handlers.ts");
   assert.match(registry, /integrations\.sync_soundcharts_release_pilot/);
@@ -65,6 +65,9 @@ test("release writes stay release-scoped, idempotent, and evidence-backed", () =
   assert.match(handler, /external_playlist_id === placement\.externalPlaylistId/);
   assert.match(handler, /observation_key/);
   assert.match(handler, /soundcharts_release_pilot_sync/);
+  assert.match(handler, /metricRowsByConflictKey/);
+  assert.match(handler, /metric_duplicate_count/);
+  assert.match(handler, /onConflict: "workspace_id,artist_id,release_id,platform,metric,captured_on"/);
 });
 
 test("Insights presents music intelligence instead of provider setup", () => {
@@ -89,4 +92,6 @@ test("Insights presents music intelligence instead of provider setup", () => {
   assert.match(action, /integrations\.sync_soundcharts_release_pilot/);
   assert.match(action, /revalidatePath\("\/insights"\)/);
   assert.match(action, /revalidatePath\("\/proof"\)/);
+  assert.match(action, /redirect\(`\/insights\?synced=soundcharts-release/);
+  assert.doesNotMatch(action, /redirect\(`\/connections\?error=/);
 });
