@@ -12,13 +12,16 @@ test("Insights is the canonical product route", () => {
   const config = read("next.config.ts");
   const header = read("components/app-header.tsx");
   const page = read("app/insights/page.tsx");
+  const overview = read("components/music-intelligence-overview.tsx");
+  const settings = read("app/settings/page.tsx");
   assert.match(config, /source: "\/analytics"[\s\S]*destination: "\/insights"[\s\S]*permanent: true/);
   assert.match(header, /label: "Insights", href: "\/insights"/);
   assert.match(page, /Evidence-first music intelligence/);
-  assert.match(page, /Configured, authorized and provider verified are separate states/);
   assert.match(page, /One snapshot cannot create a trend/);
-  assert.match(page, /youtube_channel_id/);
-  assert.match(page, /youtube_error/);
+  assert.match(page, /Data source health/);
+  assert.match(overview, /Soundcharts verified/);
+  assert.match(overview, /Release intelligence/);
+  assert.match(settings, /"Data sources"/);
 });
 
 test("source-state logic never collapses identity, authorization, import and verification", () => {
