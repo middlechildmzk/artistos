@@ -15,6 +15,10 @@ export async function syncSoundchartsReleasePilot(formData: FormData) {
   const releaseId = String(formData.get("releaseId") ?? "");
   if (!releaseId) redirect("/connections?error=release_required");
 
+  let metricCount = 0;
+  let playlistCount = 0;
+  let radioSpinCount = 0;
+  let chartCount = 0;
   try {
     const ctx = await createActorContext();
     const idempotencyKey = `soundcharts-release-pilot:${releaseId}:${new Date().toISOString()}:${randomUUID()}`;
@@ -35,11 +39,16 @@ export async function syncSoundchartsReleasePilot(formData: FormData) {
       chartCount?: number;
       metricCount?: number;
     };
+    metricCount = output.metricCount ?? 0;
+    playlistCount = output.playlistCount ?? 0;
+    radioSpinCount = output.radioSpinCount ?? 0;
+    chartCount = output.chartCount ?? 0;
     revalidatePath("/connections");
     revalidatePath("/insights");
     revalidatePath("/proof");
-    redirect(`/connections?synced=soundcharts-release&metrics=${output.metricCount ?? 0}&playlists=${output.playlistCount ?? 0}&radio=${output.radioSpinCount ?? 0}&charts=${output.chartCount ?? 0}`);
   } catch (error) {
     redirect(`/connections?error=${encodeURIComponent(safeError(error))}`);
   }
+
+  redirect(`/connections?synced=soundcharts-release&metrics=${metricCount}&playlists=${playlistCount}&radio=${radioSpinCount}&charts=${chartCount}`);
 }
