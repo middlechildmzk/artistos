@@ -190,7 +190,7 @@ test("sandbox verification uses capability, evidence and audit runtime", () => {
   assert.match(panel, /does not prove Middle Child coverage/);
 });
 
-test("Insights puts live music intelligence and the activity feed before setup", () => {
+test("Insights puts visual music intelligence and the activity feed before setup", () => {
   const page = read("app/insights/page.tsx");
   const layout = read("app/insights/layout.tsx");
   const overview = read("components/music-intelligence-overview.tsx");
@@ -204,10 +204,13 @@ test("Insights puts live music intelligence and the activity feed before setup",
   assert.ok(page.indexOf("<MusicActivityFeedLoader") < page.indexOf("First-party link performance"));
   assert.doesNotMatch(layout, /MusicActivityFeedLoader/);
   assert.doesNotMatch(layout, /SoundchartsReleasePilotCard/);
-  assert.match(overview, /What is happening with your music/);
-  assert.match(overview, /spotify_playlist_entries/);
-  assert.match(overview, /Scan \{neverAlone\.title\} activity/);
-  assert.match(overview, /Settings/);
+  assert.match(overview, /Release intelligence/);
+  assert.match(overview, /Number of playlists/);
+  assert.match(overview, /Total playlist followers \/ reach/);
+  assert.match(overview, /Recent playlist adds/);
+  assert.match(overview, /Cross-platform audience/);
+  assert.match(overview, /Refresh \{neverAlone\.title\}/);
+  assert.match(overview, /spotify_playlist_reach/);
   assert.match(loader, /buildMusicActivityFeed/);
   assert.match(loader, /playlist_placements/);
   assert.match(loader, /link_events/);
