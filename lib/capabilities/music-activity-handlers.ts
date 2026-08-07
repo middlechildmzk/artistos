@@ -1,5 +1,6 @@
 import "server-only";
 
+import "./soundcharts-release-pilot-handlers";
 import { probeSoundchartsSandbox } from "@/lib/integrations/soundcharts-sandbox";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { registerCapabilityHandler } from "./handlers";
