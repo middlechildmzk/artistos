@@ -1,65 +1,82 @@
-# Soundcharts Never Alone pilot
+# Soundcharts Never Alone pilot verification
 
-## Canonical release identity
+As of 2026-08-07.
+
+## Identity
 
 - Artist: Middle Child
 - Release: Never Alone
-- Release date: 2026-07-31
 - ArtistOS release ID: `47210a7f-d595-4ec4-8d7b-639e0049dd16`
 - ISRC: `QT6EX2615333`
 - UPC: `882877618355`
 - Spotify track ID: `4CzteKxZWpQw81hZPbUXj1`
 
-Do not use artist-name or title matching for this pilot.
+## Provider state
 
-## Current Soundcharts authentication documentation
+- Soundcharts is configured in the live workspace with encrypted credentials.
+- Artist-level provider verification succeeded on 2026-08-07.
+- Soundcharts artist UUID: `11e81bbd-e265-d4ac-bac4-a0369fe50396`.
+- Artist-level sync stored four entitled observations with no endpoint errors.
+- The artist-level Spotify playlist request returned 100 entries at the configured request limit. That is not asserted to be the artist's total playlist count.
 
-Soundcharts' current Getting Started and Authorization pages recommend OAuth-style client credentials for new integrations: create a `client_id` and `client_secret`, exchange them for a short-lived bearer token, and use that token on API calls.
+## Release-level provider result
 
-A March 12, 2026 Soundcharts Help Center article still documents the free 1,000-production-request credentials as `x-app-id` and `x-api-key` values. Because both are first-party Soundcharts sources and may reflect a credential transition, ArtistOS accepts either pair:
+The user ran the ISRC-level Never Alone pilot.
 
-1. `client_id` + `client_secret` -> short-lived bearer token, preferred for new integrations.
-2. `x-app-id` + `x-api-key` -> legacy request headers, used only when the token exchange rejects the supplied pair and a bounded legacy validation request succeeds.
+Verified live database state after that run:
 
-Credentials remain encrypted server-side. Legacy credentials are never written into a pseudo token outside process memory and raw Soundcharts response bodies are not retained.
+- 56 licensed playlist placement rows are attached to the Never Alone release.
+- Playlist names, observed entry dates, and track positions were normalized for those rows.
+- Playlist follower values were not returned/normalized on the stored placement rows, so null values must not be presented as zero reach.
+- No Soundcharts radio-spin Proof records are currently stored for Never Alone.
+- No Soundcharts chart-entry Proof records are currently stored for Never Alone.
+- A verified `soundcharts_release_pilot_sync` Proof receipt exists.
 
-## Owner setup
+The first reach request was parsed by an earlier generic numeric collector and stored pagination values such as `page_limit`, `page_offset`, and `page_total`. Those values are not playlist reach and must not be displayed as reach metrics.
 
-1. Sign up or sign in to Soundcharts.
-2. Confirm the account shows the 1,000-request free production allowance.
-3. Create or retrieve the API credential pair shown by the Soundcharts console.
-4. Enter the pair into ArtistOS Connections. Do not paste secrets into chat, GitHub, logs, screenshots, or client-side code.
-5. Run one controlled release sync for Never Alone from Insights.
+## Corrected reach contract
 
-## Expected pilot observations
+The release adapter now treats the Soundcharts Spotify playlist-reach endpoint as a typed time series and accepts the documented item fields:
 
-The release pilot attempts entitled Soundcharts endpoints for:
+- `date`
+- `playlistCount`
+- `playlistReach`
+- `playlistEditorialCount`
+- `playlistEditorialReach`
+- `playlistUserCount`
+- `playlistUserReach`
 
-- recording identity and cross-platform IDs
-- current song statistics
-- Spotify playlist entries and playlist reach
-- radio spins and radio play counts
-- Spotify, Apple Music, Shazam, and YouTube chart entries
-- provider usage/quota health
+Normalized ArtistOS metrics are:
 
-Each endpoint is independent. HTTP 403 or 404 is recorded as unavailable, not fabricated as zero and not treated as failure of every other endpoint.
+- `spotify_playlist_count`
+- `spotify_playlist_reach`
+- `spotify_playlist_editorial_count`
+- `spotify_playlist_editorial_reach`
+- `spotify_playlist_user_count`
+- `spotify_playlist_user_reach`
 
-## Storage boundary
+Pagination keys are excluded from generic metric normalization.
 
-ArtistOS may store only normalized release-scoped observations and Proof receipts during this pilot:
+A new explicit release refresh is required to populate this corrected reach history. ArtistOS does not spend the user's remaining Soundcharts allowance automatically.
 
-- metric snapshots
-- deduplicated playlist placements
-- radio-spin Proof records
-- chart-entry Proof records
-- endpoint/source health
-- quota usage
-- one summary sync receipt
+## Insights UX
 
-Do not retain raw provider response bodies.
+Insights now uses a music-intelligence hierarchy modeled on useful patterns from specialist analytics products while retaining ArtistOS evidence boundaries:
 
-## Production and rights boundary
+1. release identity and headline KPIs;
+2. playlist-count and playlist-reach trend charts;
+3. recent playlist additions with position/date/source context;
+4. cross-platform audience observations;
+5. compact provider health and explicit refresh control;
+6. the broader source-visible Music Activity ledger below.
 
-A successful pilot proves only technical access and observed coverage for this ArtistOS workspace. It does not prove multi-tenant SaaS display rights, caching rights, post-termination retention, customer export rights, or Artist Brain derivative-use rights. Written provider confirmation remains required before licensed Soundcharts data is offered to other ArtistOS customers.
+Provider credentials and maintenance remain under Settings → Data sources.
 
-No purchase, plan upgrade, production rollout, or destructive change is authorized by this runbook.
+## Verification boundary
+
+- Exact implementation branch: `agent/artistos-music-activity-v1`
+- Production deployment: not performed
+- Schema migration for this UX/parser pass: none
+- Raw Soundcharts response bodies retained: no
+- Corrected playlist-reach history populated: not yet; requires one user-triggered refresh
+- Multi-tenant Soundcharts display/caching/retention rights: not contractually confirmed
