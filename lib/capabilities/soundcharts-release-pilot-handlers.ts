@@ -114,16 +114,39 @@ registerCapabilityHandler(syncSoundchartsReleasePilotCapability, async ({ ctx, i
   }
 
   const capturedOn = pilot.checkedAt.slice(0, 10);
-  const metricRows = pilot.metricObservations.map((metric) => ({
-    workspace_id: ctx.workspaceId,
-    artist_id: release.artist_id,
-    release_id: release.id,
-    platform: "soundcharts",
-    metric: metric.metric,
-    value: metric.value,
-    captured_on: metric.observedOn || capturedOn,
-    source_url: metric.sourceUrl,
-  }));
+  const metricRowsByConflictKey = new Map<string, {
+    workspace_id: string;
+    artist_id: string;
+    release_id: string;
+    platform: string;
+    metric: string;
+    value: number;
+    captured_on: string;
+    source_url: string;
+  }>();
+  for (const metric of pilot.metricObservations) {
+    const row = {
+      workspace_id: ctx.workspaceId,
+      artist_id: release.artist_id,
+      release_id: release.id,
+      platform: "soundcharts",
+      metric: metric.metric,
+      value: metric.value,
+      captured_on: metric.observedOn || capturedOn,
+      source_url: metric.sourceUrl,
+    };
+    const conflictKey = [
+      row.workspace_id,
+      row.artist_id,
+      row.release_id,
+      row.platform,
+      row.metric,
+      row.captured_on,
+    ].join("|");
+    metricRowsByConflictKey.set(conflictKey, row);
+  }
+  const metricRows = [...metricRowsByConflictKey.values()];
+  const duplicateMetricCount = Math.max(0, pilot.metricObservations.length - metricRows.length);
   if (metricRows.length) {
     const { error } = await supabase.from("metric_snapshots").upsert(metricRows, {
       onConflict: "workspace_id,artist_id,release_id,platform,metric,captured_on",
@@ -293,7 +316,7 @@ registerCapabilityHandler(syncSoundchartsReleasePilotCapability, async ({ ctx, i
     evidence_type: "soundcharts_release_pilot_sync",
     source_type: "api_response",
     source_uri: `https://customer.api.soundcharts.com/api/v2.25/song/by-isrc/${encodeURIComponent(pilot.isrc)}`,
-    summary: `Resolved ${release.title} by ISRC ${pilot.isrc} and stored ${metricRows.length} metrics, ${playlistCount} playlist observations, ${pilot.radioObservations.length} radio spins, and ${pilot.chartObservations.length} chart observations.`,
+    summary: `Resolved ${release.title} by ISRC ${pilot.isrc} and stored ${metricRows.length} unique metrics, ${playlistCount} playlist observations, ${pilot.radioObservations.length} radio spins, and ${pilot.chartObservations.length} chart observations.`,
     confidence: "verified",
     confidence_score: 1,
     observed_at: pilot.checkedAt,
@@ -303,7 +326,9 @@ registerCapabilityHandler(syncSoundchartsReleasePilotCapability, async ({ ctx, i
       environment: pilot.environment,
       isrc: pilot.isrc,
       soundcharts_song_uuid: pilot.soundchartsUuid,
+      metric_input_count: pilot.metricObservations.length,
       metric_count: metricRows.length,
+      metric_duplicate_count: duplicateMetricCount,
       playlist_count: playlistCount,
       radio_spin_count: pilot.radioObservations.length,
       chart_count: pilot.chartObservations.length,
