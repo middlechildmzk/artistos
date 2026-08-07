@@ -103,7 +103,7 @@ function normalizedSourceClass(value: string | null | undefined): MusicActivityS
   if (["api_response", "public", "public_profile", "public_api", "listenbrainz", "audius", "lastfm"].includes(normalized)) return "public";
   if (["oauth", "authorized", "youtube_api", "kit_api"].includes(normalized)) return "authorized";
   if (["manual", "manual_verification"].includes(normalized)) return "manual";
-  if (["fingerprinted", "fingerprint", "audio_fingerprint"].includes(normalized)) return "fingerprinted";
+  if (["fingerprinted", "fingerprint", "audio_fingerprint"].includes(normalized)) return "fingerprint";
   if (["inferred", "probable"].includes(normalized)) return "inferred";
   return "owned";
 }
@@ -190,7 +190,7 @@ export function buildMusicActivityFeed(input: {
       ...identity,
       eventAt: event.occurred_at,
       observedAt: event.occurred_at,
-      freshness: deriveMusicActivityFreshness({ observedAt: event.occurred_at, cadence: "immediate", now }),
+      freshness: deriveMusicActivityFreshness({ observedAt: event.occurred_at, cadence: "near_real_time", now }),
       verificationStatus: "recorded",
       sourceUrl: smartLink ? `/l/${smartLink.slug}` : null,
     });
