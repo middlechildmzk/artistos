@@ -3,7 +3,7 @@ import {
   deriveMusicActivityFreshness,
   type MusicActivityFreshness,
   type MusicActivitySourceClass,
-} from "./contract";
+} from "./contract.ts";
 
 export type MusicActivityFeedKind =
   | "metric_snapshot"
@@ -29,26 +29,19 @@ export type MusicActivityFeedItem = {
   observedAt: string;
   freshness: MusicActivityFreshness;
   verificationStatus: string;
-  confidence: string;
   sourceUrl: string | null;
-  value: number | null;
 };
 
 type ReleaseRow = {
   id: string;
-  artist_id?: string | null;
+  artist_id: string | null;
   title: string;
   featured_artist?: string | null;
   isrc?: string | null;
   spotify_url?: string | null;
 };
 
-type SmartLinkRow = {
-  id: string;
-  release_id: string;
-  slug: string;
-};
-
+type SmartLinkRow = { id: string; release_id: string | null; slug: string };
 type LinkEventRow = {
   id: string;
   smart_link_id: string;
@@ -61,35 +54,32 @@ type LinkEventRow = {
   country_code?: string | null;
   occurred_at: string;
 };
-
 type MetricRow = {
   id: string;
-  artist_id?: string | null;
-  release_id?: string | null;
+  artist_id: string | null;
+  release_id: string | null;
   platform: string;
   metric: string;
   value: number | string;
   captured_on: string;
   source_url?: string | null;
 };
-
 type PlacementRow = {
   id: string;
-  release_id?: string | null;
+  release_id: string | null;
   playlist_name: string;
   playlist_url?: string | null;
   external_playlist_id?: string | null;
-  followers?: number | string | null;
+  followers?: number | null;
   track_position?: number | null;
   added_at?: string | null;
   removed_at?: string | null;
   last_activity_at?: string | null;
   source_type?: string | null;
-  confidence?: number | string | null;
+  confidence?: number | null;
   verification_state?: string | null;
   last_verified_at?: string | null;
 };
-
 type EvidenceRow = {
   id: string;
   artist_id?: string | null;
@@ -99,14 +89,65 @@ type EvidenceRow = {
   verification_status?: string | null;
   verification_method?: string | null;
   confidence?: string | null;
-  confidence_score?: number | string | null;
+  confidence_score?: number | null;
   observed_at: string;
   summary: string;
   source_uri?: string | null;
   metadata?: unknown;
 };
 
-export type BuildMusicActivityFeedArgs = {
+function normalizedSourceClass(value: string | null | undefined): MusicActivitySourceClass {
+  const normalized = String(value ?? "").toLowerCase();
+  if (["licensed", "soundcharts", "chartmetric", "viberate"].includes(normalized)) return "licensed";
+  if (["uploaded_file", "source_export", "imported", "export"].includes(normalized)) return "imported";
+  if (["api_response", "public", "public_profile", "public_api", "listenbrainz", "audius", "lastfm"].includes(normalized)) return "public";
+  if (["oauth", "authorized", "youtube_api", "kit_api"].includes(normalized)) return "authorized";
+  if (["manual", "manual_verification"].includes(normalized)) return "manual";
+  if (["fingerprinted", "fingerprint", "audio_fingerprint"].includes(normalized)) return "fingerprinted";
+  if (["inferred", "probable"].includes(normalized)) return "inferred";
+  return "owned";
+}
+
+function sourceClassForMetric(platform: string): MusicActivitySourceClass {
+  const normalized = platform.toLowerCase();
+  if (["soundcharts", "chartmetric", "viberate"].includes(normalized)) return "licensed";
+  if (["youtube", "kit"].includes(normalized)) return "authorized";
+  if (["listenbrainz", "audius", "lastfm", "spotify", "apple_music", "shazam"].includes(normalized)) return "public";
+  return "imported";
+}
+
+function titleForRelease(release: ReleaseRow | undefined) {
+  if (!release) return null;
+  return `${release.title}${release.featured_artist ? ` (feat. ${release.featured_artist})` : ""}`;
+}
+
+function eventIdentity(release: ReleaseRow | undefined) {
+  return release?.isrc
+    ? { identityState: "strong_recording_identity" as const, isrc: release.isrc }
+    : release
+      ? { identityState: "release_link_only" as const, isrc: null }
+      : { identityState: "workspace_signal" as const, isrc: null };
+}
+
+function stableFeedKey(parts: Array<string | number | null | undefined>) {
+  return createHash("sha256").update(parts.map((part) => String(part ?? "")).join("|")).digest("hex");
+}
+
+function safeUrl(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+export function buildMusicActivityFeed(input: {
   releases: ReleaseRow[];
   smartLinks: SmartLinkRow[];
   linkEvents: LinkEventRow[];
@@ -114,85 +155,17 @@ export type BuildMusicActivityFeedArgs = {
   placements: PlacementRow[];
   evidence: EvidenceRow[];
   now?: Date;
-};
-
-function humanize(value: string) {
-  return value.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function safeUrl(value: string | null | undefined) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
-function sourceClassForMetric(platform: string): MusicActivitySourceClass {
-  const normalized = platform.toLowerCase();
-  if (["soundcharts", "chartmetric", "viberate", "spotontrack", "acrcloud", "bmat", "radiomonitor"].includes(normalized)) return "licensed";
-  if (["youtube", "youtube-analytics", "kit", "instagram", "meta", "tiktok", "soundcloud"].includes(normalized)) return "authorized";
-  if (["listenbrainz", "musicbrainz", "lastfm", "audius"].includes(normalized)) return "public";
-  return "imported";
-}
-
-function sourceClassForEvidence(row: EvidenceRow): MusicActivitySourceClass {
-  const type = `${row.evidence_type} ${row.verification_method ?? ""}`.toLowerCase();
-  if (/soundcharts|chartmetric|viberate|spotontrack|acrcloud|bmat|radiomonitor/.test(type)) return "licensed";
-  if (/youtube|google|kit|instagram|meta|tiktok|soundcloud/.test(type)) return "authorized";
-  if (/listenbrainz|musicbrainz|lastfm|audius/.test(type)) return "public";
-  if (/import|csv|export/.test(type)) return "imported";
-  if (/fingerprint|audio match/.test(type)) return "fingerprint";
-  return row.source_type === "manual" ? "manual" : "manual";
-}
-
-function cadenceForSource(sourceClass: MusicActivitySourceClass, kind: MusicActivityFeedKind) {
-  if (["link_view", "link_click", "fan_capture"].includes(kind)) return "webhook" as const;
-  if (sourceClass === "licensed" || sourceClass === "authorized") return "daily" as const;
-  if (sourceClass === "public") return "daily" as const;
-  return "manual" as const;
-}
-
-function toObservedAt(value: string) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00:00.000Z`;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? new Date(0).toISOString() : parsed.toISOString();
-}
-
-function activityKey(parts: unknown[]) {
-  return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
-}
-
-function identityForRelease(release: ReleaseRow | null) {
-  if (release?.isrc?.trim()) return { isrc: release.isrc.trim().toUpperCase(), state: "strong_recording_identity" as const };
-  if (release) return { isrc: null, state: "release_link_only" as const };
-  return { isrc: null, state: "workspace_signal" as const };
-}
-
-function confidenceLabel(value: number | string | null | undefined, fallback: string) {
-  const numeric = Number(value);
-  if (Number.isFinite(numeric)) {
-    if (numeric >= 0.95) return "verified";
-    if (numeric >= 0.75) return "supported";
-    if (numeric > 0) return "review required";
-  }
-  return fallback;
-}
-
-export function buildMusicActivityFeed(args: BuildMusicActivityFeedArgs): MusicActivityFeedItem[] {
-  const now = args.now ?? new Date();
-  const releasesById = new Map(args.releases.map((release) => [release.id, release]));
-  const releaseBySmartLinkId = new Map(
-    args.smartLinks.map((link) => [link.id, releasesById.get(link.release_id) ?? null]),
-  );
+}): MusicActivityFeedItem[] {
+  const now = input.now ?? new Date();
+  const releasesById = new Map(input.releases.map((release) => [release.id, release]));
+  const smartLinksById = new Map(input.smartLinks.map((link) => [link.id, link]));
   const items: MusicActivityFeedItem[] = [];
 
-  for (const event of args.linkEvents) {
-    const release = releaseBySmartLinkId.get(event.smart_link_id) ?? null;
-    const identity = identityForRelease(release);
-    const kind: MusicActivityFeedKind | null = event.event_type === "page_view"
+  for (const event of input.linkEvents) {
+    const smartLink = smartLinksById.get(event.smart_link_id);
+    const release = smartLink?.release_id ? releasesById.get(smartLink.release_id) : undefined;
+    const identity = eventIdentity(release);
+    const kind = event.event_type === "page_view"
       ? "link_view"
       : event.event_type === "destination_click"
         ? "link_click"
@@ -200,144 +173,104 @@ export function buildMusicActivityFeed(args: BuildMusicActivityFeedArgs): MusicA
           ? "fan_capture"
           : null;
     if (!kind) continue;
-    const sourceDetail = event.utm_campaign?.trim() || event.utm_source?.trim() || event.referrer?.trim() || null;
-    const destination = event.destination_service?.trim() || null;
-    const territory = event.country_code?.trim() || null;
-    const detailParts = [
-      release?.title ?? "ArtistOS release link",
-      destination ? `destination: ${destination}` : null,
-      territory ? `territory: ${territory}` : null,
-      sourceDetail ? `attribution: ${sourceDetail}` : null,
-    ].filter(Boolean);
-    const title = kind === "link_view"
-      ? "Release link viewed"
-      : kind === "link_click"
-        ? `${destination ? humanize(destination) : "Release"} destination clicked`
-        : "Fan signup captured";
-    const observedAt = toObservedAt(event.occurred_at);
+    const sourceDetail = kind === "link_click"
+      ? `Clicked ${event.destination_service ?? "a release destination"}`
+      : kind === "fan_capture"
+        ? "Fan signup recorded with ArtistOS consent evidence"
+        : "Release page viewed";
     items.push({
-      key: activityKey(["link_event", event.id]),
+      key: stableFeedKey(["link", event.id]),
       kind,
       source: "ArtistOS Links",
       sourceClass: "owned",
-      title,
-      detail: detailParts.join(" · "),
+      title: titleForRelease(release) ?? "ArtistOS Link",
+      detail: `${sourceDetail}${event.country_code ? ` · ${event.country_code}` : ""}`,
       releaseId: release?.id ?? null,
-      releaseTitle: release?.title ?? null,
-      isrc: identity.isrc,
-      identityState: identity.state,
-      eventAt: observedAt,
-      observedAt,
-      freshness: deriveMusicActivityFreshness({ observedAt, cadence: "webhook", now }),
+      releaseTitle: titleForRelease(release),
+      ...identity,
+      eventAt: event.occurred_at,
+      observedAt: event.occurred_at,
+      freshness: deriveMusicActivityFreshness({ observedAt: event.occurred_at, cadence: "immediate", now }),
       verificationStatus: "recorded",
-      confidence: "verified",
-      sourceUrl: null,
-      value: null,
+      sourceUrl: smartLink ? `/l/${smartLink.slug}` : null,
     });
   }
 
-  for (const placement of args.placements) {
-    const release = placement.release_id ? releasesById.get(placement.release_id) ?? null : null;
-    const identity = identityForRelease(release);
-    const removed = Boolean(placement.removed_at);
-    const eventAt = toObservedAt(placement.removed_at ?? placement.added_at ?? placement.last_activity_at ?? placement.last_verified_at ?? new Date(0).toISOString());
-    const sourceClass: MusicActivitySourceClass = placement.source_type === "provider_api" || placement.source_type === "licensed"
-      ? "licensed"
-      : placement.source_type === "public"
-        ? "public"
-        : placement.source_type === "imported"
-          ? "imported"
-          : "manual";
-    const detailParts = [
-      release?.title ?? "Unlinked release",
-      placement.track_position ? `position ${placement.track_position}` : null,
-      placement.followers ? `${Number(placement.followers).toLocaleString("en-US")} followers` : null,
-      placement.verification_state ? `verification: ${humanize(placement.verification_state)}` : null,
-    ].filter(Boolean);
-    items.push({
-      key: activityKey(["playlist_placement", placement.id, removed ? "removed" : "added", eventAt]),
-      kind: removed ? "playlist_removed" : "playlist_added",
-      source: placement.source_type ? humanize(placement.source_type) : "Playlist evidence",
-      sourceClass,
-      title: `${removed ? "Removed from" : "Added to"} ${placement.playlist_name}`,
-      detail: detailParts.join(" · "),
-      releaseId: release?.id ?? null,
-      releaseTitle: release?.title ?? null,
-      isrc: identity.isrc,
-      identityState: identity.state,
-      eventAt,
-      observedAt: toObservedAt(placement.last_verified_at ?? placement.last_activity_at ?? eventAt),
-      freshness: deriveMusicActivityFreshness({
-        observedAt: toObservedAt(placement.last_verified_at ?? placement.last_activity_at ?? eventAt),
-        cadence: cadenceForSource(sourceClass, removed ? "playlist_removed" : "playlist_added"),
-        now,
-      }),
-      verificationStatus: placement.verification_state ?? "unverified",
-      confidence: confidenceLabel(placement.confidence, placement.verification_state ?? "review required"),
-      sourceUrl: safeUrl(placement.playlist_url),
-      value: placement.track_position ?? null,
-    });
+  const latestMetrics = new Map<string, MetricRow>();
+  for (const metric of input.metrics) {
+    const key = `${metric.artist_id ?? "workspace"}:${metric.release_id ?? "all"}:${metric.platform}:${metric.metric}`;
+    const existing = latestMetrics.get(key);
+    if (!existing || existing.captured_on < metric.captured_on) latestMetrics.set(key, metric);
   }
-
-  const latestMetricBySeries = new Map<string, MetricRow>();
-  for (const metric of args.metrics) {
-    const seriesKey = `${metric.artist_id ?? "workspace"}:${metric.release_id ?? "all"}:${metric.platform}:${metric.metric}`;
-    if (!latestMetricBySeries.has(seriesKey)) latestMetricBySeries.set(seriesKey, metric);
-  }
-  for (const metric of latestMetricBySeries.values()) {
-    const release = metric.release_id ? releasesById.get(metric.release_id) ?? null : null;
-    const identity = identityForRelease(release);
-    const sourceClass = sourceClassForMetric(metric.platform);
-    const observedAt = toObservedAt(metric.captured_on);
-    const numericValue = Number(metric.value);
+  for (const metric of latestMetrics.values()) {
+    const release = metric.release_id ? releasesById.get(metric.release_id) : undefined;
+    const identity = eventIdentity(release);
     items.push({
-      key: activityKey(["metric", metric.id]),
+      key: stableFeedKey(["metric", metric.id]),
       kind: "metric_snapshot",
-      source: humanize(metric.platform),
-      sourceClass,
-      title: `${humanize(metric.metric)} updated`,
-      detail: `${release?.title ?? "Artist or workspace signal"} · ${Number.isFinite(numericValue) ? numericValue.toLocaleString("en-US", { maximumFractionDigits: 2 }) : String(metric.value)}`,
-      releaseId: release?.id ?? null,
-      releaseTitle: release?.title ?? null,
-      isrc: identity.isrc,
-      identityState: identity.state,
-      eventAt: observedAt,
-      observedAt,
-      freshness: deriveMusicActivityFreshness({ observedAt, cadence: cadenceForSource(sourceClass, "metric_snapshot"), now }),
-      verificationStatus: sourceClass === "licensed" || sourceClass === "authorized" || sourceClass === "public" ? "source observed" : "imported",
-      confidence: sourceClass === "imported" ? "supported" : "verified",
+      source: metric.platform,
+      sourceClass: sourceClassForMetric(metric.platform),
+      title: release ? titleForRelease(release) ?? metric.metric : metric.metric.replace(/_/g, " "),
+      detail: `${metric.metric.replace(/_/g, " ")}: ${metric.value}`,
+      releaseId: release?.id ?? metric.release_id ?? null,
+      releaseTitle: titleForRelease(release),
+      ...identity,
+      eventAt: `${metric.captured_on}T12:00:00.000Z`,
+      observedAt: `${metric.captured_on}T12:00:00.000Z`,
+      freshness: deriveMusicActivityFreshness({ observedAt: `${metric.captured_on}T12:00:00.000Z`, cadence: "daily", now }),
+      verificationStatus: "source observed",
       sourceUrl: safeUrl(metric.source_url),
-      value: Number.isFinite(numericValue) ? numericValue : null,
     });
   }
 
-  for (const receipt of args.evidence) {
-    const release = receipt.release_id ? releasesById.get(receipt.release_id) ?? null : null;
-    const identity = identityForRelease(release);
-    const sourceClass = sourceClassForEvidence(receipt);
-    const observedAt = toObservedAt(receipt.observed_at);
+  for (const placement of input.placements) {
+    const release = placement.release_id ? releasesById.get(placement.release_id) : undefined;
+    const identity = eventIdentity(release);
+    const sourceClass = normalizedSourceClass(placement.source_type);
+    const eventAt = placement.removed_at ?? placement.last_activity_at ?? placement.added_at ?? placement.last_verified_at;
+    if (!eventAt) continue;
+    const removed = Boolean(placement.removed_at);
     items.push({
-      key: activityKey(["evidence", receipt.id]),
-      kind: "source_receipt",
-      source: receipt.verification_method ? humanize(receipt.verification_method) : humanize(receipt.source_type ?? "ArtistOS Proof"),
+      key: stableFeedKey(["placement", placement.id, removed ? "removed" : "added", eventAt]),
+      kind: removed ? "playlist_removed" : "playlist_added",
+      source: sourceClass === "licensed" ? "Licensed playlist intelligence" : "Playlist evidence",
       sourceClass,
-      title: humanize(receipt.evidence_type),
-      detail: receipt.summary,
-      releaseId: release?.id ?? null,
-      releaseTitle: release?.title ?? null,
-      isrc: identity.isrc,
-      identityState: identity.state,
-      eventAt: observedAt,
-      observedAt,
-      freshness: deriveMusicActivityFreshness({ observedAt, cadence: cadenceForSource(sourceClass, "source_receipt"), now }),
-      verificationStatus: receipt.verification_status ?? "pending",
-      confidence: receipt.confidence ?? confidenceLabel(receipt.confidence_score, "supported"),
-      sourceUrl: safeUrl(receipt.source_uri),
-      value: null,
+      title: placement.playlist_name,
+      detail: `${removed ? "Removed" : "Placed"}${placement.track_position ? ` at position ${placement.track_position}` : ""}${placement.followers ? ` · ${placement.followers.toLocaleString()} followers` : ""}`,
+      releaseId: release?.id ?? placement.release_id ?? null,
+      releaseTitle: titleForRelease(release),
+      ...identity,
+      eventAt,
+      observedAt: placement.last_verified_at ?? placement.last_activity_at ?? eventAt,
+      freshness: deriveMusicActivityFreshness({ observedAt: placement.last_verified_at ?? placement.last_activity_at ?? eventAt, cadence: "daily", now }),
+      verificationStatus: placement.verification_state ?? "unverified",
+      sourceUrl: safeUrl(placement.playlist_url),
     });
   }
 
-  const deduplicated = new Map<string, MusicActivityFeedItem>();
-  for (const item of items) if (!deduplicated.has(item.key)) deduplicated.set(item.key, item);
-  return [...deduplicated.values()].sort((left, right) => right.eventAt.localeCompare(left.eventAt));
+  for (const evidence of input.evidence) {
+    if (["fan_signup", "playlist_placement"].includes(evidence.evidence_type)) continue;
+    const release = evidence.release_id ? releasesById.get(evidence.release_id) : undefined;
+    const identity = eventIdentity(release);
+    const metadata = asObject(evidence.metadata);
+    const provider = typeof metadata.provider === "string" ? metadata.provider : evidence.verification_method ?? evidence.source_type ?? "Proof";
+    items.push({
+      key: stableFeedKey(["evidence", evidence.id]),
+      kind: "source_receipt",
+      source: provider,
+      sourceClass: normalizedSourceClass(typeof metadata.source_class === "string" ? metadata.source_class : evidence.source_type),
+      title: release ? titleForRelease(release) ?? evidence.evidence_type : evidence.evidence_type.replace(/_/g, " "),
+      detail: evidence.summary,
+      releaseId: release?.id ?? evidence.release_id ?? null,
+      releaseTitle: titleForRelease(release),
+      ...identity,
+      eventAt: evidence.observed_at,
+      observedAt: evidence.observed_at,
+      freshness: deriveMusicActivityFreshness({ observedAt: evidence.observed_at, cadence: "daily", now }),
+      verificationStatus: evidence.verification_status ?? "unverified",
+      sourceUrl: safeUrl(evidence.source_uri),
+    });
+  }
+
+  return items.sort((a, b) => b.eventAt.localeCompare(a.eventAt));
 }
