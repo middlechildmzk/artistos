@@ -75,6 +75,7 @@ Provider credentials and maintenance remain under Settings → Data sources.
 ## Verification boundary
 
 - Exact implementation branch: `agent/artistos-music-activity-v1`
+- Exact head at this verification update: `a542aaa6201f290c2ded501b561e02c2eeaec8ed`
 - Production deployment: not performed
 - Schema migration for this UX/parser pass: none
 - Raw Soundcharts response bodies retained: no
