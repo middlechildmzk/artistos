@@ -9,4 +9,4 @@ Disallow: /relationships
 Disallow: /insights
 Disallow: /api/
 
-Sitemap: https://artistos-next-middlechildmzks-projects.vercel.app/sitemap.xml
+# Public acquisition pages are intentionally crawlable. Keep the authenticated app out of search until a production custom domain is assigned.
