@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /campaigns
+Disallow: /connections
+Disallow: /settings
+Disallow: /targets
+Disallow: /relationships
+Disallow: /insights
+Disallow: /api/
+
+Sitemap: https://artistos-next-middlechildmzks-projects.vercel.app/sitemap.xml
