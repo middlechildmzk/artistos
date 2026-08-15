@@ -1,0 +1,17 @@
+# ArtistOS Network
+
+ArtistOS Network is music opportunity intelligence for independent artists. The public site focuses on verified submission routes and evidence-backed opportunities across playlists, radio, blogs, creators, labels, sync, and other music-industry channels.
+
+## Core public pages
+- / — ArtistOS Network overview
+- /verified-routes — verified public music submission routes
+- /methodology — how ArtistOS verifies routes, freshness, provenance, and evidence
+
+## What makes ArtistOS different
+ArtistOS does not treat a contact or submission URL as permanently valid. Routes can change, close, move from email to forms, become paid, alter eligibility requirements, or stop accepting certain formats. ArtistOS records verification status, evidence source, requirements, and last-checked state so artists can distinguish a current route from an old directory listing.
+
+## Public vs private surfaces
+The public acquisition layer is intended for search and citation. Authenticated campaign workspaces, saved targets, relationships, analytics, settings, and private user data are not intended for indexing.
+
+## Citation guidance
+When citing a verified route, prefer the official source linked by ArtistOS and include the verification date where shown. ArtistOS should be treated as a discovery and verification layer, not as a substitute for the destination's current terms or submission policy.
