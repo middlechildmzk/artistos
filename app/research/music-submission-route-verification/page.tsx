@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const reviewed = 23;
-const verified = 21;
+const reviewed = 28;
+const verified = 26;
 const staleOrChanged = 2;
-const clearCorrections = 4;
+const clearCorrections = 7;
 const minimumCorrectionRate = ((clearCorrections / reviewed) * 100).toFixed(1);
 
 const examples = [
@@ -35,6 +35,27 @@ const examples = [
     after: "UCLA Radio's current official contact page labels it Music Programming Inquiries. That is not enough evidence to claim an open unsolicited submission policy.",
     source: "https://uclaradio.com/contact-us/",
     label: "Claim downgraded",
+  },
+  {
+    name: "CKCU 93.1 FM",
+    before: "A third-party seed supplied one personal Gmail address as the submission route.",
+    after: "CKCU's current official guidance tells artists to identify relevant programs and contact those show hosts directly through their program pages.",
+    source: "https://www.ckcufm.com/contact/",
+    label: "Central route replaced",
+  },
+  {
+    name: "KXSC Radio",
+    before: "Stored music@kxsc.org, which is a current Music Director staff address.",
+    after: "KXSC's dedicated Music Submission page publishes submissions@kxsc.org—or physical mail—as the actual submission route.",
+    source: "https://kxsc.org/musicsubmission/",
+    label: "Staff contact ≠ submission inbox",
+  },
+  {
+    name: "KDVS 90.3 FM",
+    before: "Stored an older Gmail route found in a 2023 review roundup.",
+    after: "KDVS's current official pages say new music submissions are physical-only. musicdept@kdvs.org is the current Music Director contact, not a digital-submission route.",
+    source: "https://kdvs.org/about/faq",
+    label: "Digital route became physical-only",
   },
 ];
 
@@ -87,7 +108,7 @@ export default function RouteVerificationResearchPage() {
         <section className="card release-card" style={{ padding: 42, marginBottom: 18 }}>
           <p className="eyebrow">Pilot research · August 16, 2026</p>
           <h1>What happens when you actually re-check music submission routes?</h1>
-          <p className="muted" style={{ maxWidth: 900, fontSize: "1.08rem", lineHeight: 1.75, marginTop: 16 }}>ArtistOS is building a verification layer for music-industry opportunities. This first public snapshot covers a prioritized cohort of submission endpoints checked manually against current official sources. The purpose is to measure the verification problem before making larger claims about route decay.</p>
+          <p className="muted" style={{ maxWidth: 900, fontSize: "1.08rem", lineHeight: 1.75, marginTop: 16 }}>ArtistOS is building a verification layer for music-industry opportunities. This public snapshot covers a prioritized cohort of submission endpoints checked manually against current official sources. The purpose is to measure the verification problem before making larger claims about route decay.</p>
         </section>
 
         <section className="grid three-col" style={{ marginBottom: 18 }}>
@@ -104,7 +125,7 @@ export default function RouteVerificationResearchPage() {
         </section>
 
         <section className="card" style={{ marginBottom: 18 }}>
-          <div className="section-heading"><div><p className="eyebrow">What changed</p><h2 style={{ fontSize: "1.6rem", marginTop: 8 }}>Four clear examples from the evidence trail</h2></div></div>
+          <div className="section-heading"><div><p className="eyebrow">What changed</p><h2 style={{ fontSize: "1.6rem", marginTop: 8 }}>Seven clear examples from the evidence trail</h2></div></div>
           <div className="stack" style={{ marginTop: 14 }}>
             {examples.map((example) => <article className="directory-row" key={example.name}><div className="directory-main"><div className="tag-row"><strong>{example.name}</strong><span className="pill">{example.label}</span></div><p className="muted"><strong style={{ color: "var(--text)" }}>Before:</strong> {example.before}</p><p className="muted"><strong style={{ color: "var(--text)" }}>Current finding:</strong> {example.after}</p><a className="button ghost compact" href={example.source} target="_blank" rel="noreferrer">Official source ↗</a></div></article>)}
           </div>
@@ -118,7 +139,7 @@ export default function RouteVerificationResearchPage() {
         <section className="card" style={{ marginBottom: 18 }}>
           <p className="eyebrow">What comes next</p>
           <h2 style={{ fontSize: "1.55rem", marginTop: 8 }}>A larger cohort can support stronger claims.</h2>
-          <p className="muted" style={{ lineHeight: 1.75 }}>The next research layer is to expand the verified cohort across radio, press, playlists, labels, sync, and creator routes; predefine change categories; preserve every verification event; and report results by source category and verification age. Until then, the 17.4% figure remains a descriptive pilot statistic—not a population estimate.</p>
+          <p className="muted" style={{ lineHeight: 1.75 }}>The next research layer is to expand the verified cohort across radio, press, playlists, labels, sync, and creator routes; predefine change categories; preserve every verification event; and report results by source category and verification age. Until then, the {minimumCorrectionRate}% figure remains a descriptive pilot statistic—not a population estimate.</p>
           <div className="nav-links" style={{ marginTop: 18 }}><Link className="button primary" href="/verified-routes">Browse currently verified routes</Link><Link className="button ghost" href="/methodology">Read verification methodology</Link></div>
         </section>
       </div>
