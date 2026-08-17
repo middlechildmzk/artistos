@@ -6,7 +6,15 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: ["/", "/verified-routes", "/methodology"],
+      allow: [
+        "/",
+        "/verified-routes",
+        "/music-submission-sites",
+        "/radio-stations-accepting-music",
+        "/music-blogs-accepting-submissions",
+        "/sync-licensing-submissions",
+        "/methodology",
+      ],
       disallow: [
         "/api/",
         "/auth/",
