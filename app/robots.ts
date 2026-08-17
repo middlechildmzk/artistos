@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         "/radio-stations-accepting-music",
         "/music-blogs-accepting-submissions",
         "/sync-licensing-submissions",
+        "/research/music-submission-route-verification",
         "/methodology",
       ],
       disallow: [
