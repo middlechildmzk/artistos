@@ -34,7 +34,7 @@ export default function VerifiedRoutesPage() {
       <div className="shell">
         <header className="topbar">
           <Link href="/" className="brand"><div className="logo">A</div><div><strong>ArtistOS Network</strong><div className="eyebrow">Verified routes pilot</div></div></Link>
-          <nav className="nav-links"><Link className="button ghost compact" href="/music-submission-sites">Submission guide</Link><Link className="button ghost compact" href="/methodology">Methodology</Link><Link className="button primary compact" href="/login">Open ArtistOS</Link></nav>
+          <nav className="nav-links"><Link className="button ghost compact" href="/music-submission-sites">Submission guide</Link><Link className="button ghost compact" href="/research/music-submission-route-verification">Research</Link><Link className="button ghost compact" href="/methodology">Methodology</Link><Link className="button primary compact" href="/login">Open ArtistOS</Link></nav>
         </header>
 
         <section className="card release-card" style={{ padding: 38, marginBottom: 18 }}>
@@ -65,7 +65,7 @@ export default function VerifiedRoutesPage() {
 
         <section className="grid two-col" style={{ marginBottom: 18 }}>
           <div className="card"><p className="eyebrow">Important limitation</p><h2 style={{ fontSize: "1.45rem", marginTop: 8 }}>Verified does not mean guaranteed acceptance.</h2><p className="muted" style={{ lineHeight: 1.7 }}>Verification means the route and summarized requirements were supported by a current public source when checked. Editorial taste, capacity, response rate, campaign fit, and future policy changes remain outside that claim.</p></div>
-          <div className="card"><p className="eyebrow">Freshness</p><h2 style={{ fontSize: "1.45rem", marginTop: 8 }}>Routes can decay after publication.</h2><p className="muted" style={{ lineHeight: 1.7 }}>ArtistOS records verification dates because music-industry submission information changes. Changed, stale, and rechecked routes become research data as the verification cohort grows.</p></div>
+          <div className="card"><p className="eyebrow">Freshness</p><h2 style={{ fontSize: "1.45rem", marginTop: 8 }}>Routes can decay after publication.</h2><p className="muted" style={{ lineHeight: 1.7 }}>ArtistOS records verification dates because music-industry submission information changes. Changed, stale, and rechecked routes become research data as the verification cohort grows.</p><Link className="button ghost compact" style={{ marginTop: 12 }} href="/research/music-submission-route-verification">See the 23-route pilot snapshot →</Link></div>
         </section>
 
         <section className="card" style={{ textAlign: "center", padding: 32 }}><h2 style={{ fontSize: "1.6rem" }}>Want the full workflow, not just a list?</h2><p className="muted">ArtistOS connects discovery, fit, evidence, outreach, relationships, and outcomes around each release.</p><div className="nav-links" style={{ justifyContent: "center" }}><Link className="button primary" href="/login">Open ArtistOS</Link><Link className="button ghost" href="/methodology">Read the verification methodology</Link></div></section>
