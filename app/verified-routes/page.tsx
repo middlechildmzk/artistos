@@ -41,7 +41,7 @@ export default function VerifiedRoutesPage() {
           <p className="eyebrow">Public evidence layer</p>
           <h1>Verified music submission routes.</h1>
           <p className="muted" style={{ maxWidth: 850, marginTop: 16, lineHeight: 1.75 }}>These are not copied directory entries. Each route below was independently checked against a current public source. Requirements are summarized because a valid email or form can still be useless when the artist is ineligible, the format is wrong, or the submission method changed.</p>
-          <div className="nav-links" style={{ marginTop: 18 }}><span className="pill">{publicVerifiedRoutes.length} public pilot routes</span><span className="pill">official-source checked</span><span className="pill">dated verification</span></div>
+          <div className="nav-links" style={{ marginTop: 18 }}><span className="pill">{publicVerifiedRoutes.length} public verified route records</span><span className="pill">official-source checked</span><span className="pill">dated verification</span></div>
         </section>
 
         <section className="grid three-col" style={{ marginBottom: 18 }}>
@@ -49,7 +49,7 @@ export default function VerifiedRoutesPage() {
         </section>
 
         <section className="card" style={{ marginBottom: 18 }}>
-          <div className="section-heading"><div><p className="eyebrow">Current pilot</p><h2 style={{ fontSize: "1.55rem", marginTop: 8 }}>Routes checked from official public sources</h2></div></div>
+          <div className="section-heading"><div><p className="eyebrow">Current public cohort</p><h2 style={{ fontSize: "1.55rem", marginTop: 8 }}>Routes checked from official public sources</h2></div></div>
           <div className="stack" style={{ marginTop: 12 }}>
             {publicVerifiedRoutes.map((route) => (
               <article className="directory-row" key={route.name}>
@@ -65,7 +65,7 @@ export default function VerifiedRoutesPage() {
 
         <section className="grid two-col" style={{ marginBottom: 18 }}>
           <div className="card"><p className="eyebrow">Important limitation</p><h2 style={{ fontSize: "1.45rem", marginTop: 8 }}>Verified does not mean guaranteed acceptance.</h2><p className="muted" style={{ lineHeight: 1.7 }}>Verification means the route and summarized requirements were supported by a current public source when checked. Editorial taste, capacity, response rate, campaign fit, and future policy changes remain outside that claim.</p></div>
-          <div className="card"><p className="eyebrow">Freshness</p><h2 style={{ fontSize: "1.45rem", marginTop: 8 }}>Routes can decay after publication.</h2><p className="muted" style={{ lineHeight: 1.7 }}>ArtistOS records verification dates because music-industry submission information changes. Changed, stale, and rechecked routes become research data as the verification cohort grows.</p><Link className="button ghost compact" style={{ marginTop: 12 }} href="/research/music-submission-route-verification">See the 23-route pilot snapshot →</Link></div>
+          <div className="card"><p className="eyebrow">Freshness</p><h2 style={{ fontSize: "1.45rem", marginTop: 8 }}>Routes can decay after publication.</h2><p className="muted" style={{ lineHeight: 1.7 }}>ArtistOS records verification dates because music-industry submission information changes. Changed, stale, and rechecked routes become research data as the verification cohort grows.</p><Link className="button ghost compact" style={{ marginTop: 12 }} href="/research/music-submission-route-verification">See the 28-route pilot snapshot →</Link></div>
         </section>
 
         <section className="card" style={{ textAlign: "center", padding: 32 }}><h2 style={{ fontSize: "1.6rem" }}>Want the full workflow, not just a list?</h2><p className="muted">ArtistOS connects discovery, fit, evidence, outreach, relationships, and outcomes around each release.</p><div className="nav-links" style={{ justifyContent: "center" }}><Link className="button primary" href="/login">Open ArtistOS</Link><Link className="button ghost" href="/methodology">Read the verification methodology</Link></div></section>
