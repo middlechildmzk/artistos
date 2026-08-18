@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { routesByLane } from "@/lib/public-verified-routes";
+import { expandedRoutesByLane } from "@/lib/public-verified-routes-expanded";
 
 export const metadata: Metadata = {
-  title: "Radio Stations Accepting Music Submissions | Verified Routes for Independent Artists",
+  title: "Radio Stations Accepting Music Submissions | Verified 2026 Routes",
   description: "Browse independently verified radio submission routes for independent artists, including current digital, physical, and eligibility requirements with official sources and verification dates.",
   alternates: { canonical: "/radio-stations-accepting-music" },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-const routes = routesByLane("radio");
+const routes = expandedRoutesByLane("radio");
 
 const checks = [
   ["Digital or physical?", "Some stations accept streaming or download links; others still require professionally pressed physical media."],
@@ -33,7 +33,7 @@ export default function RadioStationsAcceptingMusicPage() {
         headline: "Radio Stations Accepting Music Submissions",
         description: metadata.description,
         datePublished: "2026-08-16",
-        dateModified: "2026-08-16",
+        dateModified: "2026-08-18",
         author: { "@type": "Organization", name: "ArtistOS Network" },
       },
       {
@@ -55,11 +55,11 @@ export default function RadioStationsAcceptingMusicPage() {
       <div className="shell">
         <header className="topbar">
           <Link href="/" className="brand"><div className="logo">A</div><div><strong>ArtistOS Network</strong><div className="eyebrow">Radio submission intelligence</div></div></Link>
-          <nav className="nav-links"><Link className="button ghost compact" href="/music-submission-sites">Submission guide</Link><Link className="button ghost compact" href="/verified-routes">All verified routes</Link><Link className="button primary compact" href="/login">Open ArtistOS</Link></nav>
+          <nav className="nav-links"><Link className="button ghost compact" href="/music-submission-sites">Submission guide</Link><Link className="button ghost compact" href="/research/music-submission-route-verification">Research</Link><Link className="button ghost compact" href="/verified-routes">All verified routes</Link><Link className="button primary compact" href="/login">Open ArtistOS</Link></nav>
         </header>
 
         <section className="card release-card" style={{ padding: 40, marginBottom: 18 }}>
-          <p className="eyebrow">Verified radio submissions</p>
+          <p className="eyebrow">Verified radio submissions · Updated August 18, 2026</p>
           <h1>Radio stations accepting music submissions.</h1>
           <p className="muted" style={{ maxWidth: 880, marginTop: 16, lineHeight: 1.75 }}>The useful question is not simply whether a station accepts music. It is how it accepts music today. ArtistOS checks the current official route, delivery format, eligibility rules, and verification date before publishing a route here.</p>
           <div className="nav-links" style={{ marginTop: 20 }}><span className="pill">{routes.length} verified radio routes</span><Link className="button ghost" href="/methodology">Verification methodology</Link></div>
@@ -84,6 +84,12 @@ export default function RadioStationsAcceptingMusicPage() {
               </article>
             ))}
           </div>
+        </section>
+
+        <section className="card" style={{ marginBottom: 18 }}>
+          <p className="eyebrow">What the first 50 checks found</p>
+          <h2 style={{ fontSize: "1.5rem", marginTop: 8 }}>Copied radio lists can fail in several different ways.</h2>
+          <p className="muted" style={{ lineHeight: 1.75 }}>Across the completed 50-route ArtistOS pilot cohort, documented corrections included wrong departments, staff contacts presented as submission inboxes, digital routes that became physical-only, dead policy pages, and contacts that current first-party evidence could no longer substantiate. <Link href="/research/music-submission-route-verification">See the full research snapshot →</Link></p>
         </section>
 
         <section className="card" style={{ marginBottom: 18 }}>
