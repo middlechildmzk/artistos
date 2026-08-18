@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { publicVerifiedRoutes } from "@/lib/public-verified-routes";
+import { expandedPublicVerifiedRoutes } from "@/lib/public-verified-routes-expanded";
 
 export const metadata: Metadata = {
   title: "Music Submission Sites & Routes: What Independent Artists Should Verify First",
@@ -49,7 +49,7 @@ export default function MusicSubmissionSitesPage() {
     headline: "Music Submission Sites & Routes: What Independent Artists Should Verify First",
     description: metadata.description,
     datePublished: "2026-08-15",
-    dateModified: "2026-08-15",
+    dateModified: "2026-08-18",
     author: { "@type": "Organization", name: "ArtistOS Network" },
     about: ["music submission", "independent artists", "radio submission", "music blogs", "sync licensing"],
   };
@@ -67,7 +67,7 @@ export default function MusicSubmissionSitesPage() {
           <p className="eyebrow">Independent artist guide</p>
           <h1>Music submission sites are only useful if the route is still true.</h1>
           <p className="muted" style={{ maxWidth: 880, marginTop: 16, lineHeight: 1.75 }}>Before pitching a playlist, radio station, music blog, label, or sync contact, verify the current official submission route, eligibility, format, cost, and last-updated evidence. ArtistOS is building that verification layer instead of treating old directory entries as permanent facts.</p>
-          <div className="nav-links" style={{ marginTop: 20 }}><Link className="button primary" href="/verified-routes">Browse {publicVerifiedRoutes.length} verified pilot routes</Link><Link className="button ghost" href="/methodology">How verification works</Link></div>
+          <div className="nav-links" style={{ marginTop: 20 }}><Link className="button primary" href="/verified-routes">Browse {expandedPublicVerifiedRoutes.length} public verified routes</Link><Link className="button ghost" href="/methodology">How verification works</Link></div>
         </section>
 
         <section className="card" style={{ marginBottom: 18 }}>
