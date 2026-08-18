@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { invokeCapability } from "@/lib/capabilities/invoke";
 import { createActorContext, createServerInvocationDependencies } from "@/lib/capabilities/server-runtime";
 import { semanticIdempotencyKey } from "@/lib/network-intelligence/source-runtime/idempotency";
+import { listSourceAdapters } from "@/lib/network-intelligence/source-runtime/registry";
 
 async function invokeOpportunity(name: string, input: Record<string, unknown>) {
   const ctx = await createActorContext();
@@ -17,6 +18,44 @@ function assertCompleted(result: Awaited<ReturnType<typeof invokeOpportunity>>) 
   if (result.status === "requires_approval") return { approvalId: result.approvalId };
   if (result.status === "denied") throw new Error(`Action denied by ${result.policy}: ${result.reason}`);
   throw new Error(`${result.error.code}: ${result.error.message}`);
+}
+
+export async function searchOpportunityDirectory(formData: FormData) {
+  const query = String(formData.get("query") ?? "").trim();
+  const genre = String(formData.get("genre") ?? "").trim();
+  const territory = String(formData.get("territory") ?? "").trim();
+  const releaseId = String(formData.get("releaseId") ?? "") || null;
+  const lanes = formData.getAll("lanes").map(String).filter(Boolean);
+  const submissionNonce = String(formData.get("submissionNonce") ?? "").trim();
+  const maxResultsPerLane = Number(formData.get("maxResultsPerLane") ?? 10);
+  if (!query || !submissionNonce) return;
+
+  const effectiveLanes = lanes.length ? lanes : ["radio", "playlist", "youtube_channel", "creator", "publication"];
+  const fitContext = [genre, territory].filter(Boolean).join(" · ") || null;
+  const availableSources = listSourceAdapters()
+    .filter((adapter) => adapter.health().status === "available" && adapter.policy.executionEnabled)
+    .map((adapter) => adapter.slug);
+  const title = query.slice(0, 120);
+  const objective = `Find current ${effectiveLanes.join(", ")} opportunities for ${query}.`;
+
+  const created = assertCompleted(await invokeOpportunity("opportunity.create_search", {
+    releaseId,
+    title,
+    query,
+    objective,
+    fitContext,
+    lanes: effectiveLanes,
+    sources: availableSources,
+    idempotencyKey: semanticIdempotencyKey("opportunity-search", [query, fitContext, releaseId, effectiveLanes, availableSources, submissionNonce]),
+  })) as { searchId?: string };
+  if (!created.searchId) return;
+
+  assertCompleted(await invokeOpportunity("opportunity.execute_search", {
+    searchId: created.searchId,
+    maxResultsPerLane,
+    idempotencyKey: semanticIdempotencyKey("opportunity-execute", [created.searchId, maxResultsPerLane, submissionNonce]),
+  }));
+  revalidatePath("/opportunities");
 }
 
 export async function createOpportunitySearch(formData: FormData) {
