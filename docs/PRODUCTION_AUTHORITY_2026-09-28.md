@@ -16,11 +16,11 @@ Supabase project:
 
 Live migration ledger on 2026-09-28:
 
-- **55** total migrations.
+- **56** total migrations.
 - **47** migration files in the ArtistOS repository.
 - **44** live versions match source-controlled ArtistOS migration versions exactly.
 - **3** ArtistOS migrations have the same migration name and canonically identical SQL, but different version timestamps between source and the live ledger.
-- **8** live BVSS migrations are not in the ArtistOS repo. They belong to the BVSS application and are being recovered into `middlechildmzk/middle-child-experience`.
+- **9** live BVSS migrations are not in the ArtistOS repo. They belong to the BVSS application and are being recovered into `middlechildmzk/middle-child-experience`.
 
 ## Timestamp-only ArtistOS migration divergence
 
@@ -38,7 +38,7 @@ This is **not semantic schema drift**, but it is still migration-ledger/source-c
 
 ## BVSS migrations in the shared project
 
-The live project also contains these eight later migrations:
+The live project also contains these nine later migrations:
 
 - `20260926153552_bvss_playlist_os_foundation`
 - `20260926154658_bvss_playlist_os_security_and_indexes`
@@ -48,6 +48,7 @@ The live project also contains these eight later migrations:
 - `20260926183528_bvss_curator_network_v2_indexes`
 - `20260926184929_bvss_submission_progressive_identification`
 - `20260926203817_add_bvss_admin_password_setup_tokens`
+- `20260928163302_bvss_playlist_share_event`
 
 They are being recovered from the live migration ledger into the BVSS repository. They should not be duplicated into ArtistOS merely to make a count match. The shared database now has **cross-repo migration ownership**, which needs an explicit replay/orchestration policy.
 
