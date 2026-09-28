@@ -4,12 +4,12 @@ This directory is the required source-control location for every forward databas
 
 ## Current production state
 
-As of 2026-09-28, the shared `artistos-core` production project contains **55** migration-ledger entries.
+As of 2026-09-28, the shared `artistos-core` production project contains **56** migration-ledger entries.
 
 ArtistOS source control contains **47** migration files:
 - 44 match live migration versions exactly.
 - 3 have the same migration names and canonically identical SQL as production, but different version timestamps.
-- 8 later live migrations are BVSS-owned and are being recovered in `middlechildmzk/middle-child-experience`, not duplicated here.
+- 9 later live migrations are BVSS-owned and are being recovered in `middlechildmzk/middle-child-experience`, not duplicated here.
 
 The ArtistOS application therefore has real production-bearing schema/data, but full database reproducibility remains blocked until the ordered **cross-repo** migration history is explicitly manifested and clean-replayed.
 
@@ -29,10 +29,10 @@ See `../../docs/PRODUCTION_AUTHORITY_2026-09-28.md` for the current reconciliati
 
 ## Recovery status
 
-- Live ledger captured: 55 migrations.
+- Live ledger captured: 56 migrations.
 - ArtistOS migration files present: 47.
 - Exact-version matches: 44.
 - Timestamp-only / same-name / canonical-SQL-equal divergences: 3.
-- BVSS-owned live migrations: 8, source recovery in the BVSS repo.
+- BVSS-owned live migrations: 9, source recovery in the BVSS repo.
 - Clean cross-repo replay: still required.
 - Production data changes in this reconciliation: none.
