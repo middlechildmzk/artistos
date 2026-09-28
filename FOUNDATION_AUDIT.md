@@ -1,3 +1,5 @@
+> **Current-state update — 2026-09-28:** this file records the earlier foundation/recovery audit. The live project has materially evolved since then. The current authority verdict is **PARTIALLY AUTHORITATIVE; production reproducibility remains BLOCKED**. See `docs/PRODUCTION_AUTHORITY_2026-09-28.md` for the current 55-migration reconciliation, live data occupancy, and cross-repo migration ownership.
+
 # ArtistOS foundation audit
 
 ## Executive result
