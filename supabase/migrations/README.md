@@ -4,21 +4,16 @@ This directory is the required source-control location for every forward databas
 
 ## Current production state
 
-The `artistos-core` production project contains 40 entries in `supabase_migrations.schema_migrations`, spanning `20260711232934_artistos_core_foundation` through `20260729005831_marketplace_rls_performance`.
+As of 2026-09-28, the shared `artistos-core` production project contains **55** migration-ledger entries.
 
-The canonical repository now includes the original recovered migration sequence plus the seven production migrations applied after the canonical ArtistOS rollout:
+ArtistOS source control contains **47** migration files:
+- 44 match live migration versions exactly.
+- 3 have the same migration names and canonically identical SQL as production, but different version timestamps.
+- 8 later live migrations are BVSS-owned and are being recovered in `middlechildmzk/middle-child-experience`, not duplicated here.
 
-- `20260728222022_artistos_release_command_center_compatibility`
-- `20260728222113_artistos_release_foundation_advisor_hardening`
-- `20260728222155_seed_existing_artistos_release_links`
-- `20260728223443_minimize_fan_consent_evidence`
-- `20260729003724_artistos_marketplace_identity`
-- `20260729005648_marketplace_function_grants`
-- `20260729005831_marketplace_rls_performance`
+The ArtistOS application therefore has real production-bearing schema/data, but full database reproducibility remains blocked until the ordered **cross-repo** migration history is explicitly manifested and clean-replayed.
 
-The marketplace tables are recovered as production history, not an instruction to expose an open marketplace. The approved consolidation blueprint still postpones that product surface until the closed-alpha golden path is proven.
-
-See `../REMOTE_MIGRATION_HISTORY.md` for the verified ledger and `../../docs/ARTISTOS_CONSOLIDATION_BLUEPRINT.md` for product sequencing.
+See `../../docs/PRODUCTION_AUTHORITY_2026-09-28.md` for the current reconciliation and `../../docs/ARTISTOS_CONSOLIDATION_BLUEPRINT.md` for product sequencing.
 
 ## Rules
 
@@ -34,8 +29,10 @@ See `../REMOTE_MIGRATION_HISTORY.md` for the verified ledger and `../../docs/ART
 
 ## Recovery status
 
-- Remote ledger captured: 40/40.
-- Canonical migration files present: 40/40.
-- Exact normalized-content verification: pending CI/live reconciliation for the seven newest recovered files.
-- Clean-database replay: required before merge.
-- Production data changes in this branch: none.
+- Live ledger captured: 55 migrations.
+- ArtistOS migration files present: 47.
+- Exact-version matches: 44.
+- Timestamp-only / same-name / canonical-SQL-equal divergences: 3.
+- BVSS-owned live migrations: 8, source recovery in the BVSS repo.
+- Clean cross-repo replay: still required.
+- Production data changes in this reconciliation: none.
