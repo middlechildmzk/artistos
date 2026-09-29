@@ -955,6 +955,37 @@
       "canonical_chars": 1712,
       "rollback": "supabase/rollback/20260929220000_harden_professional_identity_privileges.down.sql",
       "summary": "Column-scoped self-service on professional_profiles; service-role-only ownership links; claims file/withdraw pending only; anon writes nothing."
+    },
+    {
+      "proposed_version": "20260929220100",
+      "name": "harden_bvss_curator_privileges",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260929220100_harden_bvss_curator_privileges.sql",
+      "tranche": "T1B",
+      "status": "not_applied",
+      "depends_on": [
+        "20260926181236",
+        "20260926182640"
+      ],
+      "canonical_sha256": "20de37f940cd1631233dd94e1ae9123354b44aac166e280cfaf3e83f66c127f0",
+      "canonical_chars": 768,
+      "rollback": "supabase/rollback/20260929220100_harden_bvss_curator_privileges.down.sql",
+      "summary": "Curators edit only update_profile fields; approval, suspension, plan, handle, terms, entitlements, claim verification and admin membership are service-role only."
+    },
+    {
+      "proposed_version": "20260929220200",
+      "name": "bvss_playlist_source_health",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260929220200_bvss_playlist_source_health.sql",
+      "tranche": "T1C",
+      "status": "not_applied",
+      "depends_on": [
+        "20260926153552"
+      ],
+      "canonical_sha256": "886f022282a87ad78e31d917f37c97921b177acabaf476f881e984e0a472e062",
+      "canonical_chars": 5159,
+      "rollback": "supabase/rollback/20260929220200_bvss_playlist_source_health.down.sql",
+      "summary": "Snapshot provenance columns, monotonic triggers on snapshots and current follower values, bvss_playlist_source_status."
     }
   ]
 }

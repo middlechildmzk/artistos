@@ -129,3 +129,14 @@ test("full cross-repo replay reproduces the production fingerprint", { skip: !BV
   }
   await db.close();
 });
+
+test("applied history plus every pending migration applies cleanly in manifest order", { skip: !BVSS_DIR && "set BVSS_REPO_DIR to the middle-child-experience checkout" }, async () => {
+  const manifest = await loadManifest();
+  const pending = manifest.pending.map((p) => p.name);
+  assert.ok(pending.length >= 3);
+  const { db, applied } = await replay({ repoDirs: { artistos: ARTISTOS_ROOT, "middle-child-experience": BVSS_DIR }, pending, manifest });
+  assert.equal(applied.length, 56 + 1 + pending.length);
+  const { rows } = await db.query("select count(*)::int as n from information_schema.tables where table_schema = 'public' and table_name = 'bvss_playlist_source_status'");
+  assert.equal(rows[0].n, 1);
+  await db.close();
+});
