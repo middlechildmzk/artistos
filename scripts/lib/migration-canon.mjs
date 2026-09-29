@@ -1,22 +1,124 @@
 // Shared helpers for the cross-repo migration manifest.
 //
-// Canonical SQL: comments stripped, semicolons removed, whitespace collapsed.
-// This is byte-for-byte the same normalization as
-// scripts/sql/live-migration-ledger-canonical.sql, so a hash computed from a
-// source file here is directly comparable with the hash Postgres computes over
-// supabase_migrations.schema_migrations.statements in production.
+// Canonical SQL (canonicalization version 2) is LITERAL-AWARE. A single-pass
+// PostgreSQL lexer walks the text and:
+//   * copies every literal byte-for-byte: '...' strings ('' escapes),
+//     E'...' strings (backslash escapes), $tag$...$tag$ dollar-quoted strings
+//     and function bodies, and "..." quoted identifiers ("" escapes);
+//   * outside literals only: drops -- and (nested) /* */ comments, collapses
+//     whitespace runs to one space (none just inside parentheses or around a
+//     comma), and splits statements at top-level
+//     semicolons, dropping empty statements;
+//   * joins the trimmed statements with ";\n".
+// So comments, formatting whitespace and separator formatting outside literals
+// never change the hash, while ANY change inside a literal does (version 1
+// stripped ';', '--' and '/*' even inside strings, which let semantic edits
+// collide). Unterminated literals or comments throw: the gate fails closed.
+//
+// The live side is hashed by the same function over the statements exported
+// from supabase_migrations.schema_migrations
+// (scripts/sql/live-migration-ledger-statements.sql), so there is exactly one
+// implementation of the normalization.
 
 import { createHash } from "node:crypto";
 
 export const MIGRATION_FILENAME = /^(\d{14})_(.+)\.sql$/;
+export const CANONICALIZATION_VERSION = 2;
+
+const isIdentChar = (ch) => ch !== undefined && /[A-Za-z0-9_$\u0080-\uffff]/.test(ch);
+const DOLLAR_TAG = /^\$(?:[A-Za-z_\u0080-\uffff][A-Za-z0-9_\u0080-\uffff]*)?\$/;
 
 export function canonicalSql(sql) {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/--[^\n]*/g, "")
-    .replaceAll(";", "")
-    .replace(/\s+/g, " ")
-    .replace(/^ +| +$/g, "");
+  const statements = [];
+  let current = "";
+  let pendingSpace = false;
+  // Whitespace is dropped directly inside parentheses and around commas (never
+  // semantically significant in SQL); everywhere else a run becomes one space.
+  // Spacing around operators is deliberately NOT normalized.
+  const emit = (text) => {
+    if (pendingSpace && current.length && !current.endsWith("(") && !current.endsWith(",") && text !== ")" && text !== ",") current += " ";
+    pendingSpace = false;
+    current += text;
+  };
+  const endStatement = () => {
+    const trimmed = current.trim();
+    if (trimmed) statements.push(trimmed);
+    current = "";
+    pendingSpace = false;
+  };
+
+  let i = 0;
+  const n = sql.length;
+  while (i < n) {
+    const c = sql[i];
+    const next = sql[i + 1];
+
+    if (/\s/.test(c)) { pendingSpace = true; i += 1; continue; }
+
+    if (c === "-" && next === "-") {
+      while (i < n && sql[i] !== "\n") i += 1;
+      pendingSpace = true;
+      continue;
+    }
+
+    if (c === "/" && next === "*") {
+      let depth = 0;
+      const start = i;
+      while (i < n) {
+        if (sql[i] === "/" && sql[i + 1] === "*") { depth += 1; i += 2; }
+        else if (sql[i] === "*" && sql[i + 1] === "/") { depth -= 1; i += 2; if (depth === 0) break; }
+        else i += 1;
+      }
+      if (depth !== 0) throw new Error(`unterminated block comment at offset ${start}`);
+      pendingSpace = true;
+      continue;
+    }
+
+    if (c === ";") { endStatement(); i += 1; continue; }
+
+    if (c === "$" && !isIdentChar(sql[i - 1])) {
+      const match = DOLLAR_TAG.exec(sql.slice(i, i + 256));
+      if (match) {
+        const tag = match[0];
+        const close = sql.indexOf(tag, i + tag.length);
+        if (close < 0) throw new Error(`unterminated dollar-quoted string ${tag} at offset ${i}`);
+        emit(sql.slice(i, close + tag.length));
+        i = close + tag.length;
+        continue;
+      }
+    }
+
+    if (c === "'" || c === '"') {
+      const start = i;
+      const backslashEscapes = c === "'" && (sql[i - 1] === "E" || sql[i - 1] === "e") && !isIdentChar(sql[i - 2]);
+      i += 1;
+      let closed = false;
+      while (i < n) {
+        const ch = sql[i];
+        if (backslashEscapes && ch === "\\") { i += 2; continue; }
+        if (ch === c) {
+          if (sql[i + 1] === c) { i += 2; continue; }
+          i += 1;
+          closed = true;
+          break;
+        }
+        i += 1;
+      }
+      if (!closed) throw new Error(`unterminated ${c === "'" ? "string" : "quoted identifier"} at offset ${start}`);
+      emit(sql.slice(start, i));
+      continue;
+    }
+
+    emit(c);
+    i += 1;
+  }
+  endStatement();
+  return statements.join(";\n");
+}
+
+/** Canonical form of the statements array stored in schema_migrations. */
+export function canonicalStatements(statements) {
+  return canonicalSql(statements.join("\n"));
 }
 
 export function sha256(value) {

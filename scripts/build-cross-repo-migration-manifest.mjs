@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Build supabase/CROSS_REPO_MIGRATION_MANIFEST.json from:
-//   1. a live ledger capture (JSON array produced by
-//      scripts/sql/live-migration-ledger-canonical.sql), and
+//   1. a live ledger export (JSON array of {version, name, statements}
+//      produced by scripts/sql/live-migration-ledger-statements.sql), and
 //   2. checkouts of every repository that owns migrations in artistos-core.
 //
 // Every live entry must resolve to exactly one source file by canonical SQL
@@ -21,7 +21,7 @@ import { execFileSync } from "node:child_process";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
-import { MIGRATION_FILENAME, canonicalHash, deriveDependencies } from "./lib/migration-canon.mjs";
+import { CANONICALIZATION_VERSION, MIGRATION_FILENAME, canonicalHash, canonicalStatements, deriveDependencies, sha256 } from "./lib/migration-canon.mjs";
 
 const MANIFEST_PATH = "supabase/CROSS_REPO_MIGRATION_MANIFEST.json";
 const REPOSITORIES = {
@@ -88,8 +88,14 @@ async function loadSources(repos) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const ledger = JSON.parse(await readFile(args.ledger, "utf8"))
-  .map((row) => ({ ...row, version: String(row.version) }))
+const exported = JSON.parse(await readFile(args.ledger, "utf8"));
+const rows = Array.isArray(exported) ? exported : exported.ledger;
+const ledger = rows
+  .map((row) => {
+    if (!Array.isArray(row.statements)) throw new Error(`ledger row ${row.version} has no statements array; export with live-migration-ledger-statements.sql`);
+    const canon = canonicalStatements(row.statements);
+    return { version: String(row.version), name: row.name, canonical_sha256: sha256(canon), canonical_chars: canon.length };
+  })
   .sort((a, b) => a.version.localeCompare(b.version));
 const { byHash, all } = await loadSources(args.repos);
 
@@ -168,9 +174,10 @@ const manifest = {
   source_commits: Object.fromEntries(Object.entries(args.repos).map(([repo, dir]) => [repo, headCommit(dir)])),
   repositories: REPOSITORIES,
   canonicalization: {
-    description: "Strip /* */ and -- comments, remove all semicolons, collapse whitespace, trim. SHA-256 of the UTF-8 result.",
-    live_capture_sql: "scripts/sql/live-migration-ledger-canonical.sql",
-    source_implementation: "scripts/lib/migration-canon.mjs",
+    version: CANONICALIZATION_VERSION,
+    description: "Literal-aware: string, E-string, dollar-quoted and quoted-identifier contents are preserved byte-for-byte; outside literals, comments are dropped, whitespace is collapsed and statements are split at top-level semicolons (empty statements dropped) and joined with ';\\n'. SHA-256 of the UTF-8 result.",
+    live_export_sql: "scripts/sql/live-migration-ledger-statements.sql",
+    implementation: "scripts/lib/migration-canon.mjs (canonicalSql for files, canonicalStatements for the live ledger)",
   },
   replay_rule: [
     "Replay applied migrations in ascending replay_order, which is ascending production_version across all repositories.",

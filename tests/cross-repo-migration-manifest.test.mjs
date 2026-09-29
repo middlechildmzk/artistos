@@ -10,10 +10,10 @@ import { ARTISTOS_ROOT, fingerprint, loadManifest, replay } from "./support/pgli
 const BVSS_DIR = process.env.BVSS_REPO_DIR ? path.resolve(process.env.BVSS_REPO_DIR) : null;
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
-test("canonicalization matches the live-ledger SQL normalization", () => {
+test("canonical form of a simple migration (literal-aware v2)", () => {
   const sql = "-- header\ncreate table x (\n  id int /* inline */\n);\n\nselect 1;  \n";
-  assert.equal(canonicalSql(sql), "create table x ( id int ) select 1");
-  assert.equal(canonicalHash(sql).chars, "create table x ( id int ) select 1".length);
+  assert.equal(canonicalSql(sql), "create table x (id int);\nselect 1");
+  assert.equal(canonicalHash(sql).chars, "create table x (id int);\nselect 1".length);
 });
 
 test("manifest covers every live migration in strict production order", async () => {
