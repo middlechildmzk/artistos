@@ -36,10 +36,10 @@ async function readSource(repoDir, repositoryPath) {
  * not supplied are checked structurally only and reported as unverified.
  * Returns { errors: string[], warnings: string[], verified: {...} }.
  */
-export async function verifyManifest(manifest, repoDirs) {
+export async function verifyManifest(manifest, repoDirs, { requirePendingLanded = false } = {}) {
   const errors = [];
   const warnings = [];
-  const verified = { applied_hash_checked: 0, pending_hash_checked: 0, unverified_repositories: [] };
+  const verified = { applied_hash_checked: 0, pending_hash_checked: 0, pending_not_landed: [], unverified_repositories: [] };
   const known = new Set(Object.keys(manifest.repositories ?? {}));
 
   for (const repo of known) if (!repoDirs[repo]) verified.unverified_repositories.push(repo);
@@ -116,10 +116,24 @@ export async function verifyManifest(manifest, repoDirs) {
     const sql = await readSource(dir, entry.repository_path);
     const label = `${entry.production_version ?? entry.proposed_version}_${entry.name}`;
     if (sql === null) {
-      errors.push(`${label}: file missing in ${entry.owning_repository}:${entry.repository_path}`);
+      if (entry.production_version || requirePendingLanded) {
+        errors.push(`${label}: file missing in ${entry.owning_repository}:${entry.repository_path}`);
+      } else {
+        // Cross-repo handshake: the authority (this manifest) may declare a
+        // migration before it lands in its owning repository. Not an error;
+        // reported so it cannot go unnoticed. Hash is verified once it lands.
+        verified.pending_not_landed.push(`${entry.owning_repository}:${entry.repository_path}`);
+        warnings.push(`${label}: declared pending, not yet landed in ${entry.owning_repository} (hash verified once it lands)`);
+      }
       continue;
     }
-    const { sha256 } = canonicalHash(sql);
+    let sha256;
+    try {
+      ({ sha256 } = canonicalHash(sql));
+    } catch (error) {
+      errors.push(`${label}: cannot canonicalize (${error.message})`);
+      continue;
+    }
     const expected = entry.live_canonical_sha256 ?? entry.canonical_sha256;
     if (!expected) errors.push(`${label}: no expected hash recorded`);
     else if (sha256 !== expected) errors.push(`${label}: canonical SQL hash ${sha256} does not match recorded ${expected}`);

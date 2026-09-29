@@ -32,7 +32,22 @@ npm run db:replay:assemble -- --repo middle-child-experience=../middle-child-exp
 BVSS_REPO_DIR=../middle-child-experience npm test
 ```
 
-A new migration in either repository must be added to `pending` in this repository first, then merged in its owning repository. After it is applied to production, recapture the ledger with `scripts/sql/live-migration-ledger-canonical.sql`, rebuild with `scripts/build-cross-repo-migration-manifest.mjs`, and recapture `production_fingerprint`.
+### Two-repository merge protocol
+
+This manifest is the authority. A migration owned by another repository is declared here first:
+
+1. Author the migration on a branch in its owning repository.
+2. Open a PR here adding it to `pending` with its canonical hash (`node -e` over `scripts/lib/migration-canon.mjs`, or rebuild with `scripts/build-cross-repo-migration-manifest.mjs`). CI checks the sibling repository's `main`, where the file has not landed yet: the gate PASSES and reports the entry as "declared pending, not yet landed". It still FAILS for any sibling migration file that exists but is undeclared, and for any landed file whose hash differs.
+3. Merge this PR.
+4. The owning repository's CI checks its migration files against this manifest on `main` and fails on anything undeclared or mismatched. Merge it.
+5. Before applying pending migrations to production, run the gate with `--require-pending-landed` so every pending entry must exist and hash-match.
+6. After applying, re-export the ledger with `scripts/sql/live-migration-ledger-statements.sql`, rebuild with `scripts/build-cross-repo-migration-manifest.mjs --ledger <export.json> ...` (entries move from `pending` to `applied`), and recapture `production_fingerprint` with `scripts/sql/replay-parity-fingerprint.sql`.
+
+No branch names are hard-coded; every check runs against the sibling's `main` or a supplied checkout.
+
+### Canonical hashing (version 2, literal-aware)
+
+`scripts/lib/migration-canon.mjs` lexes PostgreSQL: string, E-string, dollar-quoted and quoted-identifier contents are preserved byte-for-byte, while comments, whitespace and statement-separator formatting outside literals are normalized. Changing a literal (for example `'a;b'` to `'ab'`) always changes the hash; unterminated literals or comments fail the gate. The live side is hashed by the same JavaScript over the exported `statements`, so there is one implementation. Version 1 (regex-based) hashes were replaced on 2026-09-29 by re-exporting the live ledger and rebuilding; the builder refuses to write unless every live entry matches exactly one source file.
 
 ## Rules
 

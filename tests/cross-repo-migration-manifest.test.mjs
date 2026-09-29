@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { cp, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -130,13 +131,18 @@ test("full cross-repo replay reproduces the production fingerprint", { skip: !BV
   await db.close();
 });
 
-test("applied history plus every pending migration applies cleanly in manifest order", { skip: !BVSS_DIR && "set BVSS_REPO_DIR to the middle-child-experience checkout" }, async () => {
+test("applied history plus every landed pending migration applies cleanly in manifest order", { skip: !BVSS_DIR && "set BVSS_REPO_DIR to the middle-child-experience checkout" }, async () => {
   const manifest = await loadManifest();
-  const pending = manifest.pending.map((p) => p.name);
-  assert.ok(pending.length >= 3);
-  const { db, applied } = await replay({ repoDirs: { artistos: ARTISTOS_ROOT, "middle-child-experience": BVSS_DIR }, pending, manifest });
-  assert.equal(applied.length, 56 + 1 + pending.length);
-  const { rows } = await db.query("select count(*)::int as n from information_schema.tables where table_schema = 'public' and table_name = 'bvss_playlist_source_status'");
-  assert.equal(rows[0].n, 1);
+  const repoDirs = { artistos: ARTISTOS_ROOT, "middle-child-experience": BVSS_DIR };
+  // Only pending migrations that have landed in their owning checkout can be
+  // replayed; against BVSS main (ArtistOS-first merge) the BVSS ones have not.
+  const landed = manifest.pending.filter((p) => existsSync(path.join(repoDirs[p.owning_repository], p.repository_path)));
+  assert.ok(landed.some((p) => p.owning_repository === "artistos"), "ArtistOS pending migrations are always present here");
+  const { db, applied } = await replay({ repoDirs, pending: landed.map((p) => p.name), manifest });
+  assert.equal(applied.length, 56 + 1 + landed.length);
+  if (landed.some((p) => p.name === "bvss_playlist_source_health")) {
+    const { rows } = await db.query("select count(*)::int as n from information_schema.tables where table_schema = 'public' and table_name = 'bvss_playlist_source_status'");
+    assert.equal(rows[0].n, 1);
+  }
   await db.close();
 });
