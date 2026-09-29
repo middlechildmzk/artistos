@@ -940,5 +940,21 @@
       "cross_repo_depends_on": []
     }
   ],
-  "pending": []
+  "pending": [
+    {
+      "proposed_version": "20260929220000",
+      "name": "harden_professional_identity_privileges",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260929220000_harden_professional_identity_privileges.sql",
+      "tranche": "T1B",
+      "status": "not_applied",
+      "depends_on": [
+        "20260729003724"
+      ],
+      "canonical_sha256": "1a4022d4eb7b86b7cda67e9abe08398f468fd952b45b95636a06fdf545b0a1aa",
+      "canonical_chars": 1712,
+      "rollback": "supabase/rollback/20260929220000_harden_professional_identity_privileges.down.sql",
+      "summary": "Column-scoped self-service on professional_profiles; service-role-only ownership links; claims file/withdraw pending only; anon writes nothing."
+    }
+  ]
 }
