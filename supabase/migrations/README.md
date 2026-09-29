@@ -15,6 +15,25 @@ The ArtistOS application therefore has real production-bearing schema/data, but 
 
 See `../../docs/PRODUCTION_AUTHORITY_2026-09-28.md` for the current reconciliation and `../../docs/ARTISTOS_CONSOLIDATION_BLUEPRINT.md` for product sequencing.
 
+## Cross-repo manifest (authoritative replay order)
+
+`../CROSS_REPO_MIGRATION_MANIFEST.json` is the ordered authority for every migration in the shared `artistos-core` ledger, whichever repository owns it.
+
+- `applied`: all 56 live migrations, in replay order, with owning repository, repository path, canonical production filename, statically derived dependencies, the 3 timestamp aliases, and the live canonical SQL hash each source file must match.
+- `replay_prerequisites`: the three non-migration steps a clean database needs (Supabase platform objects, the pre-ledger fixture embedded in `scripts/verify-local-supabase.sh`, and `scripts/production-schema-reconciliation.sql`).
+- `production_fingerprint`: public columns and policies captured from production; a full replay must reproduce it exactly (`tests/cross-repo-migration-manifest.test.mjs`).
+- `pending`: migrations committed in either repository but not yet applied, with the tranche that authorizes them.
+
+Commands:
+
+```bash
+npm run db:manifest:check -- --repo middle-child-experience=../middle-child-experience
+npm run db:replay:assemble -- --repo middle-child-experience=../middle-child-experience --out /tmp/replay/supabase/migrations
+BVSS_REPO_DIR=../middle-child-experience npm test
+```
+
+A new migration in either repository must be added to `pending` in this repository first, then merged in its owning repository. After it is applied to production, recapture the ledger with `scripts/sql/live-migration-ledger-canonical.sql`, rebuild with `scripts/build-cross-repo-migration-manifest.mjs`, and recapture `production_fingerprint`.
+
 ## Rules
 
 1. Never edit or rename a migration that has been applied to any shared environment.
