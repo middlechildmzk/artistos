@@ -2,7 +2,9 @@
   "name": "artistos-intelligence",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": "24.x" },
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +16,9 @@
     "readiness": "bash scripts/artistos-release-readiness.sh --static",
     "readiness:full-local": "bash scripts/artistos-release-readiness.sh --full-local",
     "readiness:report": "node scripts/generate-release-readiness-report.mjs",
-    "readiness:validate-evidence": "node scripts/validate-release-evidence.mjs"
+    "readiness:validate-evidence": "node scripts/validate-release-evidence.mjs",
+    "db:manifest:check": "node scripts/check-cross-repo-migration-manifest.mjs",
+    "db:replay:assemble": "node scripts/assemble-cross-repo-replay.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -27,6 +31,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
