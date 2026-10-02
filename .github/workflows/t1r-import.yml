@@ -1,0 +1,10 @@
+name: T1-R exact bundle import
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "T1-R helper staged; no import executed."
