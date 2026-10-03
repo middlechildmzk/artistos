@@ -1,0 +1,992 @@
+{
+  "schema_version": 1,
+  "project_ref": "myrtdfyjoxvtubusrrmf",
+  "project_name": "artistos-core",
+  "captured_at": "2026-09-29T22:45:00Z",
+  "source_commits": {
+    "artistos": "6f084004a03c57f1f5d031b47b5ddbab95f611d6",
+    "middle-child-experience": "613fbd3e45de1fa64e64bb7fa9fd3f88e727faf4"
+  },
+  "repositories": {
+    "artistos": {
+      "github": "middlechildmzk/artistos",
+      "migrations_dir": "supabase/migrations"
+    },
+    "middle-child-experience": {
+      "github": "middlechildmzk/middle-child-experience",
+      "migrations_dir": "supabase/migrations"
+    }
+  },
+  "canonicalization": {
+    "version": 2,
+    "description": "Literal-aware: string, E-string, dollar-quoted and quoted-identifier contents are preserved byte-for-byte; outside literals, comments are dropped, whitespace is collapsed and statements are split at top-level semicolons (empty statements dropped) and joined with ';\\n'. SHA-256 of the UTF-8 result.",
+    "live_export_sql": "scripts/sql/live-migration-ledger-statements.sql",
+    "implementation": "scripts/lib/migration-canon.mjs (canonicalSql for files, canonicalStatements for the live ledger)"
+  },
+  "replay_rule": [
+    "Replay applied migrations in ascending replay_order, which is ascending production_version across all repositories.",
+    "Write each file under canonical_filename (the production version), not the repository filename, so a replayed ledger matches production exactly.",
+    "depends_on is a statically derived lower bound used to prove no migration references an object created later; it does not override replay_order.",
+    "Pending migrations are replayed after all applied migrations, in ascending proposed_version, only when their tranche is authorized."
+  ],
+  "replay_prerequisites": [
+    {
+      "step": "platform",
+      "applies_before": "20260711232934",
+      "description": "Supabase platform objects that exist before any project migration: roles anon/authenticated/service_role, auth schema (users, uid(), role(), jwt()), storage schema (buckets, objects). Provided by the Supabase CLI local stack; tests use tests/support/supabase-platform-stub.mjs."
+    },
+    {
+      "step": "preledger_fixture",
+      "owning_repository": "artistos",
+      "insert_as": "20260714110000_local_preledger_fixture.sql",
+      "applies_after": "20260714104403",
+      "applies_before": "20260716170334",
+      "description": "Production state created before the tracked ledger was complete (canonical workspace row, replay owner user, app storage bucket, pre-ledger columns on import_batches/people/properties). Required by 20260726184029_workspace_tenancy_phase_a_additive, which aborts without the canonical workspace. Never recorded in schema_migrations; never applied to production. Kept only as a heredoc inside the replay script, by policy, because it contains canonical production identities; tooling extracts it at replay time.",
+      "embedded_in": "scripts/verify-local-supabase.sh",
+      "embedded_marker": "cat > \"${FIXTURE_PATH}\" <<'SQL'"
+    },
+    {
+      "step": "post_replay_reconciliation",
+      "path": "scripts/production-schema-reconciliation.sql",
+      "owning_repository": "artistos",
+      "applies_after": "20260928163302",
+      "description": "Drops public.industry_contacts and public.playlists, which 20260714104403 created and production no longer has, with no recorded drop migration. Replay only; never applied to production."
+    }
+  ],
+  "production_fingerprint": {
+    "captured_at": "2026-09-29T21:20:00Z",
+    "sql": "scripts/sql/replay-parity-fingerprint.sql",
+    "after": "all applied migrations and replay prerequisites",
+    "public_columns_md5": "acea759a8fa2aeffc5b1c804e33eb6bf",
+    "public_columns": 1647,
+    "public_policies_md5": "6b330c2c9a11bffb7e591949fd307b28",
+    "public_policies": 274,
+    "public_tables": 97,
+    "public_views": 9
+  },
+  "applied": [
+    {
+      "replay_order": 1,
+      "production_version": "20260711232934",
+      "name": "artistos_core_foundation",
+      "canonical_filename": "20260711232934_artistos_core_foundation.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260711232934_artistos_core_foundation.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "211c9eca78c388784c965b531250e7da41a1341f04cf26baeac86fc9a59d9c49",
+      "live_canonical_chars": 8242,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 2,
+      "production_version": "20260711233637",
+      "name": "enable_rls_authenticated_only",
+      "canonical_filename": "20260711233637_enable_rls_authenticated_only.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260711233637_enable_rls_authenticated_only.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "031df9373eb7155619882a12d4a45d7b2f47399657b8125d99787e6d0149e2ef",
+      "live_canonical_chars": 386,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 3,
+      "production_version": "20260713011627",
+      "name": "importer_dedupe_constraints",
+      "canonical_filename": "20260713011627_importer_dedupe_constraints.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260713011627_importer_dedupe_constraints.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "e4005202dfaf76bbf0855fa3d33f89e64db4c62720bf65a8398ad144c3b9abde",
+      "live_canonical_chars": 209,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 4,
+      "production_version": "20260713161400",
+      "name": "phase3_fan_reload_hardening",
+      "canonical_filename": "20260713161400_phase3_fan_reload_hardening.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260713161400_phase3_fan_reload_hardening.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "42b4d4a7a3bbb54449ba7f2ce2af77e4d3d126ad1993e055f8dbef73b0c6ca8f",
+      "live_canonical_chars": 297,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 5,
+      "production_version": "20260714104403",
+      "name": "create_industry_contacts_and_playlists",
+      "canonical_filename": "20260714104403_create_industry_contacts_and_playlists.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260714104403_create_industry_contacts_and_playlists.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "ae8847be32ae133f644fcb1b4984354a3e21a37c2ea73bb58f70acda81b482ae",
+      "live_canonical_chars": 894,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 6,
+      "production_version": "20260716170334",
+      "name": "session_a_rls_lockdown",
+      "canonical_filename": "20260716170334_session_a_rls_lockdown.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260716170334_session_a_rls_lockdown.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "dc3061982943f29f3586690d9673b9537c8a615103f84908566ade14056e50d4",
+      "live_canonical_chars": 979,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 7,
+      "production_version": "20260716170353",
+      "name": "session_b_ai_generations_audit",
+      "canonical_filename": "20260716170353_session_b_ai_generations_audit.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260716170353_session_b_ai_generations_audit.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "a6723ee74965cb7dd06003ba5d219d90e92c4f28212531fe1470831da3199e81",
+      "live_canonical_chars": 1498,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 8,
+      "production_version": "20260716174354",
+      "name": "session_b_revoke_anon_ai_generations",
+      "canonical_filename": "20260716174354_session_b_revoke_anon_ai_generations.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260716174354_session_b_revoke_anon_ai_generations.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "e4fe592906cfdbe6e826ef015e749997fc390c75d2fefc3cdcaf086717612c0f",
+      "live_canonical_chars": 45,
+      "depends_on": [
+        "20260716170353"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 9,
+      "production_version": "20260716175557",
+      "name": "session_b1_ai_generations_creator_rls",
+      "canonical_filename": "20260716175557_session_b1_ai_generations_creator_rls.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260716175557_session_b1_ai_generations_creator_rls.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "02097f1bcffce45524b713fa77cf72ce78821da39a242b8682ef018e24617a90",
+      "live_canonical_chars": 1293,
+      "depends_on": [
+        "20260716170353"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 10,
+      "production_version": "20260717210719",
+      "name": "session_c_execution_loop",
+      "canonical_filename": "20260717210719_session_c_execution_loop.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260717210719_session_c_execution_loop.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "e8407df9d3138f654d3113fa280b799bdbd55d459b7162f349fa7f7154a4d093",
+      "live_canonical_chars": 2989,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 11,
+      "production_version": "20260724203954",
+      "name": "artistos_integrations",
+      "canonical_filename": "20260724203954_artistos_integrations.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260724203954_artistos_integrations.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "1f1fa509a65e8e4d79eb04f0c694188bd498596b9e53f0206ae102bcc6f2a985",
+      "live_canonical_chars": 2535,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 12,
+      "production_version": "20260724204056",
+      "name": "artistos_integrations_hardening",
+      "canonical_filename": "20260724204056_artistos_integrations_hardening.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260724204056_artistos_integrations_hardening.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "57fba2da120de54ef095370647174467e4e08f5f5a370906bc370d1d143d94ee",
+      "live_canonical_chars": 357,
+      "depends_on": [
+        "20260724203954"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 13,
+      "production_version": "20260724204234",
+      "name": "artistos_advisor_fixes",
+      "canonical_filename": "20260724204234_artistos_advisor_fixes.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260724204234_artistos_advisor_fixes.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "411e318b60f6fc0a7c8bc22641e79fb792a274f60ed4250a70479401dc770cd6",
+      "live_canonical_chars": 1100,
+      "depends_on": [
+        "20260716170353",
+        "20260716175557",
+        "20260724203954"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 14,
+      "production_version": "20260724212131",
+      "name": "temporary_artistos_transfer_cleanup_policy",
+      "canonical_filename": "20260724212131_temporary_artistos_transfer_cleanup_policy.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260724212131_temporary_artistos_transfer_cleanup_policy.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "a5f89db4ff2f7c681a16c0f58941c60329d54d2b6a25512ca9d91c51183f9066",
+      "live_canonical_chars": 229,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 15,
+      "production_version": "20260724212337",
+      "name": "remove_temporary_artistos_transfer_cleanup_policy",
+      "canonical_filename": "20260724212337_remove_temporary_artistos_transfer_cleanup_policy.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260724212337_remove_temporary_artistos_transfer_cleanup_policy.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "e7ceb2f8358b37ffb3c4af6cb4e5cde13ca7ac3b317ebc591ee93bd31c4f0a45",
+      "live_canonical_chars": 77,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 16,
+      "production_version": "20260725155847",
+      "name": "artistos_music_intelligence",
+      "canonical_filename": "20260725155847_artistos_music_intelligence.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260725155847_artistos_music_intelligence.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "b9f66b3d0dfd1dd476c74d80ef516e290a3937e1acd8724a585c51c127180b42",
+      "live_canonical_chars": 9279,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 17,
+      "production_version": "20260725160343",
+      "name": "artistos_social_execution",
+      "canonical_filename": "20260725160343_artistos_social_execution.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260725160343_artistos_social_execution.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "5e7b2e440f81ab2e07195711611467fa7e3afd59190b0c7e6fdd3e5fbd525936",
+      "live_canonical_chars": 2162,
+      "depends_on": [
+        "20260711232934",
+        "20260724203954"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 18,
+      "production_version": "20260726184029",
+      "name": "workspace_tenancy_phase_a_additive",
+      "canonical_filename": "20260726184029_workspace_tenancy_phase_a_additive.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260726184029_workspace_tenancy_phase_a_additive.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "3ad4af06729eb1500fb28cb1140efd888799ea0272f43544c732d0179d66ed74",
+      "live_canonical_chars": 3366,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 19,
+      "production_version": "20260726184111",
+      "name": "workspace_tenancy_phase_a_defaults",
+      "canonical_filename": "20260726184111_workspace_tenancy_phase_a_defaults.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260726184111_workspace_tenancy_phase_a_defaults.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "5ed3ee0466a4a8b8ee423cc7756a530f2e82de3ffd4274329703d14c5ba13e0a",
+      "live_canonical_chars": 780,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 20,
+      "production_version": "20260726193925",
+      "name": "parity_sprint_schema",
+      "canonical_filename": "20260726193925_parity_sprint_schema.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260726193925_parity_sprint_schema.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "6c82a116dc77cd59191b2c817d96c1eca2773723550e72bba7bfeb1dd46f77f5",
+      "live_canonical_chars": 5898,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 21,
+      "production_version": "20260726234539",
+      "name": "harden_workspace_rls_and_storage",
+      "canonical_filename": "20260726234539_harden_workspace_rls_and_storage.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260726234539_harden_workspace_rls_and_storage.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "03cdfa086b5665be67655fa067890e974cbd91464940c7a75c96c6139d32b48b",
+      "live_canonical_chars": 8681,
+      "depends_on": [
+        "20260711232934",
+        "20260724203954",
+        "20260725155847",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 22,
+      "production_version": "20260726234616",
+      "name": "fix_workspace_membership_policy_recursion",
+      "canonical_filename": "20260726234616_fix_workspace_membership_policy_recursion.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260726234616_fix_workspace_membership_policy_recursion.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "f4586d2ddaf953a679fe29cf37eec8e31212c16d99823728be064eaec9792af0",
+      "live_canonical_chars": 1001,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 23,
+      "production_version": "20260726234727",
+      "name": "align_authenticated_table_grants_with_rls",
+      "canonical_filename": "20260726234727_align_authenticated_table_grants_with_rls.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260726234727_align_authenticated_table_grants_with_rls.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "a34129d34559e790ceba8903c070ae649e84cf14c93e7684c57de25d29f6ff53",
+      "live_canonical_chars": 957,
+      "depends_on": [
+        "20260711232934",
+        "20260725155847"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 24,
+      "production_version": "20260727002138",
+      "name": "asset_upload_limits_and_core_indexes",
+      "canonical_filename": "20260727002138_asset_upload_limits_and_core_indexes.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727002138_asset_upload_limits_and_core_indexes.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "cd79252d64f5bb59a8d641cda98e8d3d767641e036d7cf86c5a77b19227fdda3",
+      "live_canonical_chars": 1921,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 25,
+      "production_version": "20260727132555",
+      "name": "automatic_workspace_provisioning",
+      "canonical_filename": "20260727132555_automatic_workspace_provisioning.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727132555_automatic_workspace_provisioning.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "92dbb64ed38b9c9b5bb90f31ce03e9c1de9ace811575030d8f3dc2058ff8b544",
+      "live_canonical_chars": 1661,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 26,
+      "production_version": "20260727134616",
+      "name": "add_artistos_intelligence_modules",
+      "canonical_filename": "20260727134616_add_artistos_intelligence_modules.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727134616_add_artistos_intelligence_modules.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "5586a266591cd7a1df91e898544dece8df34161fa2057313d289a6ff81ad5038",
+      "live_canonical_chars": 4163,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 27,
+      "production_version": "20260727143513",
+      "name": "artistos_intelligence_operating_layer_v2",
+      "canonical_filename": "20260727143513_artistos_intelligence_operating_layer_v2.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727143513_artistos_intelligence_operating_layer_v2.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "dd8864bb5b1d4b967b64d35cd9af081a34fc7c04f35bf9b92811ecd8069e7bf4",
+      "live_canonical_chars": 9307,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 28,
+      "production_version": "20260727144623",
+      "name": "add_agent_execution_control_plane_v2",
+      "canonical_filename": "20260727144623_add_agent_execution_control_plane_v2.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727144623_add_agent_execution_control_plane_v2.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "d37f7063866e8725c72feafacd4170011882e1c3f9e5f7a7ff2b01697a03b370",
+      "live_canonical_chars": 4964,
+      "depends_on": [
+        "20260711232934",
+        "20260727143513"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 29,
+      "production_version": "20260727170000",
+      "name": "capability_runtime_ledger",
+      "canonical_filename": "20260727170000_capability_runtime_ledger.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727170000_capability_runtime_ledger.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "9fb4dadf765459dcdd7b485e5197e1e223a690fe41d803d230fe7c82190f6d0d",
+      "live_canonical_chars": 7806,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 30,
+      "production_version": "20260727183000",
+      "name": "evidence_records",
+      "canonical_filename": "20260727183000_evidence_records.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727183000_evidence_records.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "1511da272af365f560dd89d5da56d2d592654a0128231b1aebeaf5161030ed1b",
+      "live_canonical_chars": 2200,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 31,
+      "production_version": "20260727190000",
+      "name": "artist_brain_v2",
+      "canonical_filename": "20260727190000_artist_brain_v2.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727190000_artist_brain_v2.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "ee52df575fe5ab2703d0cce1d03808ba8d93dd1985c6cad0657ffd77301302d7",
+      "live_canonical_chars": 6888,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029",
+        "20260727183000"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 32,
+      "production_version": "20260727203000",
+      "name": "artist_knowledge_curator_graph",
+      "canonical_filename": "20260727203000_artist_knowledge_curator_graph.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260727203000_artist_knowledge_curator_graph.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "9a0e024400503769f23af0febf172d3ae27d3e518a27fab8d9fa56c0ccd57446",
+      "live_canonical_chars": 12949,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029",
+        "20260727183000"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 33,
+      "production_version": "20260728202000",
+      "name": "harden_workspace_policy_helpers",
+      "canonical_filename": "20260728202000_harden_workspace_policy_helpers.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260728202000_harden_workspace_policy_helpers.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "4277e7d6787188202043fc98e8c414e9f297f7d02b3159bbd4ae546799b7dde7",
+      "live_canonical_chars": 2348,
+      "depends_on": [
+        "20260727143513"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 34,
+      "production_version": "20260728222022",
+      "name": "artistos_release_command_center_compatibility",
+      "canonical_filename": "20260728222022_artistos_release_command_center_compatibility.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260728222022_artistos_release_command_center_compatibility.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "a7132b0d959ffcad8a50e34e7e45b8bc6ff6066aa5e1da34fc510d5c599b94ef",
+      "live_canonical_chars": 9072,
+      "depends_on": [
+        "20260711232934",
+        "20260717210719",
+        "20260726184029",
+        "20260727183000"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 35,
+      "production_version": "20260728222113",
+      "name": "artistos_release_foundation_advisor_hardening",
+      "canonical_filename": "20260728222113_artistos_release_foundation_advisor_hardening.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260728222113_artistos_release_foundation_advisor_hardening.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "8dd7daf26fa872731216ee2afdd81573dd17ed933c479762752e7176c24c946d",
+      "live_canonical_chars": 3196,
+      "depends_on": [
+        "20260711232934",
+        "20260727183000",
+        "20260728222022"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 36,
+      "production_version": "20260728222155",
+      "name": "seed_existing_artistos_release_links",
+      "canonical_filename": "20260728222155_seed_existing_artistos_release_links.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260728222155_seed_existing_artistos_release_links.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "db311d953506a3d05724a706b269b879c465250927a00b1a7b20161fc03707e1",
+      "live_canonical_chars": 1817,
+      "depends_on": [
+        "20260711232934",
+        "20260726184029",
+        "20260728222022"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 37,
+      "production_version": "20260728223443",
+      "name": "minimize_fan_consent_evidence",
+      "canonical_filename": "20260728223443_minimize_fan_consent_evidence.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260728223443_minimize_fan_consent_evidence.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "617fe73f7e56f4a45c806ea425a790a85482562f06d9a0ef9fbc286a9117d91f",
+      "live_canonical_chars": 352,
+      "depends_on": [
+        "20260728222022"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 38,
+      "production_version": "20260729003724",
+      "name": "artistos_marketplace_identity",
+      "canonical_filename": "20260729003724_artistos_marketplace_identity.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260729003724_artistos_marketplace_identity.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "1001634e5cfa40995afb95e95ce641cb780aa5ad83766829feea4f39afd01185",
+      "live_canonical_chars": 17481,
+      "depends_on": [
+        "20260711232934",
+        "20260717210719",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 39,
+      "production_version": "20260729005648",
+      "name": "marketplace_function_grants",
+      "canonical_filename": "20260729005648_marketplace_function_grants.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260729005648_marketplace_function_grants.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "59fc92c0d371df7282007af7aad019621569474139b1898e898cec9e9622cf1a",
+      "live_canonical_chars": 675,
+      "depends_on": [
+        "20260727132555",
+        "20260729003724"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 40,
+      "production_version": "20260729005831",
+      "name": "marketplace_rls_performance",
+      "canonical_filename": "20260729005831_marketplace_rls_performance.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260729005831_marketplace_rls_performance.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "07454641b55673f7b0ca0c7b32796a0bd4af28ed2ad54605e7f26b6a6d7eb189",
+      "live_canonical_chars": 8884,
+      "depends_on": [
+        "20260725155847",
+        "20260726184029",
+        "20260729003724"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 41,
+      "production_version": "20260729172057",
+      "name": "restore_authenticated_workspace_onboarding",
+      "canonical_filename": "20260729172057_restore_authenticated_workspace_onboarding.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260729172057_restore_authenticated_workspace_onboarding.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "e38bdc68501ecadcfa451071605ee752c831271226f57a991a0cea87a00f8fe1",
+      "live_canonical_chars": 1011,
+      "depends_on": [
+        "20260727132555"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 42,
+      "production_version": "20260730180631",
+      "name": "share_artist_platform_profiles_with_workspace",
+      "canonical_filename": "20260730180631_share_artist_platform_profiles_with_workspace.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260730180631_share_artist_platform_profiles_with_workspace.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "b2efafa31cc0546300cc51955f085cac9ab316c971df65c06a6cf6eb7d2cfe4a",
+      "live_canonical_chars": 881,
+      "depends_on": [
+        "20260725155847",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 43,
+      "production_version": "20260730204030",
+      "name": "external_artist_identities_and_provider_credentials",
+      "canonical_filename": "20260730204030_external_artist_identities_and_provider_credentials.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260730204030_external_artist_identities_and_provider_credentials.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "38ea5bbe1505111e92bf8e5c4b53a695063b77a6ceadebb0536a1b32613db45a",
+      "live_canonical_chars": 2708,
+      "depends_on": [
+        "20260711232934",
+        "20260724203954",
+        "20260726184029"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 44,
+      "production_version": "20260802111802",
+      "name": "allow_spotontrack_provider",
+      "canonical_filename": "20260802111802_allow_spotontrack_provider.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260802111802_allow_spotontrack_provider.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "29794128593d83e2a2988ce59b194a68e041cd6d8bb803e87209c6150c80146b",
+      "live_canonical_chars": 349,
+      "depends_on": [
+        "20260724203954"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 45,
+      "production_version": "20260805163134",
+      "name": "network_intelligence_contact_safety",
+      "canonical_filename": "20260805163134_network_intelligence_contact_safety.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260804143000_network_intelligence_contact_safety.sql",
+      "timestamp_alias": {
+        "source_version": "20260804143000",
+        "production_version": "20260805163134",
+        "reason": "Same name and canonically identical SQL; applied to production under a different version timestamp. Applied history is never renamed."
+      },
+      "live_canonical_sha256": "ef4671a32254f2ccc9f4f3206d44d4c7f57083737732253dfc1e5ee1cdfc18e7",
+      "live_canonical_chars": 10626,
+      "depends_on": [
+        "20260711232934"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 46,
+      "production_version": "20260805163230",
+      "name": "network_source_runtime_v1",
+      "canonical_filename": "20260805163230_network_source_runtime_v1.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260804163000_network_source_runtime_v1.sql",
+      "timestamp_alias": {
+        "source_version": "20260804163000",
+        "production_version": "20260805163230",
+        "reason": "Same name and canonically identical SQL; applied to production under a different version timestamp. Applied history is never renamed."
+      },
+      "live_canonical_sha256": "9b814ceb462ff8b0d59f9db06cd0a0d1261d35dc90893981e86f3cb7a9bb70dd",
+      "live_canonical_chars": 9850,
+      "depends_on": [
+        "20260711232934",
+        "20260717210719",
+        "20260726184029",
+        "20260727203000"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 47,
+      "production_version": "20260805163254",
+      "name": "network_discovery_v2",
+      "canonical_filename": "20260805163254_network_discovery_v2.sql",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260805150000_network_discovery_v2.sql",
+      "timestamp_alias": {
+        "source_version": "20260805150000",
+        "production_version": "20260805163254",
+        "reason": "Same name and canonically identical SQL; applied to production under a different version timestamp. Applied history is never renamed."
+      },
+      "live_canonical_sha256": "211984d80ed792d190910161c7e1adcd129400909e2efab825a6f66d88e5626a",
+      "live_canonical_chars": 4174,
+      "depends_on": [
+        "20260727203000",
+        "20260805163230"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 48,
+      "production_version": "20260926153552",
+      "name": "bvss_playlist_os_foundation",
+      "canonical_filename": "20260926153552_bvss_playlist_os_foundation.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926153552_bvss_playlist_os_foundation.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "9bcf9bdab93643ceea88f08f1f5a01f297efc586156eb7b72c5cc3742e857053",
+      "live_canonical_chars": 17559,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 49,
+      "production_version": "20260926154658",
+      "name": "bvss_playlist_os_security_and_indexes",
+      "canonical_filename": "20260926154658_bvss_playlist_os_security_and_indexes.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926154658_bvss_playlist_os_security_and_indexes.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "09c8c9b774cd66729240340ce885db5dcdf72bec7c56d97ccaa9851eb90e6f48",
+      "live_canonical_chars": 4012,
+      "depends_on": [
+        "20260926153552"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 50,
+      "production_version": "20260926181236",
+      "name": "bvss_curator_network_v1_v2_foundation",
+      "canonical_filename": "20260926181236_bvss_curator_network_v1_v2_foundation.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926181236_bvss_curator_network_v1_v2_foundation.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "99886815ddb1e022cba9cf2d18b3f5331751611b8a77436fb7047027baf4b3a8",
+      "live_canonical_chars": 14702,
+      "depends_on": [
+        "20260926153552"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 51,
+      "production_version": "20260926182509",
+      "name": "bvss_network_v2_upload_safety",
+      "canonical_filename": "20260926182509_bvss_network_v2_upload_safety.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926182509_bvss_network_v2_upload_safety.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "c9300a7a661f097fbb1c829bbc874cef39e706c50f98e415c4e534c1942c63ca",
+      "live_canonical_chars": 2067,
+      "depends_on": [
+        "20260926153552"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 52,
+      "production_version": "20260926182640",
+      "name": "bvss_curator_network_v2_entitlements",
+      "canonical_filename": "20260926182640_bvss_curator_network_v2_entitlements.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926182640_bvss_curator_network_v2_entitlements.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "661acfedf47ccdec6c1a15744463564ad30d9e3e93d7907ee79647340324587f",
+      "live_canonical_chars": 2380,
+      "depends_on": [
+        "20260926153552",
+        "20260926181236"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 53,
+      "production_version": "20260926183528",
+      "name": "bvss_curator_network_v2_indexes",
+      "canonical_filename": "20260926183528_bvss_curator_network_v2_indexes.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926183528_bvss_curator_network_v2_indexes.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "2a695fae91f59c11a892a1a877237c6d4d370bfc24b78a720911d9ab6f5f0410",
+      "live_canonical_chars": 1580,
+      "depends_on": [
+        "20260926153552",
+        "20260926181236",
+        "20260926182509"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 54,
+      "production_version": "20260926184929",
+      "name": "bvss_submission_progressive_identification",
+      "canonical_filename": "20260926184929_bvss_submission_progressive_identification.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926184929_bvss_submission_progressive_identification.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "0202b44047ebf8e397961f8332bfd9fe1c746bada01442f77c6575cdd5e53b11",
+      "live_canonical_chars": 1245,
+      "depends_on": [
+        "20260926153552"
+      ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 55,
+      "production_version": "20260926203817",
+      "name": "add_bvss_admin_password_setup_tokens",
+      "canonical_filename": "20260926203817_add_bvss_admin_password_setup_tokens.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260926203817_add_bvss_admin_password_setup_tokens.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "d4310c136855eb7ddd132ebf82ac400b19166d1f905e3a1ed3d0f2719f61d370",
+      "live_canonical_chars": 595,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 56,
+      "production_version": "20260928163302",
+      "name": "bvss_playlist_share_event",
+      "canonical_filename": "20260928163302_bvss_playlist_share_event.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260928163302_bvss_playlist_share_event.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "490f56e41c28fbe3b34c31e5637546373862ecb419cbbdd626fa8671c43f26cf",
+      "live_canonical_chars": 283,
+      "depends_on": [
+        "20260926153552"
+      ],
+      "cross_repo_depends_on": []
+    }
+  ],
+  "pending": [
+    {
+      "proposed_version": "20260929220000",
+      "name": "harden_professional_identity_privileges",
+      "owning_repository": "artistos",
+      "repository_path": "supabase/migrations/20260929220000_harden_professional_identity_privileges.sql",
+      "tranche": "T1B",
+      "status": "not_applied",
+      "depends_on": [
+        "20260729003724"
+      ],
+      "canonical_sha256": "1d44bfb0a7c3e0676af777a3d40b3eb7904d7abf1aa5aeaf4ec22a644019fd9d",
+      "canonical_chars": 1677,
+      "rollback": "supabase/rollback/20260929220000_harden_professional_identity_privileges.down.sql",
+      "summary": "Column-scoped self-service on professional_profiles; service-role-only ownership links; claims file/withdraw pending only; anon writes nothing."
+    },
+    {
+      "proposed_version": "20260929220100",
+      "name": "harden_bvss_curator_privileges",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260929220100_harden_bvss_curator_privileges.sql",
+      "tranche": "T1B",
+      "status": "not_applied",
+      "depends_on": [
+        "20260926181236",
+        "20260926182640"
+      ],
+      "canonical_sha256": "3082c7ad164eb7650e1dee2f261cf8aacb4c9d223d31cd9f48f0703ee1a80c46",
+      "canonical_chars": 754,
+      "rollback": "supabase/rollback/20260929220100_harden_bvss_curator_privileges.down.sql",
+      "summary": "Curators edit only update_profile fields; approval, suspension, plan, handle, terms, entitlements, claim verification and admin membership are service-role only."
+    },
+    {
+      "proposed_version": "20260929220200",
+      "name": "bvss_playlist_source_health",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20260929220200_bvss_playlist_source_health.sql",
+      "tranche": "T1C",
+      "status": "not_applied",
+      "depends_on": [
+        "20260926153552"
+      ],
+      "canonical_sha256": "6854563a66c6cfadf4562aa00ee7087eac711d97b3ae63c1d09f44f6d6710071",
+      "canonical_chars": 5203,
+      "rollback": "supabase/rollback/20260929220200_bvss_playlist_source_health.down.sql",
+      "summary": "Snapshot provenance columns, monotonic triggers on snapshots and current follower values, bvss_playlist_source_status."
+    }
+  ]
+}
