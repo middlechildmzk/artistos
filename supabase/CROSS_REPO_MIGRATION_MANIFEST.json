@@ -999,10 +999,25 @@
         "20260926153552",
         "20260926181236"
       ],
-      "canonical_sha256": "6409d4116462fe953666f415974036b167076e160c1324134be20e591e8e47da",
-      "canonical_chars": 28019,
+      "canonical_sha256": "97d6c85fdbf991cdf92593c022d3c4a898c1a0a6f81cc2f8621d6de33793fcc4",
+      "canonical_chars": 27922,
       "rollback": "supabase/rollback/20261004170000_bvss_atomic_review_placement_lifecycle.down.sql",
-      "summary": "Atomic route decisions (bvss_decide_route); placement lifecycle scheduled -> pending_verification -> live (observation only) -> removed/completed; server-side decline/hold validation; lifecycle tables writable only through transition functions; dashboards count live placements only."
+      "summary": "Atomic route decisions (bvss_decide_route); placement lifecycle scheduled -> pending_verification -> live (observation only) -> removed/completed; observations keep only track id, position, added time and an evidence hash; server-side decline/hold validation; lifecycle tables writable only through transition functions; dashboards count live placements only."
+    },
+    {
+      "proposed_version": "20261004180000",
+      "name": "bvss_spotify_owner_connection",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261004180000_bvss_spotify_owner_connection.sql",
+      "tranche": "P0-loop",
+      "status": "not_applied",
+      "depends_on": [
+        "20260926153552"
+      ],
+      "canonical_sha256": "ac3832702ad1e8e1569ed259cbd8da65a7a922cf6d69f545907da18468a165b8",
+      "canonical_chars": 5353,
+      "rollback": "supabase/rollback/20261004180000_bvss_spotify_owner_connection.down.sql",
+      "summary": "Read-only Spotify owner connection for placement verification: refresh token in Vault only, scopes limited to playlist-read-private, connection facts on bvss_integrations, 6-hourly observation job."
     }
   ]
 }
