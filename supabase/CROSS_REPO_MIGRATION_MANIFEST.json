@@ -987,6 +987,22 @@
       "canonical_chars": 5203,
       "rollback": "supabase/rollback/20260929220200_bvss_playlist_source_health.down.sql",
       "summary": "Snapshot provenance columns, monotonic triggers on snapshots and current follower values, bvss_playlist_source_status."
+    },
+    {
+      "proposed_version": "20261004170000",
+      "name": "bvss_atomic_review_placement_lifecycle",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261004170000_bvss_atomic_review_placement_lifecycle.sql",
+      "tranche": "P0-loop",
+      "status": "not_applied",
+      "depends_on": [
+        "20260926153552",
+        "20260926181236"
+      ],
+      "canonical_sha256": "6409d4116462fe953666f415974036b167076e160c1324134be20e591e8e47da",
+      "canonical_chars": 28019,
+      "rollback": "supabase/rollback/20261004170000_bvss_atomic_review_placement_lifecycle.down.sql",
+      "summary": "Atomic route decisions (bvss_decide_route); placement lifecycle scheduled -> pending_verification -> live (observation only) -> removed/completed; server-side decline/hold validation; lifecycle tables writable only through transition functions; dashboards count live placements only."
     }
   ]
 }
