@@ -19,12 +19,12 @@ test("canonical form of a simple migration (literal-aware v2)", () => {
 
 test("manifest covers every live migration in strict production order", async () => {
   const manifest = await loadManifest();
-  assert.equal(manifest.applied.length, 62);
+  assert.equal(manifest.applied.length, 66);
   manifest.applied.forEach((entry, index) => {
     assert.equal(entry.replay_order, index + 1);
     if (index) assert.ok(entry.production_version > manifest.applied[index - 1].production_version);
   });
-  assert.equal(manifest.applied.at(-1).production_version, "20261005160123");
+  assert.equal(manifest.applied.at(-1).production_version, "20261005185816");
   const owners = new Set(manifest.applied.map((e) => e.owning_repository));
   assert.deepEqual([...owners].sort(), ["artistos", "middle-child-experience"]);
   assert.ok(manifest.applied.every((e) => e.cross_repo_depends_on.length === 0));
@@ -122,7 +122,7 @@ test("ArtistOS-owned history replays into a clean database from the manifest alo
 test("full cross-repo replay reproduces the production fingerprint", { skip: !BVSS_DIR && "set BVSS_REPO_DIR to the middle-child-experience checkout" }, async () => {
   const manifest = await loadManifest();
   const { db, applied } = await replay({ repoDirs: { artistos: ARTISTOS_ROOT, "middle-child-experience": BVSS_DIR }, manifest });
-  assert.equal(applied.length, 62 + 1);
+  assert.equal(applied.length, 66 + 1);
   const actual = await fingerprint(db);
   const expected = manifest.production_fingerprint;
   for (const key of ["public_columns_md5", "public_columns", "public_policies_md5", "public_policies", "public_tables", "public_views"]) {
@@ -141,7 +141,7 @@ test("applied history plus every landed pending migration applies cleanly in man
   const artistosPending = manifest.pending.filter((p) => p.owning_repository === "artistos");
   assert.ok(artistosPending.every((p) => landed.includes(p)), "ArtistOS pending migrations are always present here");
   const { db, applied } = await replay({ repoDirs, pending: landed.map((p) => p.name), manifest });
-  assert.equal(applied.length, 62 + 1 + landed.length);
+  assert.equal(applied.length, 66 + 1 + landed.length);
   if (landed.some((p) => p.name === "bvss_playlist_source_health")) {
     const { rows } = await db.query("select count(*)::int as n from information_schema.tables where table_schema = 'public' and table_name = 'bvss_playlist_source_status'");
     assert.equal(rows[0].n, 1);

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "project_ref": "myrtdfyjoxvtubusrrmf",
   "project_name": "artistos-core",
-  "captured_at": "2026-10-05T16:47:12Z",
+  "captured_at": "2026-10-05T19:34:00Z",
   "source_commits": {
-    "artistos": "2dbeb71fb0fe3af00d44e8968a609a7e3f5ffdf7",
-    "middle-child-experience": "8079b4033c88d738a8e52359983157e40a64b9f1"
+    "artistos": "90acf4bdb5de7d2e673edae8dbf2d99b4468843b",
+    "middle-child-experience": "dd3262b65a3bca4677eb0c76629d02f25fa6bbe4"
   },
   "repositories": {
     "artistos": {
@@ -54,15 +54,15 @@
     }
   ],
   "production_fingerprint": {
-    "captured_at": "2026-10-05T16:47:12Z",
+    "captured_at": "2026-10-05T19:34:00Z",
     "sql": "scripts/sql/replay-parity-fingerprint.sql",
     "after": "all applied migrations and replay prerequisites",
-    "public_columns_md5": "2e0586257640b6ebd6186538b1175f9b",
-    "public_columns": 1684,
+    "public_columns_md5": "5c10beb40324f6adfec829cd01f6b82e",
+    "public_columns": 1723,
     "public_policies_md5": "0402ad6efafd65bc90571eaebc57e62e",
     "public_policies": 273,
-    "public_tables": 98,
-    "public_views": 9
+    "public_tables": 99,
+    "public_views": 10
   },
   "applied": [
     {
@@ -1032,6 +1032,58 @@
         "20260926153552",
         "20260926181236"
       ],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 63,
+      "production_version": "20261005171613",
+      "name": "curatoros_marketplace_foundation",
+      "canonical_filename": "20261005171613_curatoros_marketplace_foundation.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261005171613_curatoros_marketplace_foundation.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "c25076d1fc37dea81534be198c903b6475c81349c372a7811c3d4ceae750a2d0",
+      "live_canonical_chars": 9311,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 64,
+      "production_version": "20261005185122",
+      "name": "curatoros_claims_routing_sla_hardening",
+      "canonical_filename": "20261005185122_curatoros_claims_routing_sla_hardening.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261005185122_curatoros_claims_routing_sla_hardening.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "e2a5b6356353307b56879d0e9d16090bc47cfd042ff47e8d97293e706b973119",
+      "live_canonical_chars": 16304,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 65,
+      "production_version": "20261005185352",
+      "name": "curatoros_atomic_multi_route_reservation",
+      "canonical_filename": "20261005185352_curatoros_atomic_multi_route_reservation.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261005185352_curatoros_atomic_multi_route_reservation.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "8377a99553ac6505a2e260f0e5b3cd08cf4627b264b9c478edcd4e5256318454",
+      "live_canonical_chars": 3211,
+      "depends_on": [],
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 66,
+      "production_version": "20261005185816",
+      "name": "curatoros_spotify_curator_connections",
+      "canonical_filename": "20261005185816_curatoros_spotify_curator_connections.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261005185816_curatoros_spotify_curator_connections.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "600753e18a5340d83c83c0d337d6e9f2c605f15a3fe5e1d11cd8c7008c4958a4",
+      "live_canonical_chars": 6035,
+      "depends_on": [],
       "cross_repo_depends_on": []
     }
   ],
