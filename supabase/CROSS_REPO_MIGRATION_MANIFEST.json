@@ -1042,7 +1042,7 @@
       "owning_repository": "middle-child-experience",
       "repository_path": "supabase/migrations/20261005171613_curatoros_marketplace_foundation.sql",
       "timestamp_alias": null,
-      "live_canonical_sha256": "dc7077283137778a91515cde357b82cf565b544b03aa2a7516899a7ddbbf40cc",
+      "live_canonical_sha256": "c25076d1fc37dea81534be198c903b6475c81349c372a7811c3d4ceae750a2d0",
       "live_canonical_chars": 9311,
       "depends_on": [],
       "cross_repo_depends_on": []
