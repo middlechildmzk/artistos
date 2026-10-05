@@ -139,7 +139,9 @@ test("real manifest against a BVSS checkout without the pending BVSS files (Arti
     const { errors, verified } = await verifyManifest(manifest, { artistos: ARTISTOS_ROOT, "middle-child-experience": dir });
     assert.deepEqual(errors, []);
     assert.equal(verified.pending_not_landed.length, bvssPending.length);
-    assert.ok(!existsSync(path.join(dir, bvssPending[0].repository_path)));
+    // With nothing pending (all live migrations reconciled) this still proves the
+    // real manifest verifies cleanly against the BVSS checkout.
+    for (const p of bvssPending) assert.ok(!existsSync(path.join(dir, p.repository_path)));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

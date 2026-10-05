@@ -2,10 +2,10 @@
   "schema_version": 1,
   "project_ref": "myrtdfyjoxvtubusrrmf",
   "project_name": "artistos-core",
-  "captured_at": "2026-09-29T22:45:00Z",
+  "captured_at": "2026-10-05T16:47:12Z",
   "source_commits": {
-    "artistos": "6f084004a03c57f1f5d031b47b5ddbab95f611d6",
-    "middle-child-experience": "613fbd3e45de1fa64e64bb7fa9fd3f88e727faf4"
+    "artistos": "2dbeb71fb0fe3af00d44e8968a609a7e3f5ffdf7",
+    "middle-child-experience": "8079b4033c88d738a8e52359983157e40a64b9f1"
   },
   "repositories": {
     "artistos": {
@@ -54,14 +54,14 @@
     }
   ],
   "production_fingerprint": {
-    "captured_at": "2026-09-29T21:20:00Z",
+    "captured_at": "2026-10-05T16:47:12Z",
     "sql": "scripts/sql/replay-parity-fingerprint.sql",
     "after": "all applied migrations and replay prerequisites",
-    "public_columns_md5": "acea759a8fa2aeffc5b1c804e33eb6bf",
-    "public_columns": 1647,
-    "public_policies_md5": "6b330c2c9a11bffb7e591949fd307b28",
-    "public_policies": 274,
-    "public_tables": 97,
+    "public_columns_md5": "2e0586257640b6ebd6186538b1175f9b",
+    "public_columns": 1684,
+    "public_policies_md5": "0402ad6efafd65bc90571eaebc57e62e",
+    "public_policies": 273,
+    "public_tables": 98,
     "public_views": 9
   },
   "applied": [
@@ -939,85 +939,101 @@
         "20260926153552"
       ],
       "cross_repo_depends_on": []
-    }
-  ],
-  "pending": [
+    },
     {
-      "proposed_version": "20260929220000",
+      "replay_order": 57,
+      "production_version": "20260929220000",
       "name": "harden_professional_identity_privileges",
+      "canonical_filename": "20260929220000_harden_professional_identity_privileges.sql",
       "owning_repository": "artistos",
       "repository_path": "supabase/migrations/20260929220000_harden_professional_identity_privileges.sql",
-      "tranche": "T1B",
-      "status": "not_applied",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "1d44bfb0a7c3e0676af777a3d40b3eb7904d7abf1aa5aeaf4ec22a644019fd9d",
+      "live_canonical_chars": 1677,
       "depends_on": [
         "20260729003724"
       ],
-      "canonical_sha256": "1d44bfb0a7c3e0676af777a3d40b3eb7904d7abf1aa5aeaf4ec22a644019fd9d",
-      "canonical_chars": 1677,
-      "rollback": "supabase/rollback/20260929220000_harden_professional_identity_privileges.down.sql",
-      "summary": "Column-scoped self-service on professional_profiles; service-role-only ownership links; claims file/withdraw pending only; anon writes nothing."
+      "cross_repo_depends_on": []
     },
     {
-      "proposed_version": "20260929220100",
+      "replay_order": 58,
+      "production_version": "20260929220100",
       "name": "harden_bvss_curator_privileges",
+      "canonical_filename": "20260929220100_harden_bvss_curator_privileges.sql",
       "owning_repository": "middle-child-experience",
       "repository_path": "supabase/migrations/20260929220100_harden_bvss_curator_privileges.sql",
-      "tranche": "T1B",
-      "status": "not_applied",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "3082c7ad164eb7650e1dee2f261cf8aacb4c9d223d31cd9f48f0703ee1a80c46",
+      "live_canonical_chars": 754,
       "depends_on": [
+        "20260926153552",
         "20260926181236",
         "20260926182640"
       ],
-      "canonical_sha256": "3082c7ad164eb7650e1dee2f261cf8aacb4c9d223d31cd9f48f0703ee1a80c46",
-      "canonical_chars": 754,
-      "rollback": "supabase/rollback/20260929220100_harden_bvss_curator_privileges.down.sql",
-      "summary": "Curators edit only update_profile fields; approval, suspension, plan, handle, terms, entitlements, claim verification and admin membership are service-role only."
+      "cross_repo_depends_on": []
     },
     {
-      "proposed_version": "20260929220200",
+      "replay_order": 59,
+      "production_version": "20260929220200",
       "name": "bvss_playlist_source_health",
+      "canonical_filename": "20260929220200_bvss_playlist_source_health.sql",
       "owning_repository": "middle-child-experience",
       "repository_path": "supabase/migrations/20260929220200_bvss_playlist_source_health.sql",
-      "tranche": "T1C",
-      "status": "not_applied",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "6854563a66c6cfadf4562aa00ee7087eac711d97b3ae63c1d09f44f6d6710071",
+      "live_canonical_chars": 5203,
       "depends_on": [
         "20260926153552"
       ],
-      "canonical_sha256": "6854563a66c6cfadf4562aa00ee7087eac711d97b3ae63c1d09f44f6d6710071",
-      "canonical_chars": 5203,
-      "rollback": "supabase/rollback/20260929220200_bvss_playlist_source_health.down.sql",
-      "summary": "Snapshot provenance columns, monotonic triggers on snapshots and current follower values, bvss_playlist_source_status."
+      "cross_repo_depends_on": []
     },
     {
-      "proposed_version": "20261004170000",
+      "replay_order": 60,
+      "production_version": "20261004170000",
       "name": "bvss_atomic_review_placement_lifecycle",
+      "canonical_filename": "20261004170000_bvss_atomic_review_placement_lifecycle.sql",
       "owning_repository": "middle-child-experience",
       "repository_path": "supabase/migrations/20261004170000_bvss_atomic_review_placement_lifecycle.sql",
-      "tranche": "P0-loop",
-      "status": "not_applied",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "97d6c85fdbf991cdf92593c022d3c4a898c1a0a6f81cc2f8621d6de33793fcc4",
+      "live_canonical_chars": 27922,
       "depends_on": [
         "20260926153552",
         "20260926181236"
       ],
-      "canonical_sha256": "97d6c85fdbf991cdf92593c022d3c4a898c1a0a6f81cc2f8621d6de33793fcc4",
-      "canonical_chars": 27922,
-      "rollback": "supabase/rollback/20261004170000_bvss_atomic_review_placement_lifecycle.down.sql",
-      "summary": "Atomic route decisions (bvss_decide_route); placement lifecycle scheduled -> pending_verification -> live (observation only) -> removed/completed; observations keep only track id, position, added time and an evidence hash; server-side decline/hold validation; lifecycle tables writable only through transition functions; dashboards count live placements only."
+      "cross_repo_depends_on": []
     },
     {
-      "proposed_version": "20261004180000",
+      "replay_order": 61,
+      "production_version": "20261004180000",
       "name": "bvss_spotify_owner_connection",
+      "canonical_filename": "20261004180000_bvss_spotify_owner_connection.sql",
       "owning_repository": "middle-child-experience",
       "repository_path": "supabase/migrations/20261004180000_bvss_spotify_owner_connection.sql",
-      "tranche": "P0-loop",
-      "status": "not_applied",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "ac3832702ad1e8e1569ed259cbd8da65a7a922cf6d69f545907da18468a165b8",
+      "live_canonical_chars": 5353,
       "depends_on": [
         "20260926153552"
       ],
-      "canonical_sha256": "ac3832702ad1e8e1569ed259cbd8da65a7a922cf6d69f545907da18468a165b8",
-      "canonical_chars": 5353,
-      "rollback": "supabase/rollback/20261004180000_bvss_spotify_owner_connection.down.sql",
-      "summary": "Read-only Spotify owner connection for placement verification: refresh token in Vault only, scopes limited to playlist-read-private, connection facts on bvss_integrations, 6-hourly observation job."
+      "cross_repo_depends_on": []
+    },
+    {
+      "replay_order": 62,
+      "production_version": "20261005160123",
+      "name": "fix_multi_route_submission_status",
+      "canonical_filename": "20261005160123_fix_multi_route_submission_status.sql",
+      "owning_repository": "middle-child-experience",
+      "repository_path": "supabase/migrations/20261005160123_fix_multi_route_submission_status.sql",
+      "timestamp_alias": null,
+      "live_canonical_sha256": "90055fe45f13a38797357a06a0ffe0982c8eb72ef21ae62fe497b3862cbc0b34",
+      "live_canonical_chars": 822,
+      "depends_on": [
+        "20260926153552",
+        "20260926181236"
+      ],
+      "cross_repo_depends_on": []
     }
-  ]
+  ],
+  "pending": []
 }
