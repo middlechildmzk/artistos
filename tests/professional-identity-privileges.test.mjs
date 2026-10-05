@@ -11,7 +11,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ARTISTOS_ROOT, replay } from "./support/pglite-replay.mjs";
 
-const MIGRATION = "harden_professional_identity_privileges";
+// harden_professional_identity_privileges, applied to production 2026-10-04.
+// "Before" replays history up to this version; "after" replays it in full.
+const MIGRATION_VERSION = "20260929220000";
 const CURATOR = "aaaaaaaa-0000-4000-8000-000000000001";
 const OTHER = "bbbbbbbb-0000-4000-8000-000000000002";
 const NEWCOMER = "cccccccc-0000-4000-8000-000000000003";
@@ -137,9 +139,9 @@ describe("ArtistOS professional identity privileges (T1B)", () => {
   let afterDb;
 
   before(async () => {
-    ({ db: beforeDb } = await replay());
+    ({ db: beforeDb } = await replay({ stopBefore: MIGRATION_VERSION }));
     await seed(beforeDb);
-    ({ db: afterDb } = await replay({ pending: [MIGRATION] }));
+    ({ db: afterDb } = await replay());
     await seed(afterDb);
   });
 
@@ -222,7 +224,7 @@ describe("ArtistOS professional identity privileges (T1B)", () => {
   });
 
   test("manual rollback restores the pre-migration grants and policies", async () => {
-    const { db } = await replay({ pending: [MIGRATION] });
+    const { db } = await replay();
     try {
       await seed(db);
       await db.exec(await readFile(path.join(ARTISTOS_ROOT, "supabase/rollback/20260929220000_harden_professional_identity_privileges.down.sql"), "utf8"));

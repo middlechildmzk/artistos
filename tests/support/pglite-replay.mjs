@@ -22,10 +22,13 @@ export async function loadManifest() {
  * so an ArtistOS-only replay is valid on its own.
  * pending: list of pending migration names to apply after the applied history.
  */
-export async function replay({ repoDirs = { artistos: ARTISTOS_ROOT }, pending = [], manifest } = {}) {
+// stopBefore: replay applied history only up to (not including) this production
+// version, e.g. to rebuild the schema as it was before a security fix landed.
+export async function replay({ repoDirs = { artistos: ARTISTOS_ROOT }, pending = [], manifest, stopBefore } = {}) {
   manifest ??= await loadManifest();
   const plan = [];
   for (const entry of manifest.applied) {
+    if (stopBefore && entry.production_version >= stopBefore) continue;
     if (repoDirs[entry.owning_repository]) plan.push({ key: entry.canonical_filename, repo: entry.owning_repository, file: entry.repository_path });
   }
   for (const step of manifest.replay_prerequisites ?? []) {
