@@ -29,8 +29,9 @@ export default async function AudiencePage() {
     supabase.from("import_batches").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId),
   ]);
 
-  const contactable = fans ?? [];
-  const verified = contactable.filter((fan) => String(fan.verification_status ?? "").toLowerCase() === "verified").length;
+  const unsuppressed = fans ?? [];
+  // Suppression filtering is not the same as confirmed contact permission.
+  // This screen is informational; it must not imply any fan is send-eligible.
 
   return (
     <main className="shell">
@@ -38,34 +39,39 @@ export default async function AudiencePage() {
         <div>
           <div className="eyebrow">Audience Intelligence</div>
           <h1 style={{ fontSize: "clamp(2rem, 5vw, 3rem)" }}>Audience</h1>
-          <p className="muted">Suppression-safe fan records, consent signals, segments, and import lineage.</p>
+          <p className="muted">Suppression-filtered fan records, imported labels, segments, and source lineage. This is not a verified marketing send list.</p>
         </div>
         <nav className="nav-links"><Link className="button ghost" href="/dashboard">Today</Link><Link className="button ghost" href="/targets">Targets</Link></nav>
       </header>
 
       <section className="grid stats" style={{ marginBottom: 16 }}>
         <div className="card"><div className="eyebrow">All fan records</div><div className="stat-value">{allFans ?? 0}</div></div>
-        <div className="card"><div className="eyebrow">Contactable loaded</div><div className="stat-value">{contactable.length}</div></div>
-        <div className="card"><div className="eyebrow">Verified loaded</div><div className="stat-value">{verified}</div></div>
+        <div className="card"><div className="eyebrow">Unsuppressed loaded</div><div className="stat-value">{unsuppressed.length}</div></div>
+        <div className="card"><div className="eyebrow">Marketing permission</div><div className="stat-value">Not evaluated</div></div>
         <div className="card"><div className="eyebrow">Suppressions</div><div className="stat-value">{suppressionCount ?? 0}</div></div>
       </section>
 
+      <div className="card" role="note" style={{ marginBottom: 16 }}>
+        <strong>Marketing permission is not confirmed by this audience list.</strong>
+        <p className="muted">The source view filters suppressed emails only. Imported consent labels and deliverability checks do not establish a verified opt-in. Sending requires separate, per-fan consent evidence, confirmed contact ownership, and suppression checks. No bulk messaging is available here.</p>
+      </div>
+
       <section className="grid two-col">
         <div className="card">
-          <div className="section-heading"><div><h2>Recent contactable fans</h2><p className="muted">This view automatically excludes suppressed addresses.</p></div><span className="pill">{contactable.length} loaded</span></div>
-          {contactable.length ? contactable.map((fan) => (
+          <div className="section-heading"><div><h2>Recent unsuppressed records</h2><p className="muted">Suppression-filtered only. Not a list of contacts approved for email or SMS marketing.</p></div><span className="pill">{unsuppressed.length} loaded</span></div>
+          {unsuppressed.length ? unsuppressed.map((fan) => (
             <article className="directory-row" key={fan.id}>
               <div className="directory-main">
                 <strong>{fan.name || fan.first_name || fan.email}</strong>
                 <p className="muted">{fan.email}{fan.location ? ` · ${fan.location}` : ""}</p>
                 <div className="tag-row">
                   <span className="pill">{fan.segment || "Unsegmented"}</span>
-                  <span className="pill">Consent: {fan.consent_status || "Unknown"}</span>
-                  <span className="pill">{fan.verification_status || "Unverified"}</span>
+                  <span className="pill">Imported consent label: {fan.consent_status || "Unknown"}</span>
+                  <span className="pill">Data verification: {fan.verification_status || "Unverified"}</span>
                 </div>
               </div>
             </article>
-          )) : <div className="empty">No contactable fans are available yet.</div>}
+          )) : <div className="empty">No unsuppressed records are available yet.</div>}
         </div>
 
         <aside className="stack">
